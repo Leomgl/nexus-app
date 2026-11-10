@@ -65,7 +65,7 @@
      }
      toAck.push(msg.id);
     }
-    if(changed)await persistVerified();
+    if(changed||(toAck.length&&!(await api.verify())))await persistVerified();
     for(const id of toAck){
      try{await window.NexusLinkCore.acknowledge(pair,id);acked++}
      catch(e){console.warn('NEXUS LINK ack retry on next pull',e.message)}

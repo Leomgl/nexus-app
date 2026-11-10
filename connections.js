@@ -38,7 +38,7 @@
   try{localStorage.setItem(STORE,JSON.stringify(cfg));}
   catch{toast('Impossible de sauvegarder ces préférences locales.');}
  }
- function numberEnabled(id){return Object.values(cfg.grants[id]||{}).filter(Boolean).length;}
+ function numberEnabled(id){return id==='gaming'&&ownPairs().length?ownPairs()[0].scopes.length:Object.values(cfg.grants[id]||{}).filter(Boolean).length;}
  function settingsCard(){
   return '<section class="preferences-panel nx-connections-panel">'+
     '<div class="pref-heading">'+svg('link')+'<div><h2>Applications & connexions</h2>'+
@@ -64,7 +64,7 @@
    (linked?'Connexion chiffrée active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle Gaming à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
    '<div class="nx-link-scopes">'+app.scopes.map(([key,label,destination])=>
      '<label class="nx-link-scope"><input type="checkbox" data-connector-scope="'+key+
-     '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+(cfg.grants[id][key]?'checked':'')+'>'+
+     '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+((linked?ownPairs()[0].scopes.includes(key):cfg.grants[id][key])?'checked':'')+'>'+
      '<span><strong>'+escape(label)+'</strong><small>Destination : '+escape(destination)+'</small></span></label>'
    ).join('')+'</div><div class="info-strip">'+svg('shield')+
    ' Gaming → NEXUS : propositions à valider, aucun paiement créé automatiquement et aucune clé de coffre partagée.</div>'+
@@ -153,6 +153,7 @@
   if(kind==='link-finish'){closeModal();render();return true;}
   if(kind==='link-draft-reset'){
    const id=target.dataset.app;
+   if(id==='gaming'&&ownPairs().length){toast('Révoque le jumelage pour changer les permissions.');return true;}
    const app=APPS.find(x=>x.id===id);
    if(!app)return true;
    for(const [scope] of app.scopes)cfg.grants[id][scope]=false;
