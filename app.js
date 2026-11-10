@@ -149,40 +149,71 @@ const noteLinks=(id)=>({
   purchases:data.purchases.filter(x=>x.noteId===id),transactions:data.transactions.filter(x=>x.noteId===id)
 });
 
+
 function homeView(){
- const now = new Date(), today=dateKey(now);
+ const now=new Date(),today=dateKey(now),month=today.slice(0,7);
+ const next=sortEvents(data.events.filter(e=>e.start&&new Date(e.start).getTime()>=Date.now()));
+ const todayEvents=sortEvents(data.events.filter(e=>e.start?.slice(0,10)===today));
  const openTasks=data.tasks.filter(t=>!t.done);
- const upcoming=sortEvents(data.events.filter(e=>e.start>=today)).slice(0,3);
- const month = today.slice(0,7), monthly=monthTotals(month), activeProjects=data.projects.filter(p=>p.status==='active');
- const nextBuys=data.purchases.filter(x=>x.status==='planned').slice(0,3);
- return `
- <section class="hero"><div style="position:relative;z-index:1">
-  <div class="eyebrow">TON ESPACE PERSONNEL · V0.4</div>
-  <h1>Une idée.<br>Tout est connecté.</h1>
-  <p>Capture, organise, relie. Tes notes deviennent des actions, tes achats rejoignent tes projets, et ton budget suit.</p>
-  <button class="btn" data-action="new-note">${svg('plus')} Capture rapide</button>
- </div><div class="hero-bubble">${svg('layers')}</div></section>
- <div class="quick-actions">
-  <button data-action="new-event">${svg('calendar')} <span>Rendez-vous</span></button>
-  <button data-action="new-task">${svg('check')} <span>Rappel</span></button>
-  <button data-action="new-purchase">${svg('cart')} <span>Achat</span></button>
-  <button data-action="new-transaction">${svg('euro')} <span>Dépense</span></button>
- </div>
- <div class="stats-grid stats-grid-four">
-  <button class="card metric metric-button" data-view="notes"><div class="metric-head">Notes <span class="metric-icon">${svg('notes')}</span></div><div class="metric-value">${data.notes.length}</div><div class="metric-caption">dans ta mémoire</div></button>
-  <button class="card metric metric-button" data-view="tasks"><div class="metric-head">À faire <span class="metric-icon">${svg('check')}</span></div><div class="metric-value">${openTasks.length}</div><div class="metric-caption">rappels ouverts</div></button>
-  <button class="card metric metric-button" data-view="projects"><div class="metric-head">Projets <span class="metric-icon">${svg('briefcase')}</span></div><div class="metric-value">${activeProjects.length}</div><div class="metric-caption">en cours</div></button>
-  <button class="card metric metric-button" data-view="budget"><div class="metric-head">Dépenses <span class="metric-icon">${svg('wallet')}</span></div><div class="metric-value metric-money">${money(monthly.expense)}</div><div class="metric-caption">ce mois-ci</div></button>
- </div>
- <div class="two-col"><div>${section('Prochains rendez-vous','calendar')}<div class="list-stack">${upcoming.length?upcoming.map(eventRow).join(''):empty('Agenda tranquille','Aucun rendez-vous à venir.','calendar')}</div></div>
- <div>${section('À ne pas oublier','tasks')}<div class="list-stack">${openTasks.length?openTasks.slice(0,3).map(taskRow).join(''):empty('Tout est au vert','Aucun rappel en attente.','circlecheck')}</div></div></div>
- <div class="two-col"><div>${section('Projets en cours','projects')}<div class="list-stack">${activeProjects.length?activeProjects.slice(0,2).map(projectMini).join(''):empty('De la place pour des idées','Crée ton premier projet.','briefcase')}</div></div>
- <div>${section('Achats à prévoir','purchases')}<div class="list-stack">${nextBuys.length?nextBuys.map(purchaseRow).join(''):empty('Liste d’achats vide','Garde les envies au chaud ici.','cart')}</div></div></div>
- ${section('Tes dernières notes','notes')}
- <div class="cards-grid">${data.notes.length?[...data.notes].sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||'')).slice(0,3).map(noteCard).join(''):empty('Commence par une pensée','Une note peut devenir un rendez-vous, un rappel ou un achat.','notes')}</div>
- <div class="info-strip">${svg('shield')} Test local : aucune donnée n'est envoyée à un serveur. Pense à exporter une sauvegarde avant toute désinstallation.</div>
- `;
+ const urgent=openTasks.filter(t=>t.dueDate&&t.dueDate<=today).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+ const otherTasks=openTasks.filter(t=>!t.dueDate||t.dueDate>today).sort((a,b)=>String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999')));
+ const projects=data.projects.filter(p=>p.status==='active');
+ const spent=monthTotals(month).expense,limit=data.limits.find(l=>l.month===month)?.limitCents;
+ const hello=now.getHours()<12?'Bonjour':now.getHours()<18?'Bon après-midi':'Bonsoir';
+ const widgets={
+  today:()=>`<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">TA JOURNÉE</span><h2>Aujourd'hui</h2></div><button data-view="calendar">Voir l'agenda ${svg('arrow')}</button></div>
+  <div class="widget-columns"><div class="widget-panel"><div class="widget-subtitle">${svg('calendar')} Rendez-vous</div>
+   ${todayEvents.length?todayEvents.slice(0,3).map(eventRow).join(''):empty('Journée libre','Aucun rendez-vous aujourd’hui.','calendar')}
+   ${!todayEvents.length&&next.length?`<p class="next-event">Prochain : ${escapeHtml(next[0].title)} · ${formatDate(next[0].start)}</p>`:''}</div>
+  <div class="widget-panel"><div class="widget-subtitle">${svg('check')} À ne pas oublier</div>
+   ${urgent.length?urgent.slice(0,3).map(taskRow).join(''):otherTasks.length?otherTasks.slice(0,2).map(taskRow).join(''):empty('Tout est au vert','Aucune tâche prioritaire.','circlecheck')}</div></div></section>`,
+  focus:()=>{const p=[...projects].sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0];
+   if(!p)return `<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">GARDER LE CAP</span><h2>Projet en focus</h2></div><button data-view="projects">Projets ${svg('arrow')}</button></div>
+   <div class="focus-card"><span class="focus-icon">${svg('briefcase')}</span><div><strong>Une idée à mettre en mouvement ?</strong><p>Crée un projet, puis relie-y tes notes et actions.</p></div>
+   <button class="btn btn-small" data-action="new-project">${svg('plus')} Projet</button></div></section>`;
+   const tasks=projectTasks(p.id),done=tasks.filter(t=>t.done).length,percent=tasks.length?Math.round(done*100/tasks.length):0;
+   return `<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">GARDER LE CAP</span><h2>Projet en focus</h2></div><button data-view="projects">Tous les projets ${svg('arrow')}</button></div>
+   <button class="focus-card focus-card-clickable" data-action="project-detail" data-id="${p.id}"><span class="focus-icon">${svg('briefcase')}</span>
+    <div><span class="tag">EN COURS</span><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.description||'Un seul endroit pour les idées, rappels et achats.')}</p>
+    <div class="focus-progress"><span>${done}/${tasks.length} tâches · ${percent}%</span><span class="progress-track"><i style="width:${percent}%"></i></span>
+    <small>${money(projectSpent(p.id))} dépensés · ${data.events.filter(e=>e.projectId===p.id).length} rendez-vous</small></div></div></button></section>`},
+  budget:()=>`<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">PILOTER</span><h2>Budget du mois</h2></div><button data-view="budget">Détails ${svg('arrow')}</button></div>
+   <button class="home-budget" data-view="budget"><span>Dépenses · ${formatDate(today,{month:'long',year:'numeric'})}</span><strong>${money(spent)}</strong>
+    <small>${limit>0?`Sur ${money(limit)} de plafond · ${Math.round(spent/limit*100)}% utilisés`:'Aucun plafond défini'}</small>
+    ${limit>0?`<span class="progress-track"><i style="width:${Math.min(100,Math.round(spent/limit*100))}%"></i></span>`:''}</button></section>`,
+  recent:()=>{const activity=[
+    ...data.notes.map(x=>({date:x.updatedAt||x.createdAt,title:x.title,kind:'note',icon:'notes',id:x.id})),
+    ...data.projects.map(x=>({date:x.updatedAt||x.createdAt,title:x.title,kind:'project',icon:'briefcase',id:x.id})),
+    ...data.events.map(x=>({date:x.createdAt||x.start,title:x.title,kind:'event',icon:'calendar',id:x.id})),
+    ...data.purchases.map(x=>({date:x.updatedAt||x.createdAt,title:x.title,kind:'purchase',icon:'cart',id:x.id}))
+   ].filter(x=>x.date).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,4);
+   return `<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">TA MÉMOIRE</span><h2>Activité récente</h2></div><button data-view="notes">Mes notes ${svg('arrow')}</button></div>
+    <div class="activity-list">${activity.length?activity.map(x=>`<button class="activity-entry" data-action="${x.kind}-detail" data-id="${x.id}">
+     <span class="item-ico">${svg(x.icon)}</span><span><strong>${escapeHtml(x.title||'Sans titre')}</strong><small>${formatDate(x.date,{day:'numeric',month:'short'})}</small></span>${svg('chevright')}</button>`).join(''):empty('Ça commence ici','Tes prochaines captures apparaîtront ici.','notes')}</div></section>`;}
+ };
+ return `<section class="nexus-welcome"><div class="welcome-copy">
+  <div class="eyebrow">${svg('sparkle')} NEXUS · SECOND CERVEAU</div>
+  <h1>${hello}<span class="punctuation">.</span></h1>
+  <p>${todayEvents.length} RDV aujourd'hui · ${urgent.length} priorité(s) · ${projects.length} projet(s) actifs</p>
+  <div class="welcome-date">${formatDate(today,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+  </div><div class="welcome-emblem">N</div></section>
+ <section class="capture-card"><div class="capture-top"><div><div class="eyebrow">${svg('bolt')} CAPTURE RAPIDE</div><h2>Qu’as-tu en tête ?</h2></div>
+  <span>Une idée devient une action.</span></div>
+  <label class="sr-only" for="quick-capture">Capture rapide</label>
+  <textarea id="quick-capture" rows="2" maxlength="12000" placeholder="Un rendez-vous, une idée, une dépense, un projet…"></textarea>
+  <div class="capture-footer"><div class="capture-shortcuts">
+   <button data-action="new-event">${svg('calendar')} RDV</button>
+   <button data-action="new-task">${svg('check')} Tâche</button>
+   <button data-action="new-purchase">${svg('cart')} Achat</button>
+   <button data-action="new-transaction">${svg('wallet')} Dépense</button></div>
+   <button class="btn capture-submit" data-action="quick-save">${svg('arrow')} Capturer</button></div></section>
+ ${UI.widgets.length?UI.widgets.map(id=>widgets[id]?.()||'').join(''):
+  `<div class="empty home-empty"><strong>Ton accueil est prêt à être personnalisé.</strong><p>Active les widgets de ton choix.</p>
+  <button class="btn btn-small" data-view="settings">Personnaliser</button></div>`}
+ <div class="home-bottom-links"><button data-view="settings">${svg('sliders')} Personnaliser l’accueil</button>
+ <button data-view="categories">${svg('grid')} Voir toutes les catégories ${svg('arrow')}</button></div>`;
 }
+
 function eventRow(e){const p=data.contacts.find(c=>c.id===e.personId);return `<div class="row-item"><span class="item-ico blue">${svg('calendar')}</span><div class="item-copy"><strong>${escapeHtml(e.title)}</strong><small>${formatDate(e.start,{weekday:'short',day:'numeric',month:'short'})} · ${escapeHtml(e.start.slice(11,16))}${e.location?' · '+escapeHtml(e.location):''}${p?' · '+escapeHtml(p.name):''}</small></div><button class="row-arrow" data-action="event-detail" data-id="${e.id}" aria-label="Voir le rendez-vous">${svg('chevright')}</button></div>`;}
 function taskRow(t){const date=t.dueDate?formatDate(t.dueDate,{weekday:'short',day:'numeric',month:'short'}):'Sans échéance';return `<div class="task-row"><button class="check-round ${t.done?'checked':''}" data-action="toggle-task" data-id="${t.id}" aria-label="${t.done?'Réactiver':'Terminer'} le rappel">${t.done?svg('check'):''}</button><button class="task-main ${t.done?'done':''}" data-action="task-detail" data-id="${t.id}"><strong>${escapeHtml(t.title)}</strong><small>${date}${t.noteId?' · Lié à une note':''}</small></button><button class="row-arrow" data-action="task-detail" data-id="${t.id}">${svg('chevright')}</button></div>`;}
 function noteCard(n){
@@ -786,7 +817,15 @@ document.addEventListener('click',async event=>{
  if(kind==='close-modal'){closeModal();return;}
  if(kind==='pin-module')setSlot(Number(action.dataset.slot),action.dataset.module);
  if(kind==='settings-modal')settings();
- if(kind==='new-note')captureForm('note');
+ if(kind==='quick-save'){
+  const content=document.getElementById('quick-capture')?.value.trim()||'';
+  if(!content){toast('Écris quelque chose avant de capturer.');return;}
+  const line=content.split(/\r?\n/).find(x=>x.trim())?.trim()||'Capture rapide';
+  const now=new Date().toISOString();
+  const note={id:uid(),title:line.slice(0,100),body:content,projectId:'',createdAt:now,updatedAt:now};
+  data.notes.push(note);await persist();render();toast('Pensée capturée.');noteDetail(note.id);
+ }
+  if(kind==='new-note')captureForm('note');
  if(kind==='new-event')captureForm('event');
  if(kind==='new-task')captureForm('task');
  if(kind==='new-contact')captureForm('contact');
