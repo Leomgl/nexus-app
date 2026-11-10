@@ -50,7 +50,7 @@ function uid(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.rand
 function openDb(){return new Promise((resolve,reject)=>{if(!('indexedDB' in window))return reject(new Error('IndexedDB indisponible'));const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(DB_STORE))req.result.createObjectStore(DB_STORE);};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
 async function loadData(){try{dbHandle=await openDb();const stored=await new Promise((resolve,reject)=>{const r=dbHandle.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('main');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});if(stored)assignData(stored);else if(localStorage.getItem(BACKUP_KEY)){assignData(JSON.parse(localStorage.getItem(BACKUP_KEY)));await persist();}}catch(err){console.warn('IndexedDB unavailable; fallback localStorage',err);try{const local=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');if(local)assignData(local);}catch{}}}
 function assignData(incoming){for(const key of Object.keys(data)){data[key]=Array.isArray(incoming?.[key])?incoming[key].filter(v=>v&&typeof v==='object'):[];}}
-async function persist(){const snapshot=JSON.parse(JSON.stringify(data));try{if(dbHandle){await new Promise((resolve,reject)=>{const tx=dbHandle.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(snapshot,'main');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}else localStorage.setItem(BACKUP_KEY,JSON.stringify(snapshot));}catch(err){console.error(err);toast('Enregistrement impossible : exporte tes données.');}}
+async function persist(){const snapshot=JSON.parse(JSON.stringify(data));try{if(dbHandle){await new Promise((resolve,reject)=>{const tx=dbHandle.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(snapshot,'main');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}else localStorage.setItem(BACKUP_KEY,JSON.stringify(snapshot));}catch(err){console.error(err);toast('Enregistrement impossible : exporte tes données.');}finally{window.NexusPush?.onLocalChange?.();window.NexusCloud?.onLocalChange?.();}}
 function toast(message){const box=document.getElementById('toast');box.textContent=message;box.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>box.classList.remove('visible'),2800);}
 function iconsInDom(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=svg(el.dataset.icon);el.removeAttribute('data-icon');});}
 function navTo(view){currentView=view;render();window.scrollTo({top:0,behavior:'instant'});}
@@ -469,6 +469,7 @@ function settings(){
  <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>
  <div class="settings-option"><div><strong>Restaurer une sauvegarde</strong><p>Compatible avec la V0.1 et V0.2. Remplace les données actuelles.</p></div>
  <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
+ <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Rendez-vous et tâches, délais personnalisés, alertes lorsque NEXUS est fermé.</p></div><button class="btn btn-soft btn-small" data-action="push-settings">${svg('clock')} Régler</button></div>
  <div class="settings-option"><div><strong>Coffre cloud chiffré</strong><p>Sauvegarde et restauration manuelles, chiffrées avant envoi. Aucune synchronisation forcée.</p></div>
  <button class="btn btn-soft btn-small" data-action="cloud-vault">${svg('shield')} Coffre</button></div>
  <div class="settings-option"><div><strong>Tout effacer</strong><p>Suppression locale irréversible sans sauvegarde.</p></div>
@@ -545,6 +546,7 @@ document.addEventListener('click',async event=>{
  if(kind==='search')showSearch();
  if(kind==='settings')settings();
  if(kind==='cloud-vault')window.NexusCloud?.openPanel();
+ if(kind==='push-settings')window.NexusPush?.openPanel();
  if(kind==='note-detail')noteDetail(id);
  if(kind==='event-detail')eventDetail(id);
  if(kind==='task-detail')taskDetail(id);

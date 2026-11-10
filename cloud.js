@@ -193,5 +193,6 @@
     });
     document.getElementById('vault-back').addEventListener('click',viewPanel);
   }
-  window.NexusCloud={openPanel:viewPanel};
+  async function session(){const state=await readState();if(!state?.secret)return null;const k=await keys(state.secret);return {token:k.token,version:state.version};}
+  window.NexusCloud={openPanel:viewPanel,session};
 })();

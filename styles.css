@@ -99,3 +99,7 @@
 .vault-actions .btn:disabled{opacity:.45;cursor:not-allowed}
 .vault-metric{display:flex;justify-content:space-between;align-items:center;padding:17px;background:#f1f5ef;border-radius:13px;margin:15px 0;font-size:12px}
 .vault-metric strong{font-size:18px;color:#27513e}
+
+/* V0.4 reminder preferences */
+.nx-check{display:flex!important;gap:12px!important;align-items:center!important;border-bottom:1px solid #e6ebe4;padding:9px 4px;margin:0!important;font-weight:590!important;font-size:13px!important}
+.nx-check input{width:19px;height:19px;accent-color:#2c5e49;flex-shrink:0}
