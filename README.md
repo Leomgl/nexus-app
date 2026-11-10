@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.9 bêta)
+# NEXUS — Second cerveau personnel (V0.10 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.9 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.10 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -202,3 +202,25 @@ Sur **Budget → Vue d'ensemble**, trois cartes montrent les prochains mois avec
 Code et scénarios de calcul simulés : création et renommage de catégorie, propagation à une transaction / une récurrence / un raccourci, archivage et maintien de l'historique, conservation de catégorie archivée sur une ancienne opération, rejet des couleurs CSS non valides, gestion des jours de fin de mois, épingles et projections multi-mois.
 
 **Limite :** validation d'interface sur un vrai iPhone et de la synchronisation interappareils encore nécessaires avant une version stable.
+
+## V0.10 — Corbeille, restauration et réinitialisations sécurisées
+
+**Toutes les suppressions des sept modules passent désormais par une corbeille commune**, avec action **Annuler** disponible immédiatement, puis restauration depuis **Réglages → Corbeille universelle**. Cela inclut les notes, rendez-vous, tâches, personnes, projets, achats, opérations financières, règles de récurrence, dépenses rapides, catégories budgétaires et suppression d'un plafond mensuel.
+
+- **La suppression ne rompt plus les relations entre blocs** : si un projet est placé dans la corbeille, les notes ou transactions qui lui sont associées conservent l'ID d'origine. Restaurer le projet rétablit les liens.
+- **La corbeille est persistante** : toutes ses entrées sont dans `data.trash[]` et donc incluses dans l'export JSON et dans le snapshot chiffré. Aucun nettoyage automatique.
+- **Restauration anti-écrasement** : si un élément actif possède déjà le même ID, NEXUS refuse la restauration, sans modifier les données.
+- **Suppression définitive** : disponible par entrée depuis la corbeille avec confirmation. Pour vider toute la corbeille, il faut taper `VIDER`.
+- **Catégories Budget** : le bouton « Supprimer » les place dans la corbeille, sans supprimer les opérations historiques. Les catégories prédéfinies sont également récupérables.
+- **Réinitialisation par module** : dans Réglages, choisir un seul module à vider et confirmer en tapant son nom en majuscules. Les données sont déplacées sous la forme d'un **groupe restaurable**. Le Budget regroupe ses opérations, plafonds, récurrences, dépenses rapides et catégories personnalisées.
+- **Réinitialisation complète** : **non activée**. Une future V1 doit prévoir un flux indépendant de déconnexion coffre, annulation des notifications, retrait des appareils/passkeys et export préalable.
+
+**Précaution synchronisation** : les suppressions et réinitialisations sont des modifications de données pouvant être sauvegardées vers le coffre si la synchronisation automatique est active. La corbeille est elle-même synchronisée par snapshot ; vérifie le bon appareil et exporte un JSON avant un reset important.
+
+**À ne pas confondre** : cette version propose l'annulation d'une **suppression**, pas un historique universel de toutes les modifications et saisies. Elle ne dispose pas encore d'un journal d'audit/versions ni d'une résolution automatique des conflits entre appareils.
+
+### Compatibilité
+
+Le tableau `trash[]` est ajouté au même modèle IndexedDB. Les anciennes sauvegardes qui n'ont pas ce champ se chargent avec une corbeille vide. Le code `recycle.js` est précaché par le Service Worker `nexus-v0.10.0`. Aucun changement Worker/D1/notifications/WebAuthn et aucun service payant.
+
+Voir [docs/CORBEILLE-RESET.md](docs/CORBEILLE-RESET.md).
