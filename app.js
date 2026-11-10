@@ -462,7 +462,7 @@ function analyzeNote(raw){
   const amount=Number(euros[1].replace(/[\s\u202f]/g,'').replace(',','.'));
   if(Number.isFinite(amount)&&amount>0&&amount<=1000000)result.amountCents=Math.round(amount*100);
  }
- result.expenseIntent=!!result.amountCents&&/\b(paye|payé|paiement|dépensé|dépense|facture|réglé|règlement|prélevé)\b/.test(plain);
+ result.expenseIntent=!!result.amountCents&&/(?:^|[^\p{L}])(?:paye|payé|paiement|dépensé|dépense|facture|réglé|règlement|prélevé)(?=$|[^\p{L}])/u.test(plain);
  if(result.expenseIntent)result.expenseTitle=(body.match(/(?:payé|dépensé|facture|règlement)\s+(?:pour\s+)?([^.,!?\n]+)/i)?.[1]||'Dépense').trim().slice(0,120);
  return result;
 }
