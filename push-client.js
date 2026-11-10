@@ -3,7 +3,7 @@
 (() => {
   const API='https://nexus-app-api.q9pfwtztsc.workers.dev';
   const STORE_KEY='nexus_push_v1';
-  const timeouts=[{min:1440,text:'24 heures avant'},{min:60,text:'1 heure avant'},{min:15,text:'15 minutes avant'}];
+  const taskTimeouts=[{min:1440,text:'24 heures avant'},{min:120,text:'2 heures avant'},{min:60,text:'1 heure avant'},{min:45,text:'45 minutes avant'},{min:30,text:'30 minutes avant'},{min:15,text:'15 minutes avant'}];
   const db=()=>{if(!dbHandle)throw new Error('Stockage IndexedDB indisponible.');return dbHandle;};
   const read=()=>new Promise((resolve,reject)=>{const r=db().transaction(DB_STORE,'readonly').objectStore(DB_STORE).get(STORE_KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});
   const write=value=>new Promise((resolve,reject)=>{const t=db().transaction(DB_STORE,'readwrite');if(value===null)t.objectStore(DB_STORE).delete(STORE_KEY);else t.objectStore(DB_STORE).put(value,STORE_KEY);t.oncomplete=resolve;t.onerror=()=>reject(t.error);});
@@ -30,17 +30,26 @@
   }
   async function scheduledJobs(settings){
     const now=Date.now(),jobs=[];
-    const opts=Array.isArray(settings.eventMins)?settings.eventMins:[60];
+    // Keep legacy global event preferences ONLY for appointments saved before V0.6.
+    // Fresh and edited events always own their reminderMinutes array (including []).
+    const legacyEventMins=Array.isArray(settings.eventMins)?settings.eventMins:[60];
     const taskOpts=Array.isArray(settings.taskMins)?settings.taskMins:[60];
     const rows=[
-      ...data.events.map(e=>({item:e,kind:'event',at:scheduleDate(e.start),mins:opts})),
-      ...data.tasks.filter(t=>!t.done&&t.dueDate).map(t=>({item:t,kind:'task',at:scheduleDate(t.dueDate+'T'+(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t.dueTime||'')?t.dueTime:'09:00')+':00'),mins:taskOpts}))
+      ...data.events.map(e=>({
+        item:e,kind:'event',at:scheduleDate(e.start),
+        mins:Array.isArray(e.reminderMinutes)?e.reminderMinutes:legacyEventMins
+      })),
+      ...data.tasks.filter(t=>!t.done&&t.dueDate).map(t=>({
+        item:t,kind:'task',
+        at:scheduleDate(t.dueDate+'T'+(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t.dueTime||'')?t.dueTime:'09:00')+':00'),
+        mins:taskOpts
+      }))
     ];
     for(const row of rows){
       if(!row.at||!row.item.id)continue;
       for(const delta of row.mins){
         const fireAt=Math.floor((row.at.getTime()-delta*60_000)/1000);
-        if(![15,60,1440].includes(delta)||fireAt<now/1000-60||fireAt>now/1000+366*86400)continue;
+        if(!Number.isInteger(delta)||delta<1||delta>10080||fireAt<now/1000-60||fireAt>now/1000+366*86400)continue;
         const id=await hash(row.kind+':'+row.item.id+':'+row.at.toISOString()+':'+delta);
         jobs.push({id,kind:row.kind,fireAt});
       }
@@ -64,27 +73,27 @@
     const installed=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
     const supported='Notification' in window&&'PushManager' in window&&'serviceWorker' in navigator;
     const allowed=supported?Notification.permission:'unsupported';
-    const eventMins=state?.eventMins||[1440,60];
     const taskMins=state?.taskMins||[60];
-    modal('Notifications · V0.4',`
+    modal('Notifications · V0.6',`
       <div class="info-strip">${svg('shield')} Ton serveur reçoit seulement les horaires et le type de rappel. Aucun titre, motif ou nom de contact. Les notifications affichées restent génériques.</div>
       <p class="muted-note">Installation écran d’accueil : ${installed?'OK':'Nécessaire'} · Autorisation iOS : ${escapeHtml(allowed)} · Push : ${state?.enabled?'activé':'désactivé'}</p>
       <form id="nx-push-form" class="vault-form">
-        <h3>Avant un rendez-vous</h3>
-        ${timeouts.map(x=>`<label class="nx-check"><input type="checkbox" name="event" value="${x.min}" ${eventMins.includes(x.min)?'checked':''}> ${x.text}</label>`).join('')}
-        <h3>Avant une tâche à échéance</h3>
+        <h3>Rendez-vous : réglage individuel</h3>
+        <p>Les délais sont maintenant définis directement dans chaque rendez-vous de l'agenda : 1 jour, 2 h, 45 min, 15 min, etc. Tu peux en cocher plusieurs ou aucun.</p>
+        <h3>Délais par défaut pour les tâches</h3>
         <p>Si aucune heure n’est indiquée, l’échéance est fixée à 9 h.</p>
-        ${timeouts.map(x=>`<label class="nx-check"><input type="checkbox" name="task" value="${x.min}" ${taskMins.includes(x.min)?'checked':''}> ${x.text}</label>`).join('')}
+        ${taskTimeouts.map(x=>`<label class="nx-check"><input type="checkbox" name="task" value="${x.min}" ${taskMins.includes(x.min)?'checked':''}> ${x.text}</label>`).join('')}
         <div class="vault-actions">
           <button class="btn" id="nx-push-enable" type="button">${svg('check')} ${state?.enabled?'Mettre à jour mes rappels':'Activer les notifications'}</button>
           ${state?.enabled?'<button class="btn btn-soft" id="nx-push-test" type="button">Envoyer une notification test</button><button class="btn btn-neutral" id="nx-push-disable" type="button">Désactiver les notifications</button>':''}
         </div>
       </form>
-      <p class="muted-note">Envoi prévu toutes les cinq minutes côté Cloudflare. Les rappels peuvent arriver avec un léger décalage, nécessitent une connexion réseau et une autorisation iOS active.</p>
+      <p class="muted-note">Cloudflare vérifie les rappels toutes les cinq minutes. Les modifications ne sont transmises que si NEXUS est ouvert et connecté. Aucun titre de rendez-vous n’est communiqué au serveur.</p>
     `);
     const form=document.getElementById('nx-push-form');
     const prefs=()=>({
-      eventMins:[...form.querySelectorAll('input[name=event]:checked')].map(x=>+x.value),
+      // Keep this for legacy appointments that do not yet have their own reminders.
+      eventMins:Array.isArray(state?.eventMins)?state.eventMins:[1440,60],
       taskMins:[...form.querySelectorAll('input[name=task]:checked')].map(x=>+x.value),
     });
     document.getElementById('nx-push-enable').addEventListener('click',async()=>{
