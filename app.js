@@ -272,7 +272,7 @@ function extraCaptureForm(kind,obj={},context={}){
  let title='',content='';
  if(kind==='project'){
   title=existing?'Modifier le projet':'Nouveau projet';
-  content=`${input('Nom du projet','title',obj.title||'','text','required maxlength="120"')}<div class="field"><label for="f-description">Description</label><textarea name="description" id="f-description" placeholder="Objectif, idées, contexte...">${escapeHtml(obj.description||'')}</textarea></div>
+  content=`${input('Nom du projet','title',obj.title||((context.noteId&&data.notes.find(n=>n.id===context.noteId))?analyzeNote(data.notes.find(n=>n.id===context.noteId).body).projectTitle:'')||'','text','required maxlength="120"')}<div class="field"><label for="f-description">Description</label><textarea name="description" id="f-description" placeholder="Objectif, idées, contexte...">${escapeHtml(obj.description||'')}</textarea></div>
   <div class="field-grid">${input('Échéance (facultative)','deadline',obj.deadline||'','date')}
   <div class="field"><label for="f-status">État</label><select name="status" id="f-status">${Object.entries(projectStatus).map(([key,label])=>`<option value="${key}" ${obj.status===key?'selected':''}>${label}</option>`).join('')}</select></div></div>
   ${input('Budget prévu (€), facultatif','budgetEuros',euroInput(obj.budgetCents),'text','inputmode="decimal" placeholder="Ex. 350,00"')}`;
@@ -291,9 +291,10 @@ function extraCaptureForm(kind,obj={},context={}){
  if(kind==='transaction'){
   title=existing?'Modifier l’opération':'Nouvelle opération';
   const purchase=context.purchaseId?data.purchases.find(x=>x.id===context.purchaseId):null;
+  const detectedExpense=context.noteId?analyzeNote(data.notes.find(n=>n.id===context.noteId)?.body||''):{};
   content=`<div class="field"><label for="f-type">Type</label><select id="f-type" name="type"><option value="expense" ${(obj.type||'expense')==='expense'?'selected':''}>Dépense</option><option value="income" ${obj.type==='income'?'selected':''}>Recette</option></select></div>
-  ${input('Libellé','title',obj.title||purchase?.title||'','text','required maxlength="140"')}
-  <div class="field-grid">${input('Montant (€)','amountEuros',euroInput(obj.amountCents??purchase?.priceCents),'text','required inputmode="decimal" placeholder="Ex. 49,90"')}
+  ${input('Libellé','title',obj.title||purchase?.title||detectedExpense.expenseTitle||'','text','required maxlength="140"')}
+  <div class="field-grid">${input('Montant (€)','amountEuros',euroInput(obj.amountCents??purchase?.priceCents??detectedExpense.amountCents),'text','required inputmode="decimal" placeholder="Ex. 49,90"')}
   ${input('Date','date',obj.date||dateKey(new Date()),'date','required')}</div>
   <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
   <div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||purchase?.projectId||'')}</select></div>
@@ -318,6 +319,7 @@ function extraCaptureForm(kind,obj={},context={}){
   }else{
    const base={...obj,...v,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
    if(kind==='project'){
+    if(context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.projectId=base.id;n.updatedAt=new Date().toISOString();}}
     const cents=v.budgetEuros.trim()?toCents(v.budgetEuros):null;
     if(cents===null&&v.budgetEuros.trim()){toast('Budget invalide');return;}
     base.budgetCents=cents;delete base.budgetEuros;
@@ -349,7 +351,7 @@ function extraCaptureForm(kind,obj={},context={}){
   }
   await persist();closeModal();render();
   toast(existing?'Modifications enregistrées':'Enregistré dans NEXUS');
-  if(kind==='purchase'&&context.noteId)noteDetail(context.noteId);
+  if(context.noteId&&['purchase','project','transaction'].includes(kind))noteDetail(context.noteId);
   if(kind==='limit')navTo('budget');
  });
 }
@@ -376,12 +378,13 @@ function captureForm(kind, obj={}, context={}){
   content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div><div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
-  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  modal(title,content);
  const form=document.getElementById('entity-form');form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const values=Object.fromEntries(new FormData(form).entries());const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString()};
+  if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId||obj.projectId||context.projectId||'';}
   if(kind==='event'){base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId||obj.projectId||context.projectId||'';delete base.date;delete base.time;}
   if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId||obj.projectId||context.projectId||'';}
@@ -390,41 +393,97 @@ function captureForm(kind, obj={}, context={}){
   if(kind==='note')noteDetail(base.id);
   if(kind==='event'&&base.noteId)noteDetail(base.noteId);
   if(kind==='task'&&base.noteId)noteDetail(base.noteId);
+  if(kind==='contact'&&context.noteId)noteDetail(context.noteId);
  });
  if(kind==='note')setTimeout(()=>document.getElementById('f-title')?.focus(),100);
 }
 const weekdayNames=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-function analyzeNote(raw){const body=String(raw||'');const plain=body.toLocaleLowerCase('fr-FR'),now=new Date();let date='',time='',location='',personId='',personText='',taskTitle='',eventTitle='Rendez-vous';
- const tm=body.match(/(?:^|\s)(?:à|vers)\s*(\d{1,2})\s*(?:h|:)(\d{2})?/i);if(tm){const h=+tm[1],m=+(tm[2]||0);if(h<24&&m<60)time=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;}
- const numeric=plain.match(/\b(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{4}))?\b/);if(numeric){const day=+numeric[1],month=+numeric[2],year=+(numeric[3]||now.getFullYear());const dt=new Date(year,month-1,day);if(dt.getDate()===day&&dt.getMonth()===month-1)date=dateKey(dt);}
- if(!date){const months=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];const written=plain.match(/\b(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)(?:\s+(\d{4}))?/);if(written){const dd=+written[1],mm=months.indexOf(written[2]),yy=+(written[3]||now.getFullYear());const dt=new Date(yy,mm,dd);if(dt.getDate()===dd)date=dateKey(dt);}}
- if(!date){let add=null;if(/\baprès[- ]demain\b/.test(plain))add=2;else if(/\bdemain\b/.test(plain))add=1;else if(/\baujourd['’]hui\b/.test(plain))add=0;
-  if(add!==null){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+add);date=dateKey(d);}
-  else{const weekday=weekdayNames.find(day=>new RegExp(`\\b${day}\\b`).test(plain));if(weekday){const target=weekdayNames.indexOf(weekday),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());let delta=(target-now.getDay()+7)%7;if(delta===0&&time){const [h,m]=time.split(':').map(Number);if(h<now.getHours()||(h===now.getHours()&&m<=now.getMinutes()))delta=7;}d.setDate(d.getDate()+delta);date=dateKey(d);}}
+function analyzeNote(raw){
+ const body=String(raw||'').slice(0,12000),plain=body.toLocaleLowerCase('fr-FR'),now=new Date();
+ const result={eventIntent:false,date:'',time:'',location:'',personId:'',personText:'',taskTitle:'',eventTitle:'Rendez-vous',purchaseTitle:'',projectTitle:'',expenseTitle:'',amountCents:null,expenseIntent:false};
+ const norm=value=>String(value).toLocaleLowerCase('fr-FR').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const hm=body.match(/(?:^|[^\d])(?:à|vers)?\s*([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)?\b/i);
+ if(hm){const h=Number(hm[1]),m=Number(hm[2]||0);result.time=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+ const valid=(year,month,day)=>{const date=new Date(year,month-1,day);return date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day?date:null;};
+ const future=(m,d,y)=>{if(y){return valid(y,m,d);}const dt=valid(now.getFullYear(),m,d);return dt&&dt.getTime()<new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime()?valid(now.getFullYear()+1,m,d):dt;};
+ const numeric=plain.match(/\b(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{4}))?\b/);
+ if(numeric){const dt=future(Number(numeric[2]),Number(numeric[1]),numeric[3]?Number(numeric[3]):null);if(dt)result.date=dateKey(dt);}
+ if(!result.date){
+  const names=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const written=plain.match(/\b(\d{1,2})\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)(?:\s+(\d{4}))?/);
+  if(written){const dt=future(names.indexOf(written[2])+1,Number(written[1]),written[3]?Number(written[3]):null);if(dt)result.date=dateKey(dt);}
  }
- const recognized=data.contacts.find(c=>c.name&&plain.includes(c.name.toLocaleLowerCase('fr-FR')));if(recognized)personId=recognized.id;
- if(!personId){const match=body.match(/\bavec\s+([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+)?)/u);if(match)personText=match[1];}
- const lm=body.match(/(?:^|\s)(?:à|au)\s+([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+){0,2})/u);if(lm)location=lm[1];
- const task=body.match(/(?:penser à|n['’]oublie pas de|ne pas oublier de|prévoir de)\s+([^.,!?\n]+)/i);if(task)taskTitle=task[1].trim();else{const simple=body.match(/\b(apporter|préparer|envoyer|acheter)\s+([^.,!?\n]+)/i);if(simple)taskTitle=`${simple[1]} ${simple[2]}`;}
- if(/\b(médecin|docteur|cabinet médical|consultation)\b/.test(plain))eventTitle='Rendez-vous médical';else if(/\b(garage|garagiste|voiture)\b/.test(plain))eventTitle='Rendez-vous garage';else if(/\b(dentiste)\b/.test(plain))eventTitle='Rendez-vous dentiste';else if(/\b(réunion)\b/.test(plain))eventTitle='Réunion';else if(/\b(appel)\b/.test(plain))eventTitle='Appel';
- const eventIntent=/\b(rdv|rendez[- ]vous|réunion|consultation|visite|appel|médecin|dentiste)\b/.test(plain)||(Boolean(time)&&Boolean(date));
- const purchaseMatch=body.match(/\b(?:acheter|achat(?:\s+de)?|commander)\s+([^.,!?\n]+)/i);
- const purchaseTitle=purchaseMatch?purchaseMatch[1].trim().slice(0,120):'';
- return {eventIntent,date,time,location,personId,personText,taskTitle,eventTitle,purchaseTitle};
+ if(!result.date){
+  let add=null;
+  const futureRelative=plain.match(/\bdans\s+(\d{1,3})\s+jours?\b/);
+  if(futureRelative)add=Math.min(365,Number(futureRelative[1]));
+  else if(/\bapr[eè]s[- ]demain\b/.test(plain))add=2;
+  else if(/\bdemain\b/.test(plain))add=1;
+  else if(/\baujourd['’]hui\b/.test(plain))add=0;
+  if(add!==null){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()+add);result.date=dateKey(d);}
+  else{
+   const weekdays=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+   const weekday=weekdays.find(w=>new RegExp('\\b'+w+'\\b').test(plain));
+   if(weekday){
+    const target=weekdays.indexOf(weekday),d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    let delta=(target-now.getDay()+7)%7;
+    if(delta===0&&result.time){const [h,m]=result.time.split(':').map(Number);if(h<now.getHours()||(h===now.getHours()&&m<=now.getMinutes()))delta=7;}
+    if(new RegExp('\\b'+weekday+'\\s+prochain\\b').test(plain))delta+=7;
+    d.setDate(d.getDate()+delta);result.date=dateKey(d);
+   }
+  }
+ }
+ const found=data.contacts.find(c=>c.name&&norm(plain).includes(norm(c.name)));
+ if(found)result.personId=found.id;
+ if(!result.personId){
+  const pm=body.match(/\b(?:avec|chez|voir|appeler)\s+([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+)?)/u);
+  if(pm&&!/^(?:Le|La|Les|Un|Une|Docteur|Cabinet|Médecin)$/.test(pm[1]))result.personText=pm[1];
+ }
+ const place=body.match(/(?:\b(?:à|au)\s+)([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+){0,2})/u);
+ if(place)result.location=place[1];
+ const task=body.match(/(?:penser à|pense à|n['’]oublie pas de|ne pas oublier de|prévoir de|il faut)\s+([^.,!?\n]+)/i);
+ if(task)result.taskTitle=task[1].trim().slice(0,150);
+ else {
+  const simple=body.match(/\b(apporter|préparer|envoyer|réserver)\s+([^.,!?\n]+)/i);
+  if(simple)result.taskTitle=(simple[1]+' '+simple[2]).slice(0,150);
+ }
+ if(/\b(médecin|docteur|cabinet médical|consultation)\b/.test(plain))result.eventTitle='Rendez-vous médical';
+ else if(/\b(garage|garagiste|voiture)\b/.test(plain))result.eventTitle='Rendez-vous garage';
+ else if(/\bdentiste\b/.test(plain))result.eventTitle='Rendez-vous dentiste';
+ else if(/\bréunion\b/.test(plain))result.eventTitle='Réunion';
+ else if(/\bappel\b/.test(plain))result.eventTitle='Appel';
+ result.eventIntent=/\b(rdv|rendez[- ]vous|réunion|consultation|visite|appel|médecin|dentiste|entretien)\b/.test(plain)||!!(result.time&&result.date);
+ const purchase=body.match(/\b(?:acheter|achat(?:\s+de)?|commander|prendre en boutique)\s+([^.,!?\n]+)/i);
+ if(purchase)result.purchaseTitle=purchase[1].trim().slice(0,120);
+ const project=body.match(/\b(?:nouveau\s+)?projet\s*(?::|de|pour|d['’])\s*([^.,!?\n]+)/i);
+ if(project)result.projectTitle=project[1].trim().slice(0,120);
+ const euros=body.match(/\b(\d{1,6}(?:[\s\u202f]?\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|euros?)\b/i);
+ if(euros){
+  const amount=Number(euros[1].replace(/[\s\u202f]/g,'').replace(',','.'));
+  if(Number.isFinite(amount)&&amount>0&&amount<=1000000)result.amountCents=Math.round(amount*100);
+ }
+ result.expenseIntent=!!result.amountCents&&/\b(paye|payé|paiement|dépensé|dépense|facture|réglé|règlement|prélevé)\b/.test(plain);
+ if(result.expenseIntent)result.expenseTitle=(body.match(/(?:payé|dépensé|facture|règlement)\s+(?:pour\s+)?([^.,!?\n]+)/i)?.[1]||'Dépense').trim().slice(0,120);
+ return result;
 }
 function noteDetail(id){
  const n=data.notes.find(v=>v.id===id);if(!n){toast('Note introuvable');return;}
  const linked=noteLinks(id), det=analyzeNote(n.body);
+ const linkedContact=data.contacts.find(c=>c.id===n.personId);
  const related=[
+  ...(linkedContact?[{type:'contact',icon:'users',title:linkedContact.name,sub:'Personne associée',id:linkedContact.id}]:[]),
   ...linked.events.map(e=>({type:'event',icon:'calendar',title:e.title,sub:formatDate(e.start),id:e.id})),
   ...linked.tasks.map(t=>({type:'task',icon:'check',title:t.title,sub:t.done?'Terminé':'À faire',id:t.id})),
   ...linked.purchases.map(p=>({type:'purchase',icon:'cart',title:p.title,sub:purchaseStatus[p.status],id:p.id})),
   ...linked.transactions.map(t=>({type:'transaction',icon:'wallet',title:t.title,sub:money(t.amountCents),id:t.id}))
  ];
  const suggestions=[
-  det.eventIntent?`<div class="suggestion"><span class="item-ico blue">${svg('calendar')}</span><div class="suggestion-body"><strong>Rendez-vous possible</strong><p>${escapeHtml(det.eventTitle)} · ${det.date?formatDate(det.date):'Date à préciser'}${det.time?' · '+det.time:''}</p><button class="btn btn-small" data-action="event-from-note" data-id="${id}">${svg('plus')} Créer dans l'agenda</button></div></div>`:'',
-  det.taskTitle?`<div class="suggestion"><span class="item-ico peach">${svg('check')}</span><div class="suggestion-body"><strong>Rappel possible</strong><p>${escapeHtml(det.taskTitle)}</p><button class="btn btn-small" data-action="task-from-note" data-id="${id}">${svg('plus')} Créer le rappel</button></div></div>`:'',
-  det.purchaseTitle?`<div class="suggestion"><span class="item-ico green">${svg('cart')}</span><div class="suggestion-body"><strong>Achat possible</strong><p>${escapeHtml(det.purchaseTitle)}</p><button class="btn btn-small" data-action="purchase-from-note" data-id="${id}">${svg('plus')} Ajouter aux achats</button></div></div>`:''
+  det.eventIntent&&!linked.events.length?`<div class="suggestion"><span class="item-ico blue">${svg('calendar')}</span><div class="suggestion-body"><strong>Rendez-vous possible</strong><p>${escapeHtml(det.eventTitle)} · ${det.date?formatDate(det.date):'Date à préciser'}${det.time?' · '+det.time:''}</p><button class="btn btn-small" data-action="event-from-note" data-id="${id}">${svg('plus')} Créer dans l'agenda</button></div></div>`:'',
+  det.taskTitle&&!linked.tasks.length?`<div class="suggestion"><span class="item-ico peach">${svg('check')}</span><div class="suggestion-body"><strong>Rappel possible</strong><p>${escapeHtml(det.taskTitle)}</p><button class="btn btn-small" data-action="task-from-note" data-id="${id}">${svg('plus')} Créer le rappel</button></div></div>`:'',
+  det.purchaseTitle&&!linked.purchases.length?`<div class="suggestion"><span class="item-ico green">${svg('cart')}</span><div class="suggestion-body"><strong>Achat possible</strong><p>${escapeHtml(det.purchaseTitle)}</p><button class="btn btn-small" data-action="purchase-from-note" data-id="${id}">${svg('plus')} Ajouter aux achats</button></div></div>`:'',
+  det.projectTitle&&!n.projectId?`<div class="suggestion"><span class="item-ico green">${svg('briefcase')}</span><div class="suggestion-body"><strong>Projet possible</strong><p>${escapeHtml(det.projectTitle)}</p><button class="btn btn-small" data-action="project-from-note" data-id="${id}">${svg('plus')} Créer le projet</button></div></div>`:'',
+  det.expenseIntent&&!linked.transactions.length?`<div class="suggestion"><span class="item-ico green">${svg('wallet')}</span><div class="suggestion-body"><strong>Dépense à vérifier</strong><p>${escapeHtml(det.expenseTitle)} · ${money(det.amountCents)}</p><button class="btn btn-small" data-action="transaction-from-note" data-id="${id}">${svg('plus')} Vérifier et enregistrer</button></div></div>`:'',
+  det.personText&&!det.personId&&!n.personId?`<div class="suggestion"><span class="item-ico green">${svg('users')}</span><div class="suggestion-body"><strong>Nouvelle personne ?</strong><p>${escapeHtml(det.personText)}</p><button class="btn btn-small" data-action="person-from-note" data-id="${id}">${svg('plus')} Créer un contact</button></div></div>`:''
  ].filter(Boolean).join('');
  const project=data.projects.find(p=>p.id===n.projectId);
  modal('Note',`<div class="detail-head"><div><div class="eyebrow">MA MÉMOIRE</div><h2>${escapeHtml(n.title)}</h2><div class="detail-meta">Mis à jour le ${formatDate(n.updatedAt||n.createdAt,{day:'numeric',month:'long',year:'numeric'})}</div></div></div>
@@ -434,7 +493,9 @@ function noteDetail(id){
  <div class="linked-section"><h3>${svg('sparkle')} Actions suggérées</h3>${suggestions||'<p class="muted-note">Pas de suggestion détectée. Tu peux créer les éléments manuellement.</p>'}
  <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-neutral btn-small" data-action="event-from-note" data-id="${id}">${svg('calendar')} RDV</button>
  <button class="btn btn-neutral btn-small" data-action="task-from-note" data-id="${id}">${svg('check')} Rappel</button>
- <button class="btn btn-neutral btn-small" data-action="purchase-from-note" data-id="${id}">${svg('cart')} Achat</button></div></div>
+ <button class="btn btn-neutral btn-small" data-action="purchase-from-note" data-id="${id}">${svg('cart')} Achat</button>
+ <button class="btn btn-neutral btn-small" data-action="project-from-note" data-id="${id}">${svg('briefcase')} Projet</button>
+ <button class="btn btn-neutral btn-small" data-action="transaction-from-note" data-id="${id}">${svg('wallet')} Dépense</button></div></div>
  <div class="linked-section"><h3>${svg('link')} Éléments reliés (${related.length})</h3>
  ${related.map(x=>`<div class="due-item"><span class="item-ico">${svg(x.icon)}</span><button data-action="${x.type}-detail" data-id="${x.id}">${escapeHtml(x.title)}<small>${escapeHtml(x.sub||'')}</small></button></div>`).join('')||'<p class="muted-note">Aucun lien pour le moment.</p>'}</div>`);
 }
@@ -526,7 +587,10 @@ document.addEventListener('click',async event=>{
  if(kind==='note-for-project')captureForm('note',{}, {projectId:id});
  if(kind==='purchase-for-project')extraCaptureForm('purchase',{}, {projectId:id});
  if(kind==='transaction-for-project')extraCaptureForm('transaction',{}, {projectId:id});
- if(kind==='purchase-from-note'){const n=data.notes.find(x=>x.id===id);if(n)extraCaptureForm('purchase',{}, {noteId:id,projectId:n.projectId||''});}
+ if(kind==='project-from-note'){const n=data.notes.find(x=>x.id===id);if(n)extraCaptureForm('project',{}, {noteId:id});}
+ if(kind==='transaction-from-note'){const n=data.notes.find(x=>x.id===id);if(n)extraCaptureForm('transaction',{}, {noteId:id});}
+ if(kind==='person-from-note'){const n=data.notes.find(x=>x.id===id);if(n)captureForm('contact',{}, {noteId:id,suggestedName:analyzeNote(n.body).personText});}
+  if(kind==='purchase-from-note'){const n=data.notes.find(x=>x.id===id);if(n)extraCaptureForm('purchase',{}, {noteId:id,projectId:n.projectId||''});}
  if(kind==='mark-purchased'){
   const p=data.purchases.find(x=>x.id===id);
   if(p){p.status='purchased';p.purchasedAt=dateKey(new Date());p.updatedAt=new Date().toISOString();await persist();render();purchaseDetail(id);toast('Achat marqué comme effectué');}
