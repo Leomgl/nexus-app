@@ -768,7 +768,77 @@ function renderSearch(query){
  <div class="item-copy"><strong>${escapeHtml(x.title)}</strong><small>${labels[x.kind]}</small></div>
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
-function settingsView(){return `<div class="nexus-page-heading"><h1 class="page-title">Réglages</h1><p class="subtitle">Ton NEXUS, à ta façon.</p></div><div class="settings-backup-bridge"><button class="btn" data-action="settings-modal">Ouvrir les réglages existants</button></div>`;}
+
+function settingsView(){
+ const chooseSlot=index=>`<label class="ui-select"><span>Raccourci ${index}</span>
+  <select data-pref-slot="${index}" aria-label="Choisir le module du raccourci ${index}">
+  ${MODULES.map(m=>`<option value="${m[0]}" ${UI['slot'+index]===m[0]?'selected':''}>${escapeHtml(m[2])}</option>`).join('')}
+  </select></label>`;
+ const widgets=[...UI.widgets,...HOME_WIDGETS.map(x=>x[0]).filter(id=>!UI.widgets.includes(id))];
+ return `<div class="nexus-page-heading"><div class="eyebrow">TON ESPACE · TES RÈGLES</div>
+  <h1 class="page-title">Réglages<span class="punctuation">.</span></h1>
+  <p class="subtitle">Navigation, accueil, sécurité et données : tout est au même endroit.</p></div>
+ <div class="preferences-layout">
+  <section class="preferences-panel">
+   <div class="pref-heading">${svg('sliders')} <div><h2>Navigation</h2><p>Personnalise les deux raccourcis de ta barre du bas.</p></div></div>
+   <div class="slots-visual">
+    <span>${svg('home')} Accueil</span><span>${svg('grid')} Catégories</span>
+    <span class="custom-slot">${svg(MODULES.find(m=>m[0]===UI.slot1)?.[1]||'briefcase')} ${escapeHtml(MODULES.find(m=>m[0]===UI.slot1)?.[2]||'Projets')}</span>
+    <span class="custom-slot">${svg(MODULES.find(m=>m[0]===UI.slot2)?.[1]||'wallet')} ${escapeHtml(MODULES.find(m=>m[0]===UI.slot2)?.[2]||'Budget')}</span>
+    <span>${svg('sliders')} Réglages</span>
+   </div>
+   <div class="pref-select-grid">${chooseSlot(1)}${chooseSlot(2)}</div>
+   <p class="pref-hint">Un module ne peut pas occuper les deux slots. S'il est déjà utilisé, NEXUS échange les deux raccourcis.</p>
+  </section>
+  <section class="preferences-panel">
+   <div class="pref-heading">${svg('sparkle')} <div><h2>Apparence</h2><p>Adapte le rendu à ta manière de travailler.</p></div></div>
+   <div class="pref-select-grid">
+    <label class="ui-select"><span>Palette</span><select data-pref-option="theme">
+     <option value="sage" ${UI.theme==='sage'?'selected':''}>Sauge · naturel</option>
+     <option value="slate" ${UI.theme==='slate'?'selected':''}>Ardoise · contrasté</option>
+    </select></label>
+    <label class="ui-select"><span>Densité</span><select data-pref-option="density">
+     <option value="comfortable" ${UI.density==='comfortable'?'selected':''}>Confortable</option>
+     <option value="compact" ${UI.density==='compact'?'selected':''}>Compacte</option>
+    </select></label>
+   </div>
+   <p class="pref-hint">Mode sombre à venir : on le fera sur toute l'application pour préserver le contraste dans chaque bloc.</p>
+  </section>
+  <section class="preferences-panel">
+   <div class="pref-heading">${svg('layers')} <div><h2>Accueil personnalisé</h2><p>Choisis ce qui apparaît et dans quel ordre.</p></div></div>
+   <div class="widget-settings">${widgets.map(id=>{
+    const w=HOME_WIDGETS.find(x=>x[0]===id),enabled=UI.widgets.includes(id),position=UI.widgets.indexOf(id);
+    return `<div class="widget-setting ${enabled?'':'is-hidden'}">
+     <button data-action="toggle-widget" data-widget="${id}" aria-pressed="${enabled}" aria-label="${enabled?'Masquer':'Afficher'} ${escapeHtml(w[1])}">${svg(enabled?'check':'plus')}</button>
+     <div><strong>${escapeHtml(w[1])}</strong><small>${escapeHtml(w[2])}</small></div>
+     <span class="widget-arrows">
+      <button data-action="move-widget" data-widget="${id}" data-dir="-1" ${!enabled||position<=0?'disabled':''} aria-label="Monter ${escapeHtml(w[1])}">${svg('chevleft')}</button>
+      <button data-action="move-widget" data-widget="${id}" data-dir="1" ${!enabled||position===UI.widgets.length-1?'disabled':''} aria-label="Descendre ${escapeHtml(w[1])}">${svg('chevright')}</button></span>
+    </div>`;
+   }).join('')}</div>
+   <button class="btn btn-neutral btn-small" data-action="reset-ui">${svg('arrow')} Retrouver l'interface par défaut</button>
+  </section>
+  <section class="preferences-panel">
+   <div class="pref-heading">${svg('shield')} <div><h2>Notifications & sécurité</h2><p>Garde le contrôle de tes autorisations et connexions.</p></div></div>
+   <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Activation, test push et rappels par rendez-vous.</p></div>
+    <button class="btn btn-soft btn-small" data-action="push-settings">Configurer</button></div>
+   <div class="settings-option"><div><strong>Face ID / passkeys</strong><p>Verrouille l'interface avec une vérification serveur.</p></div>
+    <button class="btn btn-soft btn-small" data-action="passkey-settings">Configurer</button></div>
+   <div class="settings-option"><div><strong>Coffre et synchronisation</strong><p>Sauvegardes chiffrées, transfert et récupération.</p></div>
+    <button class="btn btn-soft btn-small" data-action="cloud-vault">Ouvrir</button></div>
+  </section>
+  <section class="preferences-panel">
+   <div class="pref-heading">${svg('download')} <div><h2>Données & sauvegardes</h2><p>Tes informations restent sous ton contrôle.</p></div></div>
+   <div class="settings-option"><div><strong>Exporter les données</strong><p>Une sauvegarde JSON complète des sept modules.</p></div>
+    <button class="btn btn-neutral btn-small" data-action="export">${svg('download')} Export</button></div>
+   <div class="settings-option"><div><strong>Importer une sauvegarde</strong><p>Remplace tes données locales après confirmation.</p></div>
+    <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
+   <div class="settings-option"><div><strong>Effacer les données locales</strong><p>Suppression irréversible sans export préalable.</p></div>
+    <button class="btn btn-danger btn-small" data-action="clear-all">${svg('trash')} Effacer</button></div>
+   <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
+  </section></div>
+  <footer class="settings-version">NEXUS · V0.7 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+}
 function settings(){
  modal('Réglages & données',`<div class="eyebrow">NEXUS V0.6 · RAPPELS PAR RENDEZ-VOUS</div>
  <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
@@ -815,8 +885,26 @@ document.addEventListener('click',async event=>{
  const action=event.target.closest('[data-action]');if(!action)return;const kind=action.dataset.action,id=action.dataset.id;
  if(kind==='overlay'){if(event.target===action)closeModal();return;}
  if(kind==='close-modal'){closeModal();return;}
- if(kind==='pin-module')setSlot(Number(action.dataset.slot),action.dataset.module);
- if(kind==='settings-modal')settings();
+ if(kind==='toggle-widget'){
+  const id=action.dataset.widget;
+  if(HOME_WIDGETS.some(w=>w[0]===id)){
+   UI.widgets=UI.widgets.includes(id)?UI.widgets.filter(w=>w!==id):[...UI.widgets,id];
+   saveUI();
+  }
+ }
+ if(kind==='move-widget'){
+  const id=action.dataset.widget,index=UI.widgets.indexOf(id),next=index+Number(action.dataset.dir);
+  if(index>=0&&next>=0&&next<UI.widgets.length){
+   [UI.widgets[index],UI.widgets[next]]=[UI.widgets[next],UI.widgets[index]];saveUI();
+  }
+ }
+ if(kind==='reset-ui'){
+  if(confirm("Réinitialiser uniquement l'interface ? Tes notes, projets et sauvegardes resteront intacts.")){
+   UI=defaultUI();saveUI();toast('Interface réinitialisée.');
+  }
+ }
+  if(kind==='pin-module')setSlot(Number(action.dataset.slot),action.dataset.module);
+ if(kind==='settings-modal')navTo('settings');
  if(kind==='quick-save'){
   const content=document.getElementById('quick-capture')?.value.trim()||'';
   if(!content){toast('Écris quelque chose avant de capturer.');return;}
@@ -895,6 +983,16 @@ document.addEventListener('click',async event=>{
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
  if(kind==='clear-all'){if(confirm('Tout effacer sur cet appareil ? Cette action est irréversible sans sauvegarde.')){assignData({});await persist();closeModal();render();toast('Espace vidé');}}
+});
+document.addEventListener('change',event=>{
+ const shortcut=event.target.closest('[data-pref-slot]');
+ if(shortcut){setSlot(Number(shortcut.dataset.prefSlot),shortcut.value);return;}
+ const option=event.target.closest('[data-pref-option]');
+ if(option){
+  const key=option.dataset.prefOption;
+  if(key==='theme'&&['sage','slate'].includes(option.value)){UI.theme=option.value;saveUI();}
+  if(key==='density'&&['comfortable','compact'].includes(option.value)){UI.density=option.value;saveUI();}
+ }
 });
 document.getElementById('restore-file').addEventListener('change',async event=>{const f=event.target.files?.[0];if(!f)return;try{if(f.size>20_000_000)throw new Error('Fichier trop volumineux');const parsed=JSON.parse(await f.text());if(parsed.app!=='NEXUS'||![1,2].includes(parsed.schemaVersion)||!parsed.data||!['notes','events','tasks','contacts'].every(key=>Array.isArray(parsed.data[key]))||Object.entries(parsed.data).some(([k,v])=>k in data&&!Array.isArray(v)))throw new Error('Ce fichier n’est pas une sauvegarde NEXUS valide.');if(confirm('La restauration remplacera les données actuelles. Continuer ?')){assignData(parsed.data);await persist();closeModal();render();toast('Sauvegarde restaurée');}}catch(err){alert(err.message||'Restauration impossible');}finally{event.target.value='';}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();showSearch();}});
