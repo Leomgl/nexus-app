@@ -700,3 +700,29 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .b10-journal-filter-note{flex-direction:column;align-items:flex-start}
  .b10-filter-reset{padding:6px 0}
 }
+
+/* NEXUS 0.12 — App Link preference drafts (NOT ACTIVE CONNECTIONS) */
+.nx-connection-apps{display:grid;gap:10px}
+.nx-connection-app{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid var(--nx-line);border-radius:15px;background:#f9fbf8}
+.nx-connection-app>div{min-width:0;flex:1}
+.nx-connection-app strong{display:block;color:var(--nx-ink);font-size:14px;margin-bottom:6px}
+.nx-connection-app small{display:block;color:var(--nx-muted);line-height:1.4;font-size:11px}
+.nx-connection-app .btn{font-size:11px;padding:9px 12px;flex-shrink:0}
+.nx-connection-status{display:block;color:#815b28;font-size:10px;font-weight:750;margin-top:7px}
+.nx-connection-disclaimer{display:flex;align-items:flex-start;gap:7px;color:var(--nx-muted);font-size:11px;line-height:1.65;margin:14px 0 0}
+.nx-connection-disclaimer svg{width:15px;height:15px;flex-shrink:0;color:var(--nx-primary)}
+.nx-link-modal .muted-note{font-size:12px;line-height:1.6}
+.nx-link-scopes{display:grid;gap:6px;margin:15px 0;max-height:47dvh;overflow-y:auto;padding-right:4px}
+.nx-link-scope{display:flex;gap:12px;padding:13px;border:1px solid var(--nx-line);border-radius:13px;background:#f9fbf8;cursor:pointer;align-items:flex-start}
+.nx-link-scope:has(input:checked){background:var(--nx-soft);border-color:#acccaf}
+.nx-link-scope input{height:20px;width:20px;accent-color:var(--nx-primary);margin:1px 0 0;flex-shrink:0}
+.nx-link-scope strong{display:block;font-size:12px;color:var(--nx-ink);line-height:1.45}
+.nx-link-scope small{display:block;color:var(--nx-muted);font-size:11px;margin-top:5px}
+.nx-link-modal .info-strip{font-size:11px;line-height:1.6}
+@media(max-width:760px){
+ .nx-connection-app{padding:12px;gap:9px}
+ .nx-connection-app .btn{font-size:10px;padding:8px}
+ .nx-connection-app strong{font-size:13px}
+ .nx-link-scopes{max-height:42dvh}
+ .nx-link-scope{padding:11px}
+}

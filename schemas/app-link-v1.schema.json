@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Leomgl/nexus-app/blob/main/schemas/app-link-v1.schema.json",
+  "title": "NEXUS LINK v1 future encrypted relay envelope (not deployed)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "messageId",
+    "connectionId",
+    "sourceApp",
+    "sourceEventHash",
+    "revision",
+    "action",
+    "createdAt",
+    "expiresAt",
+    "encrypted"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "nexus-link-v1"
+    },
+    "messageId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "connectionId": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "sourceApp": {
+      "type": "string",
+      "enum": [
+        "rituel",
+        "gaming"
+      ]
+    },
+    "sourceEventHash": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "action": {
+      "type": "string",
+      "enum": [
+        "propose",
+        "update",
+        "cancel"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "encrypted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alg",
+        "recipientKeyId",
+        "ephemeralPublicKey",
+        "salt",
+        "iv",
+        "ciphertext"
+      ],
+      "properties": {
+        "alg": {
+          "const": "ECDH-P256-HKDF-SHA256-AES256-GCM"
+        },
+        "recipientKeyId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ephemeralPublicKey": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 2048
+        },
+        "salt": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "iv": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        },
+        "ciphertext": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 131072
+        }
+      }
+    }
+  }
+}

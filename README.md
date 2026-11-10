@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.11 bêta)
+# NEXUS — Second cerveau personnel (V0.12 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.11 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.12 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -241,3 +241,21 @@ Les contrôles de saisie bloquent montant nul, type inattendu, dates calendaires
 Le stockage financier et les sauvegardes chiffrées sont inchangés. Les seuls nouveaux réglages sont des préférences d'affichage locales ; aucune migration Worker, D1, IndexedDB ou modification du projet RITUEL.
 
 Voir [docs/JOURNAL-V011.md](docs/JOURNAL-V011.md).
+
+## V0.12 — architecture de liaison entre applications (préparation)
+
+NEXUS devient le **centre d'organisation** d'un futur écosystème de PWAs personnelles.
+Les apps spécialisées restent autonomes : RITUEL pour les soins et stock, une future application **Gaming** pour la bibliothèque de jeux, le stockage, les passes saisonniers, sorties, événements et achats à prévoir.
+
+Dans **Réglages → Applications & connexions**, un écran de préconfiguration permet de cocher les types de propositions souhaités pour RITUEL et Gaming. Ces cases sont enregistrées localement dans `localStorage` sous `nexus_link_config_draft_v1`.
+
+**Attention : ceci est un prototype de réglages, pas une connexion effective.** Aucun compte n'est lié, aucune permission serveur n'est accordée, aucune synchronisation n'est activée et aucun transfert de données ne se produit. RITUEL et le backend Cloudflare existant n'ont pas été modifiés. Les cases préparatoires ne sont pas des autorisations actives.
+
+Documents à lire avant de déployer la passerelle :
+- [docs/APP-LINK-V1.md](docs/APP-LINK-V1.md) — architecture, sécurité, protocole, autorisations, dédoublonnage, étapes de déploiement.
+- [docs/GAMING-APP-V1.md](docs/GAMING-APP-V1.md) — spécification de la PWA Gaming indépendante, fiches, stockage PS5/USB/M.2, saisons, DLC, sorties et liaisons NEXUS.
+- [schemas/app-link-v1.schema.json](schemas/app-link-v1.schema.json) — enveloppe d'événement chiffré destinée à la passerelle future.
+
+Les apps sont actuellement sur des chemins différents de `leomgl.github.io`, **mais la même origine web**. Cela n'est pas une vraie barrière de sécurité entre les applications dans un navigateur classique. Pour une liaison inter-app authentifiée, utiliser des origines séparées ; préparer une migration avec export/restauration vérifiés avant de changer l'URL d'une PWA déjà installée sur iPhone.
+
+Aucune modification de Worker, de D1 ni de la base locale métier dans cette V0.12.
