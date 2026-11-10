@@ -375,7 +375,7 @@ function captureForm(kind, obj={}, context={}){
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
-  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div><div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div><div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
   title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
@@ -439,7 +439,7 @@ function analyzeNote(raw){
   const pm=body.match(/\b(?:avec|chez|voir|appeler)\s+([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][a-zà-ÿ'-]+)?)/u);
   if(pm&&!/^(?:Le|La|Les|Un|Une|Docteur|Cabinet|Médecin)$/.test(pm[1]))result.personText=pm[1];
  }
- const place=body.match(/(?:\b(?:à|au)\s+)([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+){0,2})/u);
+ const place=body.match(/(?:^|\s)(?:à|au)\s+([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+(?:\s+[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜ][\p{L}'-]+){0,2})/u);
  if(place)result.location=place[1];
  const task=body.match(/(?:penser à|pense à|n['’]oublie pas de|ne pas oublier de|prévoir de|il faut)\s+([^.,!?\n]+)/i);
  if(task)result.taskTitle=task[1].trim().slice(0,150);
@@ -457,7 +457,7 @@ function analyzeNote(raw){
  if(purchase)result.purchaseTitle=purchase[1].trim().slice(0,120);
  const project=body.match(/\b(?:nouveau\s+)?projet\s*(?::|de|pour|d['’])\s*([^.,!?\n]+)/i);
  if(project)result.projectTitle=project[1].trim().slice(0,120);
- const euros=body.match(/\b(\d{1,6}(?:[\s\u202f]?\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|euros?)\b/i);
+ const euros=body.match(/\b(\d{1,6}(?:[\s\u202f]?\d{3})*(?:[,.]\d{1,2})?)\s*(?:€|euros?)(?=\s|[,.!?\n]|$)/i);
  if(euros){
   const amount=Number(euros[1].replace(/[\s\u202f]/g,'').replace(',','.'));
   if(Number.isFinite(amount)&&amount>0&&amount<=1000000)result.amountCents=Math.round(amount*100);
