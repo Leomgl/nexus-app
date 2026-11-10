@@ -119,10 +119,10 @@
     <span class="b8-occ-info"><strong>${safe(o.rule.title)}</strong><small>${pill(flag,tx?'done':o.skipped?'muted':isPast?'warning':'')}</small></span>
     <strong class="b8-occ-amount ${o.rule.type==='income'?'positive':'negative'}">${o.rule.type==='income'?'+':'−'}${currencies(o.rule.amountCents)}</strong>
     <div class="b8-occ-actions">${tx?
-      `<button class="b8-mini-btn" data-action="transaction-detail" data-id="${tx.id}" aria-label="Voir l'opération">${svg('chevright')}</button>`:
-      o.skipped?`<button class="b8-mini-btn" data-action="b8-unskip" data-id="${o.rule.id}" data-key="${safe(o.identity)}">Réactiver</button>`:
-      `<button class="b8-mini-btn" data-action="b8-skip" data-id="${o.rule.id}" data-key="${safe(o.identity)}">Ignorer</button>
-       <button class="b8-mini-btn b8-mini-primary" data-action="b8-book" data-id="${o.rule.id}" data-key="${safe(o.identity)}">Confirmer</button>`}
+      `<button class="b8-mini-btn" data-action="transaction-detail" data-id="${safe(tx.id)}" aria-label="Voir l'opération">${svg('chevright')}</button>`:
+      o.skipped?`<button class="b8-mini-btn" data-action="b8-unskip" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Réactiver</button>`:
+      `<button class="b8-mini-btn" data-action="b8-skip" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Ignorer</button>
+       <button class="b8-mini-btn b8-mini-primary" data-action="b8-book" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Confirmer</button>`}
     </div></div>`;
  }
  function recurring(){
@@ -141,8 +141,8 @@
       · ${safe(r.category||'Autres')}${!r.active?' · En pause':''}</small></span>
       <span class="b8-rule-price ${r.type==='income'?'positive':'negative'}">${r.type==='income'?'+':'−'}${currencies(r.amountCents)}</span>
       <div class="b8-rule-actions">
-       <button data-action="b8-rule-toggle" data-id="${r.id}">${r.active?'Pause':'Activer'}</button>
-       <button data-action="b8-rule-edit" data-id="${r.id}" aria-label="Modifier ${safe(r.title)}">${svg('edit')}</button>
+       <button data-action="b8-rule-toggle" data-id="${safe(r.id)}">${r.active?'Pause':'Activer'}</button>
+       <button data-action="b8-rule-edit" data-id="${safe(r.id)}" aria-label="Modifier ${safe(r.title)}">${svg('edit')}</button>
       </div></div>`).join(''):
       `<div class="b8-zero">${svg('calendar')} <div><strong>Commence avec une échéance</strong><p>Salaire, prêt, loyer, abonnement…</p></div></div>`}</div>
     <p class="b8-disclaimer">Suspendre ou supprimer une règle ne supprime jamais les opérations déjà enregistrées. Un mois peut être ignoré individuellement.</p>
@@ -415,6 +415,8 @@
    if(action==='b8-quick-new')quickForm();
    if(action==='b8-quick-edit')quickForm(data.quickExpenses.find(x=>x.id===el.dataset.id));
    if(action==='b8-quick-delete')deleteQuick(el.dataset.id);
+   if(action==='b8-open-rule'){const x=data.recurrences.find(r=>r.id===el.dataset.id);if(x)ruleForm(x);}
+   if(action==='b8-open-quick'){const x=data.quickExpenses.find(q=>q.id===el.dataset.id);if(x)quickForm(x);}
    if(action==='b8-quick-use')useQuick(el.dataset.id);
  }
  function change(el){

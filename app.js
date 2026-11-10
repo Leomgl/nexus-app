@@ -349,7 +349,7 @@ function purchaseRow(p){
 function transactionRow(t){
  const p=data.projects.find(x=>x.id===t.projectId);
  return `<div class="row-item"><span class="item-ico ${t.type==='income'?'green':'peach'}">${svg('wallet')}</span>
-  <div class="item-copy"><strong>${escapeHtml(t.title)}</strong><small>${formatDate(t.date,{day:'numeric',month:'short'})} · ${escapeHtml(t.category||'Autres')}${p?' · '+escapeHtml(p.title):''}</small></div>
+  <div class="item-copy"><strong>${escapeHtml(t.title)}</strong><small>${formatDate(t.date,{day:'numeric',month:'short'})} · ${escapeHtml(t.category||'Autres')}${p?' · '+escapeHtml(p.title):''}${t.recurrenceId?' · Récurrence':t.quickExpenseId?' · Raccourci':''}</small></div>
   <strong class="money-chip ${t.type==='income'?'positive':'negative'}">${t.type==='income'?'+':'−'}${money(t.amountCents)}</strong>
   <button class="row-arrow" data-action="transaction-detail" data-id="${t.id}">${svg('chevright')}</button></div>`;
 }
@@ -439,13 +439,17 @@ function purchaseDetail(id){
 function transactionDetail(id){
  const t=data.transactions.find(x=>x.id===id);if(!t)return;
  const project=data.projects.find(x=>x.id===t.projectId),purchase=data.purchases.find(x=>x.id===t.purchaseId);
+ const recurrence=data.recurrences.find(x=>x.id===t.recurrenceId);
+ const quick=data.quickExpenses.find(x=>x.id===t.quickExpenseId);
  modal('Opération',`<div class="eyebrow">${t.type==='income'?'RECETTE':'DÉPENSE'}</div><h2 class="detail-title">${escapeHtml(t.title)}</h2>
  <h2 class="money-detail ${t.type==='income'?'positive':'negative'}">${t.type==='income'?'+':'−'}${money(t.amountCents)}</h2>
  <div class="detail-content">${formatDate(t.date,{day:'numeric',month:'long',year:'numeric'})} · ${escapeHtml(t.category||'Autres')}</div>
  <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="edit-transaction" data-id="${id}">${svg('edit')} Modifier</button>
  <button class="btn btn-danger btn-small" data-action="delete-transaction" data-id="${id}">${svg('trash')} Supprimer</button></div>
  ${project?`<div class="linked-section"><h3>${svg('briefcase')} Projet lié</h3><button class="btn btn-neutral btn-small" data-action="project-detail" data-id="${project.id}">${escapeHtml(project.title)}</button></div>`:''}
- ${purchase?`<div class="linked-section"><h3>${svg('cart')} Achat d'origine</h3><button class="btn btn-neutral btn-small" data-action="purchase-detail" data-id="${purchase.id}">${escapeHtml(purchase.title)}</button></div>`:''}`);
+ ${purchase?`<div class="linked-section"><h3>${svg('cart')} Achat d'origine</h3><button class="btn btn-neutral btn-small" data-action="purchase-detail" data-id="${purchase.id}">${escapeHtml(purchase.title)}</button></div>`:''}
+ ${recurrence?`<div class='linked-section'><h3>${svg('calendar')} Récurrence source</h3><button class='btn btn-neutral btn-small' data-action='b8-open-rule' data-id='${escapeHtml(recurrence.id)}'>${escapeHtml(recurrence.title)} · Gérer</button></div>`:t.recurrenceId?`<div class='linked-section'><p class='muted-note'>Récurrence supprimée : opération conservée.</p></div>`:''}
+ ${quick?`<div class='linked-section'><h3>${svg('bolt')} Raccourci source</h3><button class='btn btn-neutral btn-small' data-action='b8-open-quick' data-id='${escapeHtml(quick.id)}'>${escapeHtml(quick.title)} · Modifier</button></div>`:''}`);
 }
 function extraCaptureForm(kind,obj={},context={}){
  const originNote=context.noteId?data.notes.find(n=>n.id===context.noteId):null;
