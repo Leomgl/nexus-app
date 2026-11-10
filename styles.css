@@ -681,3 +681,22 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .nx-trash-info strong{font-size:12px}
  .nx-reset-row .btn{padding:8px 10px}
 }
+
+/* NEXUS V0.11 — budget journal express actions and persistent filters */
+.b10-journal-entry{border:1px solid var(--nx-line);border-radius:16px;margin-bottom:9px;overflow:hidden;background:#fff}
+.b10-journal-entry .row-item{border:0;border-radius:0;padding-bottom:10px;margin:0}
+.b10-journal-entry .row-item:hover{border:0}
+.b10-journal-entry-actions{display:flex;gap:6px;justify-content:flex-end;padding:0 12px 10px}
+.b10-journal-entry-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:750;border-radius:9px;min-height:32px;padding:7px 10px;background:var(--nx-soft);color:var(--nx-primary)}
+.b10-journal-entry-actions button svg{width:14px;height:14px}
+.b10-journal-entry-actions button[data-action="b10-delete"]{background:#fff1ec;color:#aa4d3f}
+.b10-journal-filter-note{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:-4px 0 14px;color:var(--nx-muted);font-size:10px}
+.b10-filter-reset{display:inline-flex;align-items:center;gap:5px;border-radius:9px;background:transparent;color:var(--nx-primary);font-size:11px;font-weight:750;flex-shrink:0;padding:6px}
+.b10-filter-reset svg{width:13px;height:13px}
+@media(max-width:760px){
+ .b10-journal-entry .row-item{padding:12px 10px 7px;gap:9px}
+ .b10-journal-entry-actions{padding:0 8px 8px}
+ .b10-journal-entry-actions button{min-height:31px;font-size:10px;padding:6px 9px}
+ .b10-journal-filter-note{flex-direction:column;align-items:flex-start}
+ .b10-filter-reset{padding:6px 0}
+}
