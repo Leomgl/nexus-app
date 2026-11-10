@@ -1,4 +1,5 @@
 import { notificationAction, notificationsConfig, deliverDue } from './push.js';
+import { passkeyAction } from './passkeys.js';
 // NEXUS v0.3 encrypted vault API. Personal records are never accepted in plaintext.
 // No cookies: a high-entropy recovery secret derives a bearer token and a separate
 // AES-GCM encryption key on the CLIENT. The server only stores encrypted snapshots.
@@ -59,10 +60,15 @@ export default {
       }catch{return response({ok:false,database:'unavailable'},503,origin);}
     }
     if(request.method==='GET'&&path==='/api/config'){
-      return response({ok:true,cloudVault:true,cloudSync:'manual',authentication:'recovery-key',endToEndEncryption:'AES-256-GCM',passkeys:false,notifications:notificationsConfig(env).ready},200,origin);
+      return response({ok:true,cloudVault:true,cloudSync:'manual',authentication:'recovery-key',endToEndEncryption:'AES-256-GCM',passkeys:true,notifications:notificationsConfig(env).ready},200,origin);
     }
     if(!env.DB)return response({ok:false,error:'DATABASE_UNAVAILABLE'},503,origin);
     try{
+      if(path.startsWith('/api/v1/passkey/')){
+        const vault=await authorized(request,env.DB);
+        if(!vault)return response({ok:false,error:'UNAUTHORIZED'},401,origin);
+        return await passkeyAction(request,env,vault,path,(body,status=200)=>response(body,status,origin));
+      }
       if(path.startsWith('/api/v1/push/')){
         const vault=await authorized(request,env.DB);
         if(!vault)return response({ok:false,error:'UNAUTHORIZED'},401,origin);
