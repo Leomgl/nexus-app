@@ -83,7 +83,7 @@ function homeView(){
  const nextBuys=data.purchases.filter(x=>x.status==='planned').slice(0,3);
  return `
  <section class="hero"><div style="position:relative;z-index:1">
-  <div class="eyebrow">TON ESPACE PERSONNEL · V0.3</div>
+  <div class="eyebrow">TON ESPACE PERSONNEL · V0.4</div>
   <h1>Une idée.<br>Tout est connecté.</h1>
   <p>Capture, organise, relie. Tes notes deviennent des actions, tes achats rejoignent tes projets, et ton budget suit.</p>
   <button class="btn" data-action="new-note">${svg('plus')} Capture rapide</button>
@@ -524,7 +524,7 @@ function renderSearch(query){
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
 function settings(){
- modal('Réglages & données',`<div class="eyebrow">NEXUS V0.3 · LOCAL + COFFRE CHIFFRÉ</div>
+ modal('Réglages & données',`<div class="eyebrow">NEXUS V0.4 · PUSH + COFFRE CHIFFRÉ</div>
  <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
  <div class="settings-option"><div><strong>Exporter une sauvegarde</strong><p>Un fichier JSON avec notes, tâches, contacts, projets, achats et budget.</p></div>
  <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>

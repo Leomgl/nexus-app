@@ -109,6 +109,11 @@
           const tx=db().transaction(DB_STORE,'readwrite');
           tx.objectStore(DB_STORE).put(snapshot,'cloud_last_autosync_backup_v1');
           await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+          // Check for edits made while the remote version was downloading.
+          if(await fingerprint(localSnapshot())!==localDigest){
+            await writeState({...st,autoBackup:false,conflict:true,canUpload:false});
+            toast('Conflit local : synchronisation suspendue.');return;
+          }
           assignData(restored.data);await persist();render();
           await writeState({...st,version:remote.version,lastSyncedDigest:newDigest,conflict:false});
           toast('NEXUS actualisé depuis ton coffre.');
@@ -228,9 +233,11 @@
           if(!confirm('Envoyer maintenant une copie chiffrée de tes données locales dans le coffre cloud ?'))return;
           const remote=await api('/api/v1/snapshot','GET',undefined,k.token);
           if(remote.version!==state.version)throw new Error('Le coffre a changé depuis ta dernière sauvegarde. Télécharge la nouvelle version avant tout envoi.');
-          const payload=await encrypt(localSnapshot(),k.aes);
+          const sentSnapshot=localSnapshot();
+          const payload=await encrypt(sentSnapshot,k.aes);
           const result=await api('/api/v1/snapshot','PUT',{expectedVersion:state.version,payload},k.token);
-          await writeState({...state,version:result.version,canUpload:true,conflict:false,lastSyncedDigest:await fingerprint(localSnapshot())});
+          await writeState({...state,version:result.version,canUpload:true,conflict:false,lastSyncedDigest:await fingerprint(sentSnapshot)});
+          queueAuto(3000);
           toast('Sauvegarde cloud chiffrée enregistrée.');viewPanel();return;
         }
         if(action==='receive'){
