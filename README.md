@@ -1,75 +1,82 @@
-# NEXUS — second cerveau PWA (V0.3, coffre chiffré manuel)
+# NEXUS — Second cerveau personnel (V0.4)
 
-Application personnelle **100 % gratuite**, installable sur iPhone comme une PWA. Développée en HTML, CSS et JavaScript avec IndexedDB (local-first). Cette version est **un prototype de test**, pas encore un service synchronisé.
+NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
-## Fonctionnalités testables
+## Fonctions opérationnelles
 
-- **Accueil** : capture rapide, prochains rendez-vous, tâches, dépenses du mois, projets et achats.
-- **Notes** : rédaction, suggestions locales de rendez-vous/rappels/achats, confirmation manuelle et liens vers les éléments créés.
-- **Calendrier** : vue mensuelle, rendez-vous, lien vers une personne et export `.ics`.
-- **Rappels** : échéances, actions cochables, rattachement à une note, à une personne ou à un projet.
-- **Personnes** : mini-répertoire avec `tel:` et `mailto:`.
-- **Projets** : état, description, échéance, budget estimé, tâches liées (progression), notes, achats, dépenses.
-- **Achats** : wishlist avec priorité, prix estimé, projet, note d'origine, états « à acheter / acheté / abandonné ». Un achat marqué comme effectué peut être transformé en dépense via confirmation.
-- **Budget** : revenus et dépenses manuels, catégories, navigation par mois, plafond mensuel, regroupement par projets.
-- **Recherche** : recherche sur les sept types d'objets, accessible depuis la loupe.
-- **Sauvegarde** : export JSON V2 et restauration JSON V1/V2, sans perdre les données existantes.
+- **Notes** : capture rapide, texte libre, liens vers les éléments créés et suggestions locales.
+- **Agenda** : rendez-vous, date/heure, lieu, personne, notes liées, export iCalendar.
+- **Rappels** : tâches, échéance, heure, état terminé, projets, origine.
+- **Personnes** : répertoire personnel avec téléphone et courriel.
+- **Projets** : budget prévisionnel, progrès par tâches, achats et dépenses liés.
+- **Achats** : wishlist, priorités, projet, coût estimé, achat effectué et conversion *volontaire* en dépense.
+- **Budget** : recettes, dépenses, catégories et plafond mensuel.
 
-Les prix et budgets sont stockés en **centimes**, et aucune opération financière n'est créée automatiquement lors de l'achat.
+La **capture intelligente V0.4** repère dates/heures/lieux français, personnes du répertoire, rendez-vous, actions à faire, achats, projets et dépenses. Elle propose, mais ne crée jamais rien sans validation. Les détections restent locales et déterministes (pas de modèle IA distant, pas de frais d'API).
 
-## Installation locale
+## Notifications iOS V0.4
 
-```sh
-cd nexus-v02
-python3 -m http.server 8080
+Le Worker Cloudflare `nexus-app-api` et son Cron **toutes les 5 minutes** sont déployés. Le calendrier des alertes est transmis **uniquement après activation explicite des notifications** sur l'iPhone. Cloudflare reçoit l'identifiant opaque du rappel, son échéance, son type `event`/`task` et une souscription Web Push, **jamais le titre, le lieu, le contact ou la note**. Une notification générique s'affiche même écran verrouillé.
+
+Dans NEXUS installé sur l'écran d'accueil iPhone :
+1. Ouvrir **Réglages → Notifications iPhone → Activer les notifications**.
+2. Choisir 24 h, 1 h et/ou 15 min avant un rendez-vous ou une tâche.
+3. Autoriser les notifications à l'invite iOS, puis toucher **Envoyer une notification test**.
+4. Créer ou modifier un rendez-vous futur : NEXUS met à jour son planning côté serveur après l'enregistrement. Tâches sans heure : défaut 09:00 (heure locale du téléphone).
+
+Sur iOS, Web Push nécessite iOS 16.4+, HTTPS, la **PWA installée depuis Safari et ouverte depuis son icône**, ainsi qu'une autorisation iOS. Le cron et le réseau n'offrent aucune garantie à la seconde. Un changement effectué hors ligne ne peut pas immédiatement annuler un ancien rappel sur le serveur : ouvrir NEXUS une fois Internet revenu.
+
+## Coffre chiffré et synchronisation V0.4
+
+- Coffre **optionnel** activé avec un code d'invitation à usage unique ; conserver la clé de récupération de **43 caractères** dans le trousseau iCloud. Ne jamais la communiquer ou la publier.
+- Les snapshots sont chiffrés **sur l'appareil** en AES-256-GCM (clé dérivée via HKDF). Cloudflare conserve seulement un document chiffré et un vérificateur d'accès.
+- Dans **Réglages → Coffre cloud**, utiliser **Sauvegarder vers le cloud** et, seulement après la première sauvegarde depuis cet appareil, **Activer la synchro automatique**.
+- La synchronisation, **désactivée par défaut**, pousse les modifications locales et peut récupérer automatiquement une version distante si aucune modification locale n'est intervenue. Elle conserve aussi une sauvegarde locale avant toute réception.
+- Si deux appareils modifient leurs données indépendamment, **la synchronisation est arrêtée**. Il n'existe pas encore de fusion multiéditeur en temps réel ; pour l'instant, ne modifie pas simultanément les données sur deux appareils.
+- L'export/import JSON reste disponible et il faut conserver au moins un export indépendant.
+
+**À ne pas confondre** : cette V0.4 n'inclut **ni identification par Face ID/passkey**, ni synchronisation temps réel avec résolution automatique des conflits. Les données **locales** dans IndexedDB restent en clair. L'origine GitHub Pages `leomgl.github.io` est partagée avec d'autres applications du même compte : les chemins ne constituent pas une frontière de sécurité. Ne pas y stocker encore de données très sensibles.
+
+## Architecture
+
+```text
+iPhone PWA — GitHub Pages (/nexus-app/)
+  ├── app.js : notes, calendrier, budget, projets, capture locale
+  ├── cloud.js : chiffrement, coffre, synchronisation opt-in
+  ├── push-client.js : permission iOS, préférences, abonnements
+  ├── sw.js : offline + notificationclick / push
+  └── IndexedDB : données personnelles locales
+
+Cloudflare Worker nexus-app-api
+  ├── backend/src/index.js : accès au coffre + API authentifiée
+  ├── backend/src/push.js : VAPID, Web Push, planification
+  ├── Cron : */5 * * * *
+  └── D1 nexus-app-db (juridiction EU)
+        ├── tables métier V1 (réservées au futur modèle structuré)
+        ├── vaults (snapshots chiffrés) V2
+        └── push_devices / push_jobs V3 (horaires et souscriptions)
 ```
 
-Ouvrir `http://localhost:8080/` dans un navigateur. Pour installer sur iPhone, il faut une origine HTTPS (après la publication sur GitHub Pages), ouvrir la page dans **Safari → Partager → Sur l'écran d'accueil**.
+Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La clé publique est exposée dans le Worker pour permettre l'abonnement push. Le Worker a été mis en production directement via l'API Cloudflare ; GitHub Workers Builds n'est pas encore configuré. Les mises à jour du dossier `backend/` ne se déploient donc **pas automatiquement**.
 
-**Important :** le stockage local IndexedDB reste en clair. Seules les sauvegardes cloud effectuées sur demande sont chiffrées. N'y saisis pas encore d'informations très sensibles. Si tu supprimes l'icône ou les données de Safari, une sauvegarde JSON ou une clé de récupération cloud sera indispensable.
+## Installation et mises à jour
 
-## Publication GitHub et installation iPhone
+1. Ouvrir https://leomgl.github.io/nexus-app/ dans Safari, puis **Partager → Sur l'écran d'accueil → Ajouter**.
+2. Ouvrir l'app depuis son icône ; le Service Worker gère la mise en cache des ressources.
+3. Lors des mises à jour, **fermer et rouvrir ou actualiser l'application**. Ne pas supprimer l'icône, sous peine de perdre IndexedDB et l'abonnement push.
+4. Effectuer une sauvegarde locale JSON avant une désinstallation, restauration ou changement d'appareil.
 
-- **Code V0.3 publié** dans le dépôt public [Leomgl/nexus-app](https://github.com/Leomgl/nexus-app), branche `main`, sans données personnelles.
-- **GitHub Pages activé** : https://leomgl.github.io/nexus-app/ ; vérifié sur l'iPhone de l'utilisateur avec la V0.2. Tests V0.3 à refaire.
-- Une fois le site actif, ouvrir `https://leomgl.github.io/nexus-app/` dans Safari, puis `Partager > Sur l'écran d'accueil > Ajouter`. Ouvrir ensuite NEXUS depuis son icône.
-- Tester l'ouverture hors ligne, la création d'une note, la sauvegarde JSON et l'import JSON avant d'enregistrer des informations importantes.
-- Les données restent **sur l'appareil**, sauf si une sauvegarde cloud chiffrée est déclenchée volontairement. Ne jamais publier de données ou de clés dans GitHub.
-- **Déployé pour V0.3** : Cloudflare Worker + D1 et authentification par clé de récupération pour les sauvegardes chiffrées manuelles. Passkeys, synchronisation continue et notifications Web Push sont à venir.
+## Suivi des tests
 
-Le prototype est gratuit dans les limites des services utilisés. GitHub Pages doit être activé sur le dépôt pour rendre l'URL accessible.
+- ✅ Code GitHub V0.4 et schémas D1 V3 déployés.
+- ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
+- ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
+- ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
+- ⏳ À vérifier sur plusieurs appareils : restauration, réception automatique sans conflit, comportements hors ligne.
+- ⏳ À construire : connexion passkey/Face ID **avec vérification serveur WebAuthn**, rotation/révocation des clés, moteur de fusion multiappareil, refonte UI.
 
-Consulter `docs/ARCHITECTURE-CIBLE.md`, `docs/schema-d1-projet.sql` (V1 déployée) et `docs/COFFRE-CHIFFRE.md` (V2 déployée).
+## Gratuité
 
-## Compatibilité
-Le stockage local utilise **le même nom de base IndexedDB que la V0.1** (`nexus-v0-1`) pour préserver les données si l'origine du site est identique. Le schéma JSON de sauvegarde est désormais en V2, et l'import V1 reste pris en charge.
+Projet conçu pour GitHub Free, Cloudflare Workers Free et D1 Free. Les limites et conditions des offres peuvent évoluer. **Ne jamais activer une offre payante sans accord explicite.**
 
-## Limitations importantes
-- Suggestions de notes basées sur expressions régulières, **pas une IA**. Les dates et noms doivent être vérifiés avant confirmation.
-- Pas de synchronisation Apple Calendrier, Contacts ou Rappels, ni banque liée.
-- Pas de notifications push ni de connexion cloud tant qu'une API sécurisée n'a pas été mise en place.
-- Si la PWA est publiée sur une autre URL, ce sera une **autre origine** : utiliser l'export/import pour retrouver tes données.
-
-## Infrastructure Cloudflare V0.3 (préparatoire)
-
-La base `nexus-app-db` (D1, juridiction UE) et le schéma relationnel V1 ont été créés le 10 novembre 2026. Le backend `backend/` utilise un Worker **séparé** de RITUEL. Depuis V0.3, seules des sauvegardes **chiffrées sur le téléphone et déclenchées manuellement** peuvent être enregistrées dans D1 avec une clé de récupération. La synchronisation automatique reste désactivée. Voir [docs/CLOUD.md](docs/CLOUD.md).
-
-**Backend déployé (état préparatoire)** : `nexus-app-api` est publié sur Cloudflare avec D1 `nexus-app-db`, région de juridiction UE. Les routes [health](https://nexus-app-api.q9pfwtztsc.workers.dev/api/health) et [config](https://nexus-app-api.q9pfwtztsc.workers.dev/api/config) sont destinées à la vérification technique. Les sauvegardes cloud chiffrées sont désormais disponibles sur demande, mais aucune synchronisation automatique n'est activée. Cette publication a été effectuée directement via Cloudflare ; GitHub Builds n'est pas encore activé.
-
-## Nouveauté V0.3 : coffre chiffré facultatif
-
-Dans **Réglages → Coffre cloud**, l'utilisateur peut créer son coffre avec une invitation à usage unique, conserver une clé de récupération, puis envoyer et restaurer des sauvegardes chiffrées manuellement. L'application **ne synchronise jamais automatiquement** et bloque les collisions de version. L'interface a désormais une politique CSP restrictive et le service worker utilise le cache `nexus-v0.3.0`.
-
-La clé aléatoire de 256 bits dérive séparément une clé d'authentification et une clé de chiffrement AES-GCM. Cloudflare D1 ne reçoit que le document chiffré. **Ne perds pas la clé de récupération** : elle n'est pas récupérable. Les données restent non chiffrées sur l'appareil.
-
-Voir [docs/COFFRE-CHIFFRE.md](docs/COFFRE-CHIFFRE.md) pour l'architecture. La connexion par passkey (Face ID) et la synchronisation bidirectionnelle restent des objectifs ultérieurs.
-
-### Premier test du coffre (V0.3)
-
-1. Ouvrir NEXUS dans Safari depuis son icône, actualiser si l'ancienne version est affichée.
-2. Aller dans **Réglages → Coffre cloud**, entrer le code d'invitation à usage unique transmis séparément.
-3. Conserver immédiatement la **clé de récupération de 43 caractères** dans un gestionnaire de mots de passe ; ne pas la publier dans GitHub.
-4. Déclencher **Sauvegarder vers le cloud** et vérifier l'état du coffre.
-5. Sur un second appareil, choisir **Retrouver mon coffre** avec la clé de récupération et, après export JSON local si nécessaire, restaurer volontairement la sauvegarde.
-
-**Précaution d'origine web :** GitHub Pages héberge RITUEL et NEXUS sur le même domaine `leomgl.github.io` (chemins différents). Les chemins ne sont **pas des frontières de sécurité web**. Une faille de script sur ce même domaine pourrait affecter des données locales de NEXUS. Prévoir une origine dédiée avant d'y placer des données sensibles.
+Documentation : [Notifications iOS](docs/NOTIFICATIONS-IOS.md) · [Synchronisation](docs/SYNCHRONISATION.md) · [Sécurité coffre](docs/COFFRE-CHIFFRE.md) · [Architecture cible](docs/ARCHITECTURE-CIBLE.md).
