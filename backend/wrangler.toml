@@ -16,3 +16,8 @@ crons = ["*/5 * * * *"]
 # The public VAPID key is not sensitive. The PRIVATE key stays in Cloudflare Secrets.
 [vars]
 VAPID_PUBLIC_KEY = "BLVUrNJfkVkwaEXQvQQTDBU1MZXHhcNhp4AoQHkVVBoVT46eMp_0KlFtzlOUZ8abkRv-erV4NpBHmzkU0L-ZcjU"
+
+# E2EE inter-app calls over Cloudflare internal service binding
+[[services]]
+binding = "LINK_RELAY"
+service = "nexus-link-api"

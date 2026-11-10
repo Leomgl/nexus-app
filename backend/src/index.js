@@ -4,6 +4,7 @@ import { passkeyAction } from './passkeys.js';
 // No cookies: a high-entropy recovery secret derives a bearer token and a separate
 // AES-GCM encryption key on the CLIENT. The server only stores encrypted snapshots.
 const ORIGIN = 'https://leomgl.github.io';
+const LINK_ORIGINS = new Set([ORIGIN,'https://gaming-app.q9pfwtztsc.workers.dev']);
 const MAX_BODY = 5_600_000;
 const encoder = new TextEncoder();
 function response(payload, status=200, origin='') {
@@ -43,8 +44,30 @@ async function authorized(request, db) {
 export default {
   async fetch(request,env) {
     const origin=request.headers.get('origin')||'';
-    if(origin && origin!==ORIGIN)return deny(origin);
     const path=new URL(request.url).pathname;
+    // The LINK service binding uses the already-working NEXUS API HTTPS origin.
+    // No Gaming Origin bypass for any existing NEXUS vault, passkey or push route.
+    if(path.startsWith('/api/v1/link/')){
+      if(origin&&!LINK_ORIGINS.has(origin))return deny(origin);
+      if(request.method==='OPTIONS'){
+        if(!LINK_ORIGINS.has(origin))return deny(origin);
+        return new Response(null,{status:204,headers:{
+          'access-control-allow-origin':origin,
+          'access-control-allow-methods':'GET, POST, OPTIONS',
+          'access-control-allow-headers':'Authorization, Content-Type',
+          'access-control-max-age':'600','cache-control':'no-store','vary':'Origin'
+        }});
+      }
+      if(!env.LINK_RELAY)return response({ok:false,error:'LINK_UNAVAILABLE'},503,origin);
+      try{return await env.LINK_RELAY.fetch(request);}
+      catch(err){
+        console.error('NEXUS LINK relay unavailable',err?.name||'Error');
+        const headers={'content-type':'application/json; charset=utf-8','cache-control':'no-store','vary':'Origin'};
+        if(LINK_ORIGINS.has(origin))headers['access-control-allow-origin']=origin;
+        return new Response(JSON.stringify({ok:false,error:'LINK_UNAVAILABLE'}),{status:503,headers});
+      }
+    }
+    if(origin && origin!==ORIGIN)return deny(origin);
     if(request.method==='OPTIONS'){
       if(origin!==ORIGIN)return deny(origin);
       return new Response(null,{status:204,headers:{
