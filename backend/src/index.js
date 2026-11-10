@@ -1,3 +1,4 @@
+import { notificationAction, notificationsConfig, deliverDue } from './push.js';
 // NEXUS v0.3 encrypted vault API. Personal records are never accepted in plaintext.
 // No cookies: a high-entropy recovery secret derives a bearer token and a separate
 // AES-GCM encryption key on the CLIENT. The server only stores encrypted snapshots.
@@ -58,10 +59,15 @@ export default {
       }catch{return response({ok:false,database:'unavailable'},503,origin);}
     }
     if(request.method==='GET'&&path==='/api/config'){
-      return response({ok:true,cloudVault:true,cloudSync:'manual',authentication:'recovery-key',endToEndEncryption:'AES-256-GCM',passkeys:false,notifications:false},200,origin);
+      return response({ok:true,cloudVault:true,cloudSync:'manual',authentication:'recovery-key',endToEndEncryption:'AES-256-GCM',passkeys:false,notifications:notificationsConfig(env).ready},200,origin);
     }
     if(!env.DB)return response({ok:false,error:'DATABASE_UNAVAILABLE'},503,origin);
     try{
+      if(path.startsWith('/api/v1/push/')){
+        const vault=await authorized(request,env.DB);
+        if(!vault)return response({ok:false,error:'UNAUTHORIZED'},401,origin);
+        return await notificationAction(request,env,vault,path,(body,status=200)=>response(body,status,origin));
+      }
       if(request.method==='POST'&&path==='/api/v1/register'){
         const input=await bodyJson(request);
         if(!isHash(input?.verifier)||typeof input?.invite!=='string'||!/^[-_A-Za-z0-9]{22,64}$/.test(input.invite))return response({ok:false,error:'INVALID_INPUT'},400,origin);
@@ -102,5 +108,8 @@ export default {
       console.error('NEXUS API request failed',err?.name||'Error');
       return failure(origin);
     }
+  },
+  async scheduled(_event,env,ctx) {
+    ctx.waitUntil(deliverDue(env));
   }
 };
