@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.8 bêta)
+# NEXUS — Second cerveau personnel (V0.9 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.8 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.9 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -176,3 +176,29 @@ Le modèle local ajoute **`recurrences`** et **`quickExpenses`** aux tableaux de
 **Tests V0.8** : mois de février avec jours 28/29/31, récurrence hebdomadaire, récurrence annuelle, échéance ignorée, échéance confirmée, règles en pause, écriture d'un montant réel ajusté, raccourcis fixes et variables, rendu des quatre vues. À tester sur Safari iPhone avant de considérer la version stable.
 
 Documentation détaillée : [docs/BUDGET-V08.md](docs/BUDGET-V08.md).
+
+## Budget V0.9 — catégories libres, épingles et projection
+
+### Catégories personnalisées
+
+Depuis **Budget → Gérer mes catégories**, tu peux créer, renommer, attribuer une couleur, archiver et réactiver des catégories budgétaires. Les catégories prédéfinies restent présentes par compatibilité, mais sont **éditables**. Les libellés historiques hors liste sont également récupérés.
+
+- **Renommer** une catégorie met à jour ses libellés dans `data.transactions`, `data.recurrences` et `data.quickExpenses` en conservant dates, montants et IDs.
+- **Archiver** masque le choix dans les **nouveaux** formulaires, sans retirer la catégorie d'une opération historique en édition. Les transactions et statistiques existantes restent inchangées.
+- Les couleurs sont de vraies valeurs hexadécimales validées, appliquées à la ventilation par catégorie. Les statistiques affichent toutes les catégories utilisées et pas seulement les six premières.
+- Les doublons de nom sont bloqués (insensibles aux accents et à la casse).
+- Les réglages sont stockés dans `data.budgetCategories[]` et suivent donc l'export local ainsi que les sauvegardes chiffrées Cloudflare, sans aucune modification du Worker ni migration D1.
+
+### Raccourcis épinglés
+
+L'étoile sur une dépense rapide la garde en tête de la liste, qu'elle soit à montant fixe ou variable. L'épinglage est sauvegardé localement et dans le coffre, avec le modèle de dépense. L'historique des opérations reste indépendant des changements de raccourci.
+
+### Projections à trois mois
+
+Sur **Budget → Vue d'ensemble**, trois cartes montrent les prochains mois avec leurs flux positifs et négatifs, calculés à partir des récurrences actives restantes et des éventuelles opérations déjà enregistrées. Les mois incomplets ou dépenses imprévues ne sont pas devinés. Les valeurs ne représentent jamais le solde bancaire.
+
+### Tests
+
+Code et scénarios de calcul simulés : création et renommage de catégorie, propagation à une transaction / une récurrence / un raccourci, archivage et maintien de l'historique, conservation de catégorie archivée sur une ancienne opération, rejet des couleurs CSS non valides, gestion des jours de fin de mois, épingles et projections multi-mois.
+
+**Limite :** validation d'interface sur un vrai iPhone et de la synchronisation interappareils encore nécessaires avant une version stable.

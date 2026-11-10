@@ -602,3 +602,44 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .b8-metrics{grid-template-columns:1fr 1fr}
  .b8-metrics>div:last-child{grid-column:1/-1}
 }
+
+/* ===== NEXUS V0.9 — CATÉGORIES PERSONNALISÉES & PRÉVISIONS ===== */
+.b9-budget-tools{display:flex;justify-content:flex-end;gap:9px;margin:-4px 0 13px}
+.b9-budget-tools .btn{font-size:11px;border-radius:12px;background:#fff;border:1px solid var(--nx-line);color:var(--nx-primary)}
+.b9-budget-tools .btn svg{width:15px;height:15px}
+.b9-manage-categories .muted-note{line-height:1.55;font-size:12px}
+.b9-category-list{display:grid;gap:3px;margin:17px 0;max-height:55vh;overflow-y:auto;padding-right:3px}
+.b9-category-entry{display:flex;align-items:center;gap:11px;min-width:0;padding:11px 1px;border-bottom:1px solid var(--nx-line)}
+.b9-category-entry.archived{opacity:.6}
+.b9-category-entry:last-child{border-bottom:0}
+.b9-category-dot{height:24px;width:24px;border-radius:9px;flex-shrink:0;border:1px solid #0000000b}
+.b9-category-label{flex:1;min-width:0}
+.b9-category-label strong{display:block;font-size:13px;color:var(--nx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.b9-category-label small{display:block;margin-top:4px;font-size:11px;color:var(--nx-muted)}
+.b9-category-entry .btn{font-size:10px;padding:8px 9px;min-width:auto;white-space:nowrap}
+.b9-category-picker{height:44px;cursor:pointer;padding:5px!important}
+.b9-inline-dot{display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:3px;vertical-align:1px}
+.b9-quick-controls{display:flex;flex-direction:column;border-left:1px solid var(--nx-line);background:#f8faf7}
+.b9-quick-controls button{width:36px;flex:1;min-height:35px;display:grid;place-items:center;color:#718a78;background:transparent}
+.b9-quick-controls button:first-child{border-bottom:1px solid var(--nx-line)}
+.b9-quick-controls .b9-quick-pin.active{color:#b07a26;background:#fff4d9}
+.b9-quick-controls .b9-quick-pin.active svg{fill:currentColor;stroke-width:1.1}
+.b9-quick-controls svg{width:16px;height:16px}
+.b9-future-months{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.b9-future-month{display:flex;flex-direction:column;gap:8px;min-width:0;border:1px solid var(--nx-line);border-radius:14px;padding:14px;background:#f9fbf8}
+.b9-future-month>strong{text-transform:capitalize;font-size:12px;color:var(--nx-ink);white-space:nowrap}
+.b9-future-net{display:block;font-size:23px;font-weight:840;letter-spacing:-.75px;overflow-wrap:anywhere}
+.b9-future-month>small{font-size:10px;line-height:1.5;color:var(--nx-muted)}
+@media(max-width:760px){
+ .b9-category-entry{gap:7px}
+ .b9-category-dot{height:20px;width:20px;border-radius:7px}
+ .b9-category-entry .btn{padding:7px 6px;font-size:9px}
+ .b9-category-label strong{font-size:11px}
+ .b9-category-label small{font-size:9px}
+ .b9-future-months{grid-template-columns:1fr}
+ .b9-future-month{gap:5px;padding:12px}
+ .b9-future-month>strong{font-size:11px}
+ .b9-future-net{font-size:20px}
+ .b9-future-month>small{font-size:10px}
+ .b9-budget-tools .btn{width:100%;justify-content:center;min-height:40px}
+}
