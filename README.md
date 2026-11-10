@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.10 bêta)
+# NEXUS — Second cerveau personnel (V0.11 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.10 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.11 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -224,3 +224,20 @@ Code et scénarios de calcul simulés : création et renommage de catégorie, pr
 Le tableau `trash[]` est ajouté au même modèle IndexedDB. Les anciennes sauvegardes qui n'ont pas ce champ se chargent avec une corbeille vide. Le code `recycle.js` est précaché par le Service Worker `nexus-v0.10.0`. Aucun changement Worker/D1/notifications/WebAuthn et aucun service payant.
 
 Voir [docs/CORBEILLE-RESET.md](docs/CORBEILLE-RESET.md).
+
+## V0.11 — Journal Budget : édition express et filtres mémorisés
+
+Le journal Budget propose désormais des **actions directes sur chaque écriture** :
+
+- **Modifier** : mini-formulaire pour changer le titre, le type (recette/dépense), le montant, la date et la catégorie en quelques champs. Tous les liens existants (projet, note, achat, récurrence et raccourci) sont préservés. Le bouton **Fiche complète** ouvre l'éditeur historique.
+- **Supprimer** : utilise la corbeille universelle de V0.10. Après confirmation, un bouton « Annuler » restaure immédiatement l'écriture ; elle reste récupérable depuis Réglages → Corbeille.
+- **Filtres mémorisés** : type et catégorie sont stockés localement sous `nexus_budget_journal_filters_v010`, survivant aux fermetures et réouvertures. La recherche textuelle, temporaire, n'est **pas** mémorisée pour éviter une vue vide inexplicable lors de la prochaine ouverture.
+- **Effacer les filtres** : remet le type et la catégorie à « Tous » et vide la recherche.
+
+Les contrôles de saisie bloquent montant nul, type inattendu, dates calendaires invalides et conversion d'une dépense liée à un achat en recette. Les projets et récurrences sources ne sont pas modifiés.
+
+**Tests exécutés** : rendu des boutons, édition rapide d'une opération, conservation des liens, refus des dates impossibles et montants nuls, stockage et restauration des filtres, leur remise à zéro, délégation de la suppression au système de corbeille, syntaxe JS. Les interactions réelles Safari iPhone restent à valider.
+
+Le stockage financier et les sauvegardes chiffrées sont inchangés. Les seuls nouveaux réglages sont des préférences d'affichage locales ; aucune migration Worker, D1, IndexedDB ou modification du projet RITUEL.
+
+Voir [docs/JOURNAL-V011.md](docs/JOURNAL-V011.md).
