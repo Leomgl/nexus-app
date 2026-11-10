@@ -954,7 +954,7 @@ document.addEventListener('click',async event=>{
  if(kind==='event-ics'){const e=data.events.find(x=>x.id===id);if(e)eventToIcs(e);}
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
- if(kind.startsWith('link-')){window.NexusConnections?.act?.(kind,action);return;}
+ if(kind.startsWith('link-')||kind.startsWith('rituel-')){window.NexusConnections?.act?.(kind,action);return;}
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
@@ -985,8 +985,10 @@ async function verifyNexusInbox(){
   return Array.isArray(saved?.linkInbox)&&JSON.stringify(saved.linkInbox)===JSON.stringify(data.linkInbox);
  }catch{return false}
 }
-function attachGamingImport(){window.NexusGamingImport?.attach?.({
- state:()=>data,persist,verify:verifyNexusInbox,render,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())
-});}
+function attachGamingImport(){
+ const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
+ window.NexusGamingImport?.attach?.(adapter);
+ window.NexusRituelImport?.attach?.(adapter);
+}
 
 (async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();

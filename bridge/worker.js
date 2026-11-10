@@ -2,7 +2,8 @@
 const FRONTENDS=new Set([
  'https://leomgl.github.io',
  'https://gaming-app.q9pfwtztsc.workers.dev',
- 'https://rituel-app.q9pfwtztsc.workers.dev'
+ 'https://rituel-app.q9pfwtztsc.workers.dev',
+ 'https://rituel-web.q9pfwtztsc.workers.dev'
 ]);
 const SCOPES={
  gaming:new Set(['installed_summary','future_spending','pass_deadline','pass_paid','dlc_release','game_release','gaming_event']),
