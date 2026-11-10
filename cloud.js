@@ -272,6 +272,11 @@
     document.getElementById('vault-back').addEventListener('click',viewPanel);
   }
   async function session(){const state=await readState();if(!state?.secret)return null;const k=await keys(state.secret);return {token:k.token,version:state.version};}
-  window.NexusCloud={openPanel:viewPanel,session,onLocalChange:queueAuto};
+  async function validateRecoveryKey(raw){
+    try{const state=await readState();if(!state?.secret)return false;
+      const entered=await keys(raw),original=await keys(state.secret);return entered.token===original.token;
+    }catch{return false;}
+  }
+  window.NexusCloud={openPanel:viewPanel,session,onLocalChange:queueAuto,validateRecoveryKey};
   queueAuto(12000);
 })();

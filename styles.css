@@ -103,3 +103,17 @@
 /* V0.4 reminder preferences */
 .nx-check{display:flex!important;gap:12px!important;align-items:center!important;border-bottom:1px solid #e6ebe4;padding:9px 4px;margin:0!important;font-weight:590!important;font-size:13px!important}
 .nx-check input{width:19px;height:19px;accent-color:#2c5e49;flex-shrink:0}
+
+/* Optional passkey screen privacy lock. NOT an at-rest encryption boundary. */
+.nexus-lock-pending .app-shell{filter:blur(18px);pointer-events:none;user-select:none}
+#nexus-lock-overlay{position:fixed;inset:0;z-index:9999;background:#eaf0e8f5;backdrop-filter:blur(20px);display:grid;place-items:center;padding:22px}
+.nx-lock-card{background:white;width:min(420px,100%);padding:29px;border-radius:24px;border:1px solid #dce6d9;box-shadow:0 22px 80px #183b2b18;text-align:center}
+.nx-lock-card h1{font-size:23px;margin:12px 0;letter-spacing:-.8px}
+.nx-lock-card p{font-size:13px;color:#6e8276;line-height:1.6}
+.nx-lock-card .btn{width:100%;margin:10px 0}
+.nx-lock-mark{font-size:30px;font-weight:850;color:#ebf7e6;background:#244c40;margin:auto;border-radius:17px;width:58px;height:58px;display:grid;place-items:center}
+.nx-lock-card details{text-align:left;margin:18px 0;border-top:1px solid #e1eae0;padding-top:14px}
+.nx-lock-card summary{cursor:pointer;font-weight:690;font-size:12px;color:#496653}
+.nx-lock-card label{display:block;font-size:12px;margin:13px 0 7px}
+.nx-lock-card input{width:100%;height:43px;border:1px solid #dce6d9;border-radius:10px;padding:10px}
+.nx-lock-card small{font-size:10px;color:#869588;line-height:1.6;display:block}

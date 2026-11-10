@@ -530,6 +530,7 @@ function settings(){
  <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>
  <div class="settings-option"><div><strong>Restaurer une sauvegarde</strong><p>Compatible avec la V0.1 et V0.2. Remplace les données actuelles.</p></div>
  <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
+ <div class="settings-option"><div><strong>Face ID / Passkey</strong><p>Verrouillage optionnel avec preuve cryptographique vérifiée par Cloudflare.</p></div><button class="btn btn-soft btn-small" data-action="passkey-settings">${svg('shield')} Configurer</button></div>
  <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Rendez-vous et tâches, délais personnalisés, alertes lorsque NEXUS est fermé.</p></div><button class="btn btn-soft btn-small" data-action="push-settings">${svg('clock')} Régler</button></div>
  <div class="settings-option"><div><strong>Coffre cloud chiffré</strong><p>Sauvegarde et restauration manuelles, chiffrées avant envoi. Aucune synchronisation forcée.</p></div>
  <button class="btn btn-soft btn-small" data-action="cloud-vault">${svg('shield')} Coffre</button></div>
@@ -611,6 +612,7 @@ document.addEventListener('click',async event=>{
  if(kind==='settings')settings();
  if(kind==='cloud-vault')window.NexusCloud?.openPanel();
  if(kind==='push-settings')window.NexusPush?.openPanel();
+ if(kind==='passkey-settings')window.NexusFace?.openPanel();
  if(kind==='note-detail')noteDetail(id);
  if(kind==='event-detail')eventDetail(id);
  if(kind==='task-detail')taskDetail(id);
@@ -637,4 +639,4 @@ document.addEventListener('click',async event=>{
 });
 document.getElementById('restore-file').addEventListener('change',async event=>{const f=event.target.files?.[0];if(!f)return;try{if(f.size>20_000_000)throw new Error('Fichier trop volumineux');const parsed=JSON.parse(await f.text());if(parsed.app!=='NEXUS'||![1,2].includes(parsed.schemaVersion)||!parsed.data||!['notes','events','tasks','contacts'].every(key=>Array.isArray(parsed.data[key]))||Object.entries(parsed.data).some(([k,v])=>k in data&&!Array.isArray(v)))throw new Error('Ce fichier n’est pas une sauvegarde NEXUS valide.');if(confirm('La restauration remplacera les données actuelles. Continuer ?')){assignData(parsed.data);await persist();closeModal();render();toast('Sauvegarde restaurée');}}catch(err){alert(err.message||'Restauration impossible');}finally{event.target.value='';}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();showSearch();}});
-(async()=>{await loadData();render();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
+(async()=>{await loadData();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
