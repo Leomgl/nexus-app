@@ -1,0 +1,10 @@
+name = "nexus-app-api"
+main = "src/index.js"
+compatibility_date = "2026-11-10"
+
+# GitHub Pages remains the public local-first PWA. This Worker only exposes safe health/config.
+[[d1_databases]]
+binding = "DB"
+database_name = "nexus-app-db"
+database_id = "b790938c-402e-4183-91e8-6e400ed28075"
+migrations_dir = "migrations"

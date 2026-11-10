@@ -49,3 +49,7 @@ Le stockage local utilise **le même nom de base IndexedDB que la V0.1** (`nexus
 - Pas de synchronisation Apple Calendrier, Contacts ou Rappels, ni banque liée.
 - Pas de notifications push ni de connexion cloud tant qu'une API sécurisée n'a pas été mise en place.
 - Si la PWA est publiée sur une autre URL, ce sera une **autre origine** : utiliser l'export/import pour retrouver tes données.
+
+## Infrastructure Cloudflare V0.3 (préparatoire)
+
+La base `nexus-app-db` (D1, juridiction UE) et le schéma relationnel V1 ont été créés le 10 novembre 2026. Le backend `backend/` est prévu pour un Worker **séparé** de RITUEL. À ce stade il ne propose que des vérifications techniques : **aucune donnée personnelle n'est synchronisée ni envoyée au cloud**. Le verrou d'authentification doit être développé et testé avant activation de la synchronisation. Voir [docs/CLOUD.md](docs/CLOUD.md).
