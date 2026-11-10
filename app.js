@@ -39,7 +39,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -399,23 +399,7 @@ function purchasesView(){
  <div class="list-stack">${filter.length?filter.sort((a,b)=>(Number(b.priority)||0)-(Number(a.priority)||0)).map(purchaseRow).join(''):empty('Aucun achat ici','Ajoute un achat, puis rattache-le à un projet.','cart')}</div>`;
 }
 function budgetView(){
- const totals=monthTotals(budgetMonth),net=totals.income-totals.expense;
- const monthDate=new Date(budgetMonth+'-01T12:00:00'),limit=data.limits.find(x=>x.month===budgetMonth)?.limitCents;
- const used=limit>0?Math.min(Math.round(totals.expense/limit*100),100):0;
- const entries=[...data.transactions].filter(t=>t.date?.slice(0,7)===budgetMonth).sort((a,b)=>b.date.localeCompare(a.date));
- const sums=new Map();
- for(const t of entries.filter(t=>t.type==='expense')) sums.set(t.category||'Autres',(sums.get(t.category||'Autres')||0)+t.amountCents);
- const cats=[...sums].sort((a,b)=>b[1]-a[1]).slice(0,5);
- return `<div class="page-header"><div><div class="eyebrow">FINANCES PERSONNELLES</div><h1 class="page-title">Budget</h1><p class="subtitle">Une vue claire de ce qui entre, de ce qui sort et de tes projets.</p></div><button class="btn" data-action="new-transaction">${svg('plus')} Opération</button></div>
- <div class="budget-hero card"><div class="calendar-header"><div><div class="eyebrow">RÉSUMÉ DU MOIS</div><h2>${formatDate(dateKey(monthDate),{month:'long',year:'numeric'})}</h2></div>
- <div class="calendar-arrows"><button data-action="budget-prev" aria-label="Mois précédent">${svg('chevleft')}</button><button data-action="budget-next" aria-label="Mois suivant">${svg('chevright')}</button></div></div>
- <div class="budget-cards"><div><span>Revenus</span><strong>${money(totals.income)}</strong></div><div><span>Dépenses</span><strong>${money(totals.expense)}</strong></div><div><span>Flux net du mois</span><strong class="${net<0?'negative':'positive'}">${net<0?'−':''}${money(Math.abs(net))}</strong></div></div>
- <div class="budget-limit-head"><span>${limit>0?`Plafond mensuel : ${money(limit)}`:'Aucun plafond défini'}</span><button class="link-button" data-action="budget-limit">Modifier</button></div>
- ${limit>0?`<div class="progress-track budget-progress"><i style="width:${used}%;background:${totals.expense>limit?'#cf7457':'#90b98e'}"></i></div><small>${Math.round(totals.expense/limit*100)} % du plafond utilisé</small>`:''}
- </div>
- <div class="two-col"><div>${section('Opérations','budget')}<div class="list-stack">${entries.length?entries.map(transactionRow).join(''):empty('Aucune opération','Ajoute une recette ou une dépense pour ce mois.','wallet')}</div></div>
- <div><div class="section-title"><h2>Par catégorie</h2></div><div class="card categories-card">${cats.length?cats.map(([label,cents])=>`<div class="category-line"><div><span>${escapeHtml(label)}</span><strong>${money(cents)}</strong></div><div class="progress-track"><i style="width:${totals.expense?Math.round(cents/totals.expense*100):0}%"></i></div></div>`).join(''):empty('Pas encore de répartition','Les dépenses alimentent cette section.','wallet')}</div></div></div>
- <div class="info-strip">${svg('info')} NEXUS est un suivi manuel et indicatif, pas un outil bancaire. Aucune connexion à tes comptes n'est nécessaire.</div>`;
+ return window.NexusBudget?.view?.()||empty('Budget indisponible','Actualise la page pour charger les dernières ressources.','wallet');
 }
 function projectDetail(id){
  const p=data.projects.find(x=>x.id===id);if(!p)return;
@@ -931,7 +915,8 @@ document.addEventListener('click',async event=>{
   const p=data.purchases.find(x=>x.id===id);
   if(p&&p.status==='purchased'&&!data.transactions.some(t=>t.purchaseId===id)) extraCaptureForm('transaction',{}, {purchaseId:id});
  }
- if(kind==='purchase-filter'){purchaseFilter=action.dataset.filter;render();}
+ if(kind.startsWith('b8-')){window.NexusBudget?.act?.(kind,action);return;}
+  if(kind==='purchase-filter'){purchaseFilter=action.dataset.filter;render();}
  if(kind==='project-filter'){projectFilter=action.dataset.filter;render();}
  if(kind==='budget-limit')extraCaptureForm('limit');
  if(kind==='budget-prev'||kind==='budget-next'){
@@ -969,6 +954,7 @@ document.addEventListener('click',async event=>{
  if(kind==='clear-all'){if(confirm('Tout effacer sur cet appareil ? Cette action est irréversible sans sauvegarde.')){assignData({});await persist();closeModal();render();toast('Espace vidé');}}
 });
 document.addEventListener('change',event=>{
+ if(event.target?.id?.startsWith('b8-journal-')){window.NexusBudget?.change?.(event.target);return;}
  const shortcut=event.target.closest('[data-pref-slot]');
  if(shortcut){setSlot(Number(shortcut.dataset.prefSlot),shortcut.value);return;}
  const option=event.target.closest('[data-pref-option]');
@@ -977,6 +963,9 @@ document.addEventListener('change',event=>{
   if(key==='theme'&&['sage','slate'].includes(option.value)){UI.theme=option.value;saveUI();}
   if(key==='density'&&['comfortable','compact'].includes(option.value)){UI.density=option.value;saveUI();}
  }
+});
+document.addEventListener('input',event=>{
+ if(event.target?.id==='b8-journal-search')window.NexusBudget?.inputSearch?.(event.target);
 });
 document.getElementById('restore-file').addEventListener('change',async event=>{const f=event.target.files?.[0];if(!f)return;try{if(f.size>20_000_000)throw new Error('Fichier trop volumineux');const parsed=JSON.parse(await f.text());if(parsed.app!=='NEXUS'||![1,2].includes(parsed.schemaVersion)||!parsed.data||!['notes','events','tasks','contacts'].every(key=>Array.isArray(parsed.data[key]))||Object.entries(parsed.data).some(([k,v])=>k in data&&!Array.isArray(v)))throw new Error('Ce fichier n’est pas une sauvegarde NEXUS valide.');if(confirm('La restauration remplacera les données actuelles. Continuer ?')){assignData(parsed.data);await persist();closeModal();render();toast('Sauvegarde restaurée');}}catch(err){alert(err.message||'Restauration impossible');}finally{event.target.value='';}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();showSearch();}});
