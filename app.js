@@ -195,6 +195,37 @@ function takeInlineProject(values){
  return project;
 }
 
+
+const EVENT_REMINDER_OPTIONS=[
+ [1440,'1 jour avant'],[720,'12 h avant'],[240,'4 h avant'],[120,'2 h avant'],
+ [60,'1 h avant'],[45,'45 min avant'],[30,'30 min avant'],[15,'15 min avant'],[5,'5 min avant']
+];
+function normalizeEventReminders(values){
+ return [...new Set((Array.isArray(values)?values:[]).map(Number)
+   .filter(n=>Number.isInteger(n)&&n>=1&&n<=10080))].sort((a,b)=>b-a).slice(0,20);
+}
+function eventReminderLabel(minutes){
+ if(minutes===1440)return '1 jour';
+ if(minutes%1440===0)return (minutes/1440)+' jours';
+ if(minutes%60===0)return (minutes/60)+' h';
+ return minutes+' min';
+}
+function eventRemindersField(obj){
+ // Existing appointments without reminderMinutes keep their old global schedule until edited.
+ const selected=normalizeEventReminders(Array.isArray(obj.reminderMinutes)?obj.reminderMinutes:[60]);
+ const known=EVENT_REMINDER_OPTIONS.map(pair=>pair[0]);
+ const extra=selected.filter(n=>!known.includes(n));
+ const choices=[...EVENT_REMINDER_OPTIONS,...extra.map(m=>[m,eventReminderLabel(m)+' avant'])];
+ return `<fieldset class="event-reminders">
+  <legend>Alertes pour ce rendez-vous</legend>
+  <p class="muted-note">Coche les délais souhaités pour CE rendez-vous. Aucun délai coché = aucune notification.</p>
+  <div class="reminder-choices">${choices.map(([minutes,label])=>
+   `<label class="reminder-choice"><input type="checkbox" name="reminderMinute" value="${minutes}" ${selected.includes(minutes)?'checked':''}><span>${escapeHtml(label)}</span></label>`).join('')}</div>
+  ${input('Autre délai (en minutes avant)','customReminderMinutes','','number','min="1" max="10080" step="1" placeholder="Ex. 90"')}
+  <small class="muted-note">Les notifications doivent être activées une fois dans Réglages. L'envoi est géré par Cloudflare environ toutes les 5 minutes.</small>
+ </fieldset>`;
+}
+
 const projectStatus={active:'En cours',paused:'En pause',completed:'Terminé'};
 const purchaseStatus={planned:'À acheter',purchased:'Acheté',canceled:'Abandonné'};
 const txCategories=['Courses','Transport','Maison','Loisirs','Santé','Abonnements','Shopping','Équipement','Autres','Salaire','Vente'];
@@ -275,13 +306,17 @@ function budgetView(){
 }
 function projectDetail(id){
  const p=data.projects.find(x=>x.id===id);if(!p)return;
- const tasks=projectTasks(id),notes=data.notes.filter(n=>n.projectId===id),purchases=data.purchases.filter(x=>x.projectId===id);
+ const events=sortEvents(data.events.filter(e=>e.projectId===id)),tasks=projectTasks(id),notes=data.notes.filter(n=>n.projectId===id),purchases=data.purchases.filter(x=>x.projectId===id);
  const tx=data.transactions.filter(x=>x.projectId===id&&x.type==='expense'),spent=projectSpent(id);
  modal('Projet',`<div class="eyebrow">PROJET · ${escapeHtml(projectStatus[p.status]||'En cours')}</div><h2 class="detail-title">${escapeHtml(p.title)}</h2>
  <p class="subtitle">${escapeHtml(p.description||'Pas encore de description.')}</p>
  <div class="project-facts"><span>${svg('calendar')} ${p.deadline?formatDate(p.deadline):'Pas de date limite'}</span><span>${svg('wallet')} ${money(spent)} dépensés${p.budgetCents?` / ${money(p.budgetCents)} prévus`:''}</span></div>
  <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="edit-project" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-project" data-id="${id}">${svg('trash')} Supprimer</button></div>
- <div class="linked-section"><h3>${svg('check')} Rappels (${tasks.length})</h3>${tasks.map(taskRow).join('')||'<p class="muted-note">Aucun rappel lié.</p>'}
+ <div class="linked-section"><h3>${svg('calendar')} Rendez-vous (${events.length})</h3>
+  ${events.map(e=>`<div class="due-item"><button data-action="event-detail" data-id="${e.id}">${escapeHtml(e.title)}
+    <small>${formatDate(e.start)} · ${escapeHtml(e.start?.slice(11,16)||'')}</small></button></div>`).join('')||'<p class="muted-note">Aucun rendez-vous lié.</p>'}
+  <button class="btn btn-neutral btn-small" data-action="new-event-for-project" data-id="${id}">${svg('plus')} Nouveau rendez-vous</button></div>
+  <div class="linked-section"><h3>${svg('check')} Rappels (${tasks.length})</h3>${tasks.map(taskRow).join('')||'<p class="muted-note">Aucun rappel lié.</p>'}
  <button class="btn btn-neutral btn-small" data-action="task-for-project" data-id="${id}">${svg('plus')} Nouveau rappel</button></div>
  <div class="linked-section"><h3>${svg('notes')} Notes (${notes.length})</h3>${notes.map(n=>`<div class="due-item"><button data-action="note-detail" data-id="${n.id}">${escapeHtml(n.title)}</button></div>`).join('')||'<p class="muted-note">Aucune note liée.</p>'}
  <button class="btn btn-neutral btn-small" data-action="note-for-project" data-id="${id}">${svg('plus')} Nouvelle note</button></div>
@@ -427,7 +462,7 @@ function captureForm(kind, obj={}, context={}){
   const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null, detected=note?analyzeNote(note.body):{};
   const chosenDate=obj.start?.slice(0,10)||detected.date||selectedDay,chosenTime=obj.start?.slice(11,16)||detected.time||'14:00';
   const personId=obj.personId||detected.personId||'';
-  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||context.projectId||'')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(personId)}</select></div>${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${eventRemindersField(obj)}${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||context.projectId||'')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(personId)}</select></div>${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
@@ -440,6 +475,13 @@ function captureForm(kind, obj={}, context={}){
  const form=document.getElementById('entity-form');wireProjectField(form);form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const values=Object.fromEntries(new FormData(form).entries());
+  const reminders=kind==='event'?[...form.querySelectorAll('input[name="reminderMinute"]:checked')].map(el=>Number(el.value)):[];
+  if(kind==='event'&&values.customReminderMinutes){
+   const minutes=Number(values.customReminderMinutes);
+   if(!Number.isInteger(minutes)||minutes<1||minutes>10080){toast('Rappel personnalisé : utilise un entier de 1 à 10 080 minutes.');return;}
+   reminders.push(minutes);
+  }
+  delete values.reminderMinute;delete values.customReminderMinutes;
   let newProject=null;
   if(form.querySelector('[name="projectId"]')){
    try{newProject=takeInlineProject(values);}catch(error){toast(error.message);return;}
@@ -447,7 +489,7 @@ function captureForm(kind, obj={}, context={}){
   const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??context.projectId??'';}
-  if(kind==='event'){base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??context.projectId??'';delete base.date;delete base.time;}
+  if(kind==='event'){base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??context.projectId??'';delete base.date;delete base.time;}
   if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??context.projectId??'';}
   if(newProject)data.projects.push(newProject);
   const key={note:'notes',event:'events',task:'tasks',contact:'contacts'}[kind];const ix=data[key].findIndex(v=>v.id===base.id);if(ix>=0)data[key][ix]=base;else data[key].push(base);
@@ -561,7 +603,30 @@ function noteDetail(id){
  <div class="linked-section"><h3>${svg('link')} Éléments reliés (${related.length})</h3>
  ${related.map(x=>`<div class="due-item"><span class="item-ico">${svg(x.icon)}</span><button data-action="${x.type}-detail" data-id="${x.id}">${escapeHtml(x.title)}<small>${escapeHtml(x.sub||'')}</small></button></div>`).join('')||'<p class="muted-note">Aucun lien pour le moment.</p>'}</div>`);
 }
-function eventDetail(id){const e=data.events.find(v=>v.id===id);if(!e)return;const person=data.contacts.find(p=>p.id===e.personId);const note=data.notes.find(n=>n.id===e.noteId);modal('Rendez-vous',`<div class="eyebrow">AGENDA</div><div class="detail-head"><h2>${escapeHtml(e.title)}</h2></div><div class="detail-content">${svg('calendar')} ${formatDate(e.start,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${escapeHtml(e.start?.slice(11,16)||'')}${e.location?`\n${svg('pin')} ${escapeHtml(e.location)}`:''}${person||e.personText?`\n${svg('users')} ${escapeHtml(person?.name||e.personText)}`:''}${e.details?`\n\n${escapeHtml(e.details)}`:''}</div><div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="edit-event" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-neutral btn-small" data-action="event-ics" data-id="${id}">${svg('download')} .ics</button><button class="btn btn-danger btn-small" data-action="delete-event" data-id="${id}">${svg('trash')} Supprimer</button></div>${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);}
+
+function eventDetail(id){
+ const e=data.events.find(v=>v.id===id);if(!e)return;
+ const person=data.contacts.find(p=>p.id===e.personId);
+ const note=data.notes.find(n=>n.id===e.noteId);
+ const project=data.projects.find(p=>p.id===e.projectId);
+ const notificationLabel=Array.isArray(e.reminderMinutes)?
+  (normalizeEventReminders(e.reminderMinutes).map(m=>eventReminderLabel(m)).join(', ')||'Aucune notification')+' avant':
+  'Anciennes préférences de notification';
+ modal('Rendez-vous',`<div class="eyebrow">AGENDA</div><div class="detail-head"><h2>${escapeHtml(e.title)}</h2></div>
+  <div class="detail-content">${svg('calendar')} ${formatDate(e.start,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${escapeHtml(e.start?.slice(11,16)||'')}
+  ${e.location?`\\n${svg('pin')} ${escapeHtml(e.location)}`:''}
+  ${person||e.personText?`\\n${svg('users')} ${escapeHtml(person?.name||e.personText)}`:''}
+  ${e.details?`\\n\\n${escapeHtml(e.details)}`:''}</div>
+  <p class="muted-note">${svg('clock')} Rappels : ${escapeHtml(notificationLabel)}</p>
+  <div class="form-actions" style="justify-content:flex-start">
+   <button class="btn btn-soft btn-small" data-action="edit-event" data-id="${id}">${svg('edit')} Modifier</button>
+   <button class="btn btn-neutral btn-small" data-action="event-ics" data-id="${id}">${svg('download')} .ics</button>
+   <button class="btn btn-danger btn-small" data-action="delete-event" data-id="${id}">${svg('trash')} Supprimer</button></div>
+  ${project?`<div class="linked-section"><h3>${svg('briefcase')} Projet associé</h3>
+   <button class="btn btn-neutral btn-small" data-action="project-detail" data-id="${project.id}">${escapeHtml(project.title)}</button></div>`:''}
+  ${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);
+}
+
 function taskDetail(id){const t=data.tasks.find(x=>x.id===id);if(!t)return;const note=data.notes.find(n=>n.id===t.noteId),person=data.contacts.find(p=>p.id===t.personId);modal('Rappel',`<div class="eyebrow">À FAIRE</div><h2 style="font-size:24px;letter-spacing:-1px">${escapeHtml(t.title)}</h2><p class="muted-note">${t.done?'Terminé':'À faire'} · ${t.dueDate?formatDate(t.dueDate,{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Sans date limite'}${person?' · '+escapeHtml(person.name):''}</p><div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="toggle-task" data-id="${id}">${svg('check')} ${t.done?'Réactiver':'Marquer terminé'}</button><button class="btn btn-neutral btn-small" data-action="edit-task" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-task" data-id="${id}">${svg('trash')} Supprimer</button></div>${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);}
 function contactDetail(id){const c=data.contacts.find(x=>x.id===id);if(!c)return;const events=sortEvents(data.events.filter(e=>e.personId===id)),tasks=data.tasks.filter(t=>t.personId===id);const phone=c.phone?c.phone.replace(/[^\d+]/g,''):'';modal('Personne',`<div class="detail-head"><div><div class="eyebrow">PERSONNE</div><h2>${escapeHtml(c.name)}</h2><p class="subtitle">${escapeHtml(c.role||'Contact')}</p></div><span class="person-initial">${escapeHtml(c.name[0]?.toUpperCase())}</span></div><div class="form-actions" style="justify-content:flex-start">${phone?`<a class="btn btn-soft btn-small" href="tel:${escapeHtml(phone)}">${svg('phone')} Appeler</a>`:''}${c.email?`<a class="btn btn-soft btn-small" href="mailto:${escapeHtml(c.email)}">${svg('mail')} E-mail</a>`:''}<button class="btn btn-neutral btn-small" data-action="edit-contact" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-contact" data-id="${id}">${svg('trash')} Supprimer</button></div><div class="linked-section"><h3>${svg('link')} Dans ton espace (${events.length+tasks.length})</h3>${events.map(e=>`<div class="due-item"><span class="item-ico blue">${svg('calendar')}</span><button data-action="event-detail" data-id="${e.id}">${escapeHtml(e.title)}<small>${formatDate(e.start)}</small></button></div>`).join('')}${tasks.map(t=>`<div class="due-item"><span class="item-ico peach">${svg('check')}</span><button data-action="task-detail" data-id="${t.id}">${escapeHtml(t.title)}</button></div>`).join('')||'<p class="muted-note">Aucun rendez-vous ou rappel associé.</p>'}</div>`);}
 function showSearch(){modal('Rechercher partout',`<div class="search-box">${svg('search')}<input id="global-search" type="search" placeholder="Note, achat, projet, personne..." autocomplete="off" aria-label="Rechercher dans NEXUS"></div><div class="search-results" id="search-results"></div>`);const field=document.getElementById('global-search');field.addEventListener('input',()=>renderSearch(field.value));renderSearch('');setTimeout(()=>field.focus(),80);}
@@ -646,7 +711,8 @@ document.addEventListener('click',async event=>{
  if(kind==='delete-project')await deleteEntity('project',id);
  if(kind==='delete-purchase')await deleteEntity('purchase',id);
  if(kind==='delete-transaction')await deleteEntity('transaction',id);
- if(kind==='task-for-project')captureForm('task',{}, {projectId:id});
+ if(kind==='new-event-for-project')captureForm('event',{}, {projectId:id});
+  if(kind==='task-for-project')captureForm('task',{}, {projectId:id});
  if(kind==='note-for-project')captureForm('note',{}, {projectId:id});
  if(kind==='purchase-for-project')extraCaptureForm('purchase',{}, {projectId:id});
  if(kind==='transaction-for-project')extraCaptureForm('transaction',{}, {projectId:id});
