@@ -825,6 +825,7 @@ function settingsView(){
    <div class="settings-option"><div><strong>Coffre et synchronisation</strong><p>Sauvegardes chiffrées, transfert et récupération.</p></div>
     <button class="btn btn-soft btn-small" data-action="cloud-vault">Ouvrir</button></div>
   </section>
+  ${window.NexusConnections?.settingsCard?.()||''}
   <section class="preferences-panel">
    <div class="pref-heading">${svg('download')} <div><h2>Données & sauvegardes</h2><p>Tes informations restent sous ton contrôle.</p></div></div>
    <div class="settings-option"><div><strong>Exporter les données</strong><p>Une sauvegarde JSON complète des sept modules.</p></div>
@@ -837,7 +838,7 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.11 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.12 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -953,9 +954,11 @@ document.addEventListener('click',async event=>{
  if(kind==='event-ics'){const e=data.events.find(x=>x.id===id);if(e)eventToIcs(e);}
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
+ if(kind.startsWith('link-')){window.NexusConnections?.act?.(kind,action);return;}
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
+ if(window.NexusConnections?.onChange?.(event.target))return;
  if(event.target?.id?.startsWith('b8-journal-')){window.NexusBudget?.change?.(event.target);return;}
  const shortcut=event.target.closest('[data-pref-slot]');
  if(shortcut){setSlot(Number(shortcut.dataset.prefSlot),shortcut.value);return;}
