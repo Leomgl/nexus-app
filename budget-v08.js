@@ -32,11 +32,11 @@
   return [...map.values()];
  }
  function categoryByName(name){return categoriesCatalog().find(x=>normalizeName(x.name)===normalizeName(name));}
- function categoryOptionList(selected='Autres'){
-  const labels=categoriesCatalog().filter(x=>!x.archived||normalizeName(x.name)===normalizeName(selected));
-  if(selected&&!labels.some(x=>normalizeName(x.name)===normalizeName(selected)))
-   labels.push({id:'selected',name:selected,color:'#83958a',archived:true});
-  return labels.map(x=>`<option value="${safe(x.name)}" ${normalizeName(x.name)===normalizeName(selected)?'selected':''}>${safe(x.name)}${x.archived?' (archivée)':''}</option>`).join('');
+ function categoryOptionList(selected='Autres',editing=false){
+  const active=categoriesCatalog().filter(c=>!c.archived||(editing&&normalizeName(c.name)===normalizeName(selected)));
+  const chosen=active.some(c=>normalizeName(c.name)===normalizeName(selected))?
+    selected:(active.find(c=>normalizeName(c.name)===normalizeName('Autres'))||active[0])?.name||'';
+  return active.map(c=>`<option value="${safe(c.name)}" ${normalizeName(c.name)===normalizeName(chosen)?'selected':''}>${safe(c.name)}${c.archived?' (archivée)':''}</option>`).join('');
  }
  function categoryHue(name){return asColor(categoryByName(name)?.color||'#83958a');}
  function categoryManager(){
@@ -102,7 +102,7 @@
  const currencies=x=>money(x);
  const safe=x=>escapeHtml(x);
  const budgetEntries=()=>data.transactions.filter(x=>x.date?.startsWith(budgetMonth)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
- const categoryOptions=(selected='Autres')=>categoryOptionList(selected);
+ const categoryOptions=(selected='Autres',editing=false)=>categoryOptionList(selected,editing);
  const projectSelect=(selected='')=>`<label class="b8-field">Projet (facultatif)<select name="projectId">${projectOptions(selected)}</select></label>`;
  const textField=(label,name,value='',extra='')=>`<label class="b8-field">${label}<input name="${name}" value="${safe(value)}" ${extra}></label>`;
  const selectType=(selected='expense')=>`<label class="b8-field">Nature<select name="type"><option value="expense" ${selected==='expense'?'selected':''}>Dépense</option><option value="income" ${selected==='income'?'selected':''}>Recette</option></select></label>`;
@@ -265,9 +265,9 @@
    </section>`;
  }
  function categoryTotals(entries){const m=new Map();for(const t of entries.filter(x=>x.type==='expense'))m.set(t.category||'Autres',(m.get(t.category||'Autres')||0)+(t.amountCents||0));return [...m.entries()].sort((a,b)=>b[1]-a[1]);}
- function categoriesMarkup(entries){
+ function categoriesMarkup(entries,limit=6){
    const cats=categoryTotals(entries),total=cats.reduce((s,x)=>s+x[1],0);
-   return `<div class="b8-category-list">${cats.length?cats.slice(0,6).map(([name,n])=>
+   return `<div class="b8-category-list">${cats.length?cats.slice(0,limit).map(([name,n])=>
      `<div><div class="b8-category-label"><span><i class="b9-inline-dot" style="background:${categoryHue(name)}"></i>${safe(name)}</span><strong>${currencies(n)}</strong></div>
        <span class="b8-bar"><i style="width:${total?Math.round(n*100/total):0}%;background:${categoryHue(name)}"></i></span></div>`).join(''):
      '<p class="muted-note">Aucune dépense enregistrée.</p>'}</div>`;
@@ -328,7 +328,7 @@
    </section>
    <section class="b8-panel">${panelTitle('Répartition des dépenses · '+formatDate(budgetMonth+'-01',{month:'long',year:'numeric'}),
       categories.length?categories.length+' catégories':'Aucune dépense enregistrée')}
-    ${categoriesMarkup(current)}
+    ${categoriesMarkup(current,999)}
    </section>
    <section class="b8-panel">${panelTitle('Lecture rapide','Quelques repères pour piloter ce mois.')}
     <div class="b8-insights"><div><strong>${current.filter(x=>x.type==='expense').length}</strong><span>dépenses enregistrées</span></div>
@@ -372,7 +372,7 @@
    </div>
    <div class="b8-form-grid">${textField('Début','startDate',rule.startDate||defaultDate,'type="date" required')}
    ${textField('Fin (facultative)','endDate',rule.endDate||'','type="date"')}</div>
-   <label class="b8-field">Catégorie<select name="category">${categoryOptions(rule.category||(rule.type==='income'?'Salaire':'Autres'))}</select></label>
+   <label class="b8-field">Catégorie<select name="category">${categoryOptions(rule.category||(rule.type==='income'?'Salaire':'Autres'),!!rule.id)}</select></label>
    ${projectSelect(rule.projectId||'')}
    <label class="b8-checkbox"><input type="checkbox" name="active" ${rule.active!==false?'checked':''}> Récurrence active</label>
    <p class="b8-form-note">Le jour 29, 30 ou 31 est ramené au dernier jour des mois plus courts. Les écritures déjà validées ne seront jamais modifiées.</p>
@@ -418,7 +418,7 @@
      <option value="variable" ${template.mode==='variable'?'selected':''}>Variable — saisir le montant à chaque fois</option>
     </select></label>
     <div id="b8-fixed-field">${textField('Montant fixe (€)','amountEuros',euroInput(template.amountCents),'inputmode="decimal" placeholder="Ex. 12,00"')}</div>
-    <label class="b8-field">Catégorie<select name="category">${categoryOptions(template.category)}</select></label>
+    <label class="b8-field">Catégorie<select name="category">${categoryOptions(template.category,!!template.id)}</select></label>
     ${projectSelect(template.projectId||'')}
     <p class="b8-form-note">Un raccourci fixe crée immédiatement une dépense à la date du jour. Un raccourci variable te demande le montant avant de l'enregistrer.</p>
     <div class="form-actions">${existing?`<button type="button" class="btn btn-danger btn-small" data-action="b8-quick-delete" data-id="${safe(template.id)}">Supprimer</button>`:''}

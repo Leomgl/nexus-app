@@ -485,7 +485,7 @@ function extraCaptureForm(kind,obj={},context={}){
   ${input('Libellé','title',obj.title||purchase?.title||detectedExpense.expenseTitle||'','text','required maxlength="140"')}
   <div class="field-grid">${input('Montant (€)','amountEuros',euroInput(obj.amountCents??purchase?.priceCents??detectedExpense.amountCents),'text','required inputmode="decimal" placeholder="Ex. 49,90"')}
   ${input('Date','date',obj.date||dateKey(new Date()),'date','required')}</div>
-  <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${window.NexusBudget?.categoryOptions?.(obj.category||'Autres')||txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
+  <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${window.NexusBudget?.categoryOptions?.(obj.category||'Autres',!!obj.id)||txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
   ${projectField(obj.projectId||inheritedProjectId||purchase?.projectId||'')}
   ${purchase?`<p class="muted-note">${svg('link')} Cette dépense sera reliée à l'achat « ${escapeHtml(purchase.title)} ».</p>`:''}`;
  }
