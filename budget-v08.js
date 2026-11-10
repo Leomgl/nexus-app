@@ -4,10 +4,105 @@
  const tabs=[['overview','Vue d’ensemble'],['recurring','Récurrences'],['journal','Journal'],['stats','Statistiques']];
  const frequencies={monthly:'Mensuelle',weekly:'Hebdomadaire',yearly:'Annuelle'};
  let tab='overview',journalType='all',journalSearch='',journalCategory='all',busy=false;
+
+ const DEFAULT_CATEGORY_NAMES=['Courses','Transport','Maison','Loisirs','Santé','Abonnements','Shopping','Équipement','Autres','Salaire','Vente'];
+ const DEFAULT_CATEGORY_COLORS=['#68957c','#6485af','#bc9472','#ae86b5','#70a4a0','#8396be','#c78991','#9da06c','#87948b','#68a37b','#c7a161'];
+ function asColor(value){return typeof value==='string'&&/^#[0-9a-fA-F]{6}$/.test(value)?value:'#83958a';}
+ const normalizeName=value=>String(value||'').trim().toLocaleLowerCase('fr-FR').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ function categorySeeds(){
+  return DEFAULT_CATEGORY_NAMES.map((name,i)=>({id:'default-'+i,name,color:DEFAULT_CATEGORY_COLORS[i],archived:false,builtIn:true}));
+ }
+ function categoriesCatalog(){
+  const map=new Map(categorySeeds().map(x=>[x.id,x]));
+  for(const category of data.budgetCategories||[]){
+   if(!category||!category.id||typeof category.name!=='string')continue;
+   const name=category.name.trim();
+   if(!name)continue;
+   map.set(String(category.id),{id:String(category.id),name,color:asColor(category.color),archived:!!category.archived,builtIn:String(category.id).startsWith('default-')});
+  }
+  const names=new Set([...map.values()].map(x=>normalizeName(x.name)));
+  const historical=[...data.transactions,...data.recurrences,...data.quickExpenses].map(x=>x.category).filter(Boolean);
+  for(const raw of historical){
+   const name=String(raw).trim();
+   if(!name||names.has(normalizeName(name)))continue;
+   names.add(normalizeName(name));
+   // Historical unknown category: retain a stable, editable legacy entry until explicitly archived.
+   map.set('legacy-'+Array.from(name).map(c=>c.codePointAt(0).toString(16)).join('-'),{id:'legacy-'+Array.from(name).map(c=>c.codePointAt(0).toString(16)).join('-'),name,color:'#83958a',archived:false,builtIn:false});
+  }
+  return [...map.values()];
+ }
+ function categoryByName(name){return categoriesCatalog().find(x=>normalizeName(x.name)===normalizeName(name));}
+ function categoryOptionList(selected='Autres'){
+  const labels=categoriesCatalog().filter(x=>!x.archived||normalizeName(x.name)===normalizeName(selected));
+  if(selected&&!labels.some(x=>normalizeName(x.name)===normalizeName(selected)))
+   labels.push({id:'selected',name:selected,color:'#83958a',archived:true});
+  return labels.map(x=>`<option value="${safe(x.name)}" ${normalizeName(x.name)===normalizeName(selected)?'selected':''}>${safe(x.name)}${x.archived?' (archivée)':''}</option>`).join('');
+ }
+ function categoryHue(name){return asColor(categoryByName(name)?.color||'#83958a');}
+ function categoryManager(){
+  const catalog=categoriesCatalog();
+  const usage=name=>[...data.transactions,...data.recurrences,...data.quickExpenses].filter(x=>normalizeName(x.category)===normalizeName(name)).length;
+  modal('Catégories du budget',`<div class="b9-manage-categories">
+   <p class="muted-note">Crée tes catégories, choisis leur couleur, renomme-les ou archive celles que tu n’utilises plus. Les opérations passées sont conservées.</p>
+   <div class="b9-category-list">${catalog.map(cat=>`<div class="b9-category-entry ${cat.archived?'archived':''}">
+    <span class="b9-category-dot" style="background:${asColor(cat.color)}"></span>
+    <span class="b9-category-label"><strong>${safe(cat.name)}</strong><small>${usage(cat.name)} utilisation(s) ${cat.archived?'· Archivée':''}</small></span>
+    <button class="btn btn-neutral btn-small" data-action="b9-category-edit" data-id="${safe(cat.id)}">${svg('edit')} Modifier</button>
+    <button class="btn btn-soft btn-small" data-action="b9-category-toggle" data-id="${safe(cat.id)}">${cat.archived?'Réactiver':'Archiver'}</button>
+    </div>`).join('')}</div>
+   <div class="form-actions"><button class="btn btn-ghost" data-action="close-modal">Fermer</button>
+    <button class="btn" data-action="b9-category-new">${svg('plus')} Nouvelle catégorie</button></div>
+   </div>`);
+ }
+ function categoryForm(id=''){
+  const old=id?categoriesCatalog().find(x=>x.id===id):null;
+  if(id&&!old)return;
+  modal(old?'Modifier une catégorie':'Nouvelle catégorie',`<form id="b9-category-form" class="b8-form">
+   ${textField('Nom de la catégorie','name',old?.name||'','maxlength="48" required placeholder="Ex. Restaurants"')}
+   <label class="b8-field">Couleur<input type="color" name="color" value="${asColor(old?.color||'#68957c')}" class="b9-category-picker"></label>
+   <p class="b8-form-note">Si tu renommes une catégorie, toutes ses opérations et ses règles liées changent de libellé. Les montants et les dates restent inchangés.</p>
+   <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="b9-categories">Retour</button>
+    <button type="submit" class="btn">${svg('check')} Enregistrer</button></div></form>`);
+  const form=document.getElementById('b9-category-form');
+  form.addEventListener('submit',async evt=>{
+   evt.preventDefault();if(!form.reportValidity())return;
+   const formValues=Object.fromEntries(new FormData(form).entries());
+   const name=String(formValues.name||'').replace(/\s+/g,' ').trim();
+   if(name.length<2||name.length>48){toast('Le nom doit comporter 2 à 48 caractères.');return;}
+   if(categoriesCatalog().some(x=>x.id!==old?.id&&normalizeName(x.name)===normalizeName(name))){
+    toast('Cette catégorie existe déjà.');return;
+   }
+   const id=old?.id||uid();
+   const color=asColor(formValues.color);
+   // Rename all historical references together: category labels are stored as text.
+   if(old&&normalizeName(old.name)!==normalizeName(name)){
+    for(const group of [data.transactions,data.recurrences,data.quickExpenses]){
+     for(const item of group)if(normalizeName(item.category)===normalizeName(old.name))
+       {item.category=name;item.updatedAt=new Date().toISOString();}
+    }
+    if(normalizeName(journalCategory)===normalizeName(old.name))journalCategory=name;
+   }
+   const updated={id,name,color,archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+   const index=data.budgetCategories.findIndex(x=>x.id===id);
+   if(index>=0)data.budgetCategories[index]=updated;
+   else data.budgetCategories.push(updated);
+   await persist();refresh();categoryManager();toast('Catégorie enregistrée.');
+  });
+ }
+ async function toggleCategory(id){
+  const cat=categoriesCatalog().find(x=>x.id===id);if(!cat)return;
+  // Archiving does not alter any transaction or recurrence in history.
+  const index=data.budgetCategories.findIndex(x=>x.id===id);
+  const updated={...cat,archived:!cat.archived,updatedAt:new Date().toISOString()};
+  if(index>=0)data.budgetCategories[index]=updated;else data.budgetCategories.push(updated);
+  if(updated.archived&&normalizeName(journalCategory)===normalizeName(updated.name))journalCategory='all';
+  await persist();refresh();categoryManager();toast(updated.archived?'Catégorie archivée.':'Catégorie réactivée.');
+ }
+
  const currencies=x=>money(x);
  const safe=x=>escapeHtml(x);
  const budgetEntries=()=>data.transactions.filter(x=>x.date?.startsWith(budgetMonth)).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.createdAt||'').localeCompare(a.createdAt||''));
- const categoryOptions=(selected='Autres')=>txCategories.map(c=>`<option value="${safe(c)}" ${c===selected?'selected':''}>${safe(c)}</option>`).join('');
+ const categoryOptions=(selected='Autres')=>categoryOptionList(selected);
  const projectSelect=(selected='')=>`<label class="b8-field">Projet (facultatif)<select name="projectId">${projectOptions(selected)}</select></label>`;
  const textField=(label,name,value='',extra='')=>`<label class="b8-field">${label}<input name="${name}" value="${safe(value)}" ${extra}></label>`;
  const selectType=(selected='expense')=>`<label class="b8-field">Nature<select name="type"><option value="expense" ${selected==='expense'?'selected':''}>Dépense</option><option value="income" ${selected==='income'?'selected':''}>Recette</option></select></label>`;
@@ -152,8 +247,8 @@
  function categoriesMarkup(entries){
    const cats=categoryTotals(entries),total=cats.reduce((s,x)=>s+x[1],0);
    return `<div class="b8-category-list">${cats.length?cats.slice(0,6).map(([name,n])=>
-     `<div><div class="b8-category-label"><span>${safe(name)}</span><strong>${currencies(n)}</strong></div>
-       <span class="b8-bar"><i style="width:${total?Math.round(n*100/total):0}%"></i></span></div>`).join(''):
+     `<div><div class="b8-category-label"><span><i class="b9-inline-dot" style="background:${categoryHue(name)}"></i>${safe(name)}</span><strong>${currencies(n)}</strong></div>
+       <span class="b8-bar"><i style="width:${total?Math.round(n*100/total):0}%;background:${categoryHue(name)}"></i></span></div>`).join(''):
      '<p class="muted-note">Aucune dépense enregistrée.</p>'}</div>`;
  }
  function journalItems(){
@@ -230,6 +325,7 @@
     <div class="b8-month-header"><span>${svg('calendar')} ${formatDate(monthDate,{month:'long',year:'numeric'})}</span>
     <div><button data-action="budget-prev" aria-label="Mois précédent">${svg('chevleft')}</button>
     <button data-action="budget-next" aria-label="Mois suivant">${svg('chevright')}</button></div></div>
+    <div class="b9-budget-tools"><button class="btn btn-neutral btn-small" data-action="b9-categories">${svg('edit')} Gérer mes catégories</button></div>
     <div class="b8-tabs" role="tablist" aria-label="Sections Budget">${tabs.map(([key,label])=>
       `<button type="button" role="tab" aria-selected="${tab===key}" class="${tab===key?'active':''}" data-action="b8-switch-tab" data-tab="${key}">${label}</button>`).join('')}</div>
     ${tab==='recurring'?recurring():tab==='journal'?journal():tab==='stats'?stats():overview()}
@@ -404,6 +500,10 @@
    await persist();closeModal();refresh();toast('Raccourci supprimé.');
  }
  function act(action,el){
+   if(action==='b9-categories')return categoryManager();
+   if(action==='b9-category-new')return categoryForm();
+   if(action==='b9-category-edit')return categoryForm(el.dataset.id);
+   if(action==='b9-category-toggle')return toggleCategory(el.dataset.id);
    if(action==='b8-switch-tab'){tab=el.dataset.tab;refresh();return;}
    if(action==='b8-rule-new')ruleForm();
    if(action==='b8-rule-edit')ruleForm(data.recurrences.find(x=>x.id===el.dataset.id));
@@ -427,5 +527,5 @@
  function updateJournal(){
    const mount=document.getElementById('b8-journal-results');if(mount)mount.innerHTML=journalList();
  }
- window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm};
+ window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm,categoryOptions:categoryOptionList,categoriesCatalog,categoryHue};
 })();

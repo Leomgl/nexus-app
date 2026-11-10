@@ -39,7 +39,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -484,7 +484,7 @@ function extraCaptureForm(kind,obj={},context={}){
   ${input('Libellé','title',obj.title||purchase?.title||detectedExpense.expenseTitle||'','text','required maxlength="140"')}
   <div class="field-grid">${input('Montant (€)','amountEuros',euroInput(obj.amountCents??purchase?.priceCents??detectedExpense.amountCents),'text','required inputmode="decimal" placeholder="Ex. 49,90"')}
   ${input('Date','date',obj.date||dateKey(new Date()),'date','required')}</div>
-  <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
+  <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${window.NexusBudget?.categoryOptions?.(obj.category||'Autres')||txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
   ${projectField(obj.projectId||inheritedProjectId||purchase?.projectId||'')}
   ${purchase?`<p class="muted-note">${svg('link')} Cette dépense sera reliée à l'achat « ${escapeHtml(purchase.title)} ».</p>`:''}`;
  }
@@ -921,7 +921,7 @@ document.addEventListener('click',async event=>{
   const p=data.purchases.find(x=>x.id===id);
   if(p&&p.status==='purchased'&&!data.transactions.some(t=>t.purchaseId===id)) extraCaptureForm('transaction',{}, {purchaseId:id});
  }
- if(kind.startsWith('b8-')){window.NexusBudget?.act?.(kind,action);return;}
+ if(kind.startsWith('b8-')||kind.startsWith('b9-')){window.NexusBudget?.act?.(kind,action);return;}
   if(kind==='purchase-filter'){purchaseFilter=action.dataset.filter;render();}
  if(kind==='project-filter'){projectFilter=action.dataset.filter;render();}
  if(kind==='budget-limit')extraCaptureForm('limit');
