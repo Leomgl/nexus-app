@@ -1,4 +1,4 @@
-/* NEXUS V0.3 — local-first with encrypted manual cloud backup. */
+/* NEXUS V0.7 — modular command center, unchanged local data model. */
 'use strict';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -31,6 +31,8 @@ const ICONS = {
   wallet:'<rect x="3" y="5" width="18" height="15" rx="3"/><path d="M3 9h18M17 14h2"/>',
   cart:'<circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M2 3h2l3 13h12l3-9H5"/>',
   briefcase:'<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  sliders:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/>',
   more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   euro:'<path d="M19 6a8 8 0 1 0 0 12M4 10h11M4 14h11"/>',
   circlecheck:'<circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/>'
@@ -42,6 +44,62 @@ let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().g
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
 const DB_NAME='nexus-v0-1', DB_STORE='data', BACKUP_KEY='nexus_local_fallback_v1';
+
+const MODULES=[
+ ['notes','notes','Notes','Capture et mémoire'],
+ ['calendar','calendar','Agenda','Le temps et les rendez-vous'],
+ ['tasks','check','Rappels','À faire et échéances'],
+ ['contacts','users','Personnes','Contacts et contexte'],
+ ['projects','briefcase','Projets','Objectifs et suivi'],
+ ['purchases','cart','Achats','Envies et besoins'],
+ ['budget','wallet','Budget','Dépenses et revenus']
+];
+const HOME_WIDGETS=[
+ ['today',"Aujourd'hui",'Rendez-vous et tâches prioritaires'],
+ ['focus','Projet en focus','Un objectif à faire avancer'],
+ ['budget','Budget du mois','Dépenses et plafond'],
+ ['recent','Activité récente','Derniers éléments']
+];
+const UI_KEY='nexus_interface_v07';
+const defaultUI=()=>({slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',widgets:HOME_WIDGETS.map(x=>x[0])});
+function readUI(){
+ const defaults=defaultUI();let stored;
+ try{stored=JSON.parse(localStorage.getItem(UI_KEY)||'null');}catch{return defaults;}
+ if(!stored||typeof stored!=='object')return defaults;
+ const valid=x=>MODULES.some(m=>m[0]===x);
+ const slot1=valid(stored.slot1)?stored.slot1:defaults.slot1;
+ let slot2=valid(stored.slot2)?stored.slot2:defaults.slot2;
+ if(slot1===slot2)slot2=MODULES.find(m=>m[0]!==slot1)[0];
+ const widgets=Array.isArray(stored.widgets)?[...new Set(stored.widgets.filter(x=>HOME_WIDGETS.some(w=>w[0]===x)))]:defaults.widgets;
+ return {slot1,slot2,widgets,theme:['sage','slate'].includes(stored.theme)?stored.theme:'sage',
+   density:['comfortable','compact'].includes(stored.density)?stored.density:'comfortable'};
+}
+let UI=readUI();
+function applyUI(){
+ document.documentElement.dataset.theme=UI.theme;
+ document.documentElement.dataset.density=UI.density;
+}
+function saveUI(){try{localStorage.setItem(UI_KEY,JSON.stringify(UI));}catch{}applyUI();render();}
+function moduleInfo(view){return MODULES.find(m=>m[0]===view);}
+function moduleCount(view){
+ if(view==='notes')return data.notes.length+' notes';
+ if(view==='calendar')return data.events.filter(e=>e.start&&new Date(e.start).getTime()>=Date.now()).length+' à venir';
+ if(view==='tasks')return data.tasks.filter(t=>!t.done).length+' à faire';
+ if(view==='contacts')return data.contacts.length+' contacts';
+ if(view==='projects')return data.projects.filter(p=>p.status==='active').length+' actifs';
+ if(view==='purchases')return data.purchases.filter(p=>p.status==='planned').length+' à prévoir';
+ if(view==='budget')return money(monthTotals(dateKey(new Date()).slice(0,7)).expense)+' dépensés';
+ return '';
+}
+function setSlot(index,value){
+ if(!moduleInfo(value))return;
+ const key=index===1?'slot1':'slot2',other=index===1?'slot2':'slot1';
+ const before=UI[key];
+ if(before===value)return;
+ UI[key]=value;if(UI[other]===value)UI[other]=before;
+ saveUI();toast('Navigation personnalisée.');
+}
+
 let dbHandle=null;
 function dateKey(date){let y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
 function formatDate(raw, opts={day:'numeric',month:'long'}){if(!raw)return 'Sans date';const d=new Date(raw.length===10?`${raw}T12:00:00`:raw);return Number.isNaN(d.getTime())?'Date invalide':new Intl.DateTimeFormat('fr-FR',opts).format(d);}
@@ -53,21 +111,37 @@ function assignData(incoming){for(const key of Object.keys(data)){data[key]=Arra
 async function persist(){const snapshot=JSON.parse(JSON.stringify(data));try{if(dbHandle){await new Promise((resolve,reject)=>{const tx=dbHandle.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(snapshot,'main');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}else localStorage.setItem(BACKUP_KEY,JSON.stringify(snapshot));}catch(err){console.error(err);toast('Enregistrement impossible : exporte tes données.');}finally{window.NexusPush?.onLocalChange?.();window.NexusCloud?.onLocalChange?.();}}
 function toast(message){const box=document.getElementById('toast');box.textContent=message;box.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>box.classList.remove('visible'),2800);}
 function iconsInDom(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=svg(el.dataset.icon);el.removeAttribute('data-icon');});}
-function navTo(view){currentView=view;render();window.scrollTo({top:0,behavior:'instant'});}
+
+function navTo(view){currentView=view==='hub'?'categories':view;render();window.scrollTo({top:0,behavior:'instant'});}
+function navDestination(value){return value==='slot1'||value==='slot2'?UI[value]:value;}
 function navActive(){
- const activeView = ['contacts','budget','projects','purchases','hub'].includes(currentView) ? 'hub' : currentView;
- document.querySelectorAll('[data-view]').forEach(el=>{
-   const mobile = !!el.closest('.bottom-nav');
-   el.classList.toggle('active',el.dataset.view === (mobile ? activeView : currentView));
+ const active=['home','categories','settings'].includes(currentView)?currentView:
+  currentView===UI.slot1?'slot1':currentView===UI.slot2?'slot2':'categories';
+ document.querySelectorAll('[data-nav]').forEach(el=>{
+  el.classList.toggle('active',el.dataset.nav===active);
+  if(el.tagName==='BUTTON')el.setAttribute('aria-current',el.dataset.nav===active?'page':'false');
  });
+ for(const index of [1,2]){
+  const m=moduleInfo(UI['slot'+index])||MODULES[0];
+  document.querySelectorAll('[data-slot-label="'+index+'"]').forEach(el=>{el.textContent=m[2];});
+  document.querySelectorAll('[data-slot-icon="'+index+'"]').forEach(el=>{el.innerHTML=svg(m[1]);});
+ }
 }
 function render(){
- const views={home:homeView, notes:notesView, calendar:calendarView, tasks:tasksView,
-  contacts:contactsView, hub:hubView, projects:projectsView, budget:budgetView, purchases:purchasesView};
- document.getElementById('view-root').innerHTML=(views[currentView]||homeView)();
+ const views={home:homeView,categories:categoriesView,settings:settingsView,
+  notes:notesView,calendar:calendarView,tasks:tasksView,contacts:contactsView,
+  projects:projectsView,budget:budgetView,purchases:purchasesView};
+ const info=moduleInfo(currentView);
+ const breadcrumb=info?`<div class="module-breadcrumb">
+  <button data-view="categories">${svg('chevleft')} Catégories</button><span>${escapeHtml(info[2])}</span>
+  <button data-action="pin-module" data-module="${currentView}" data-slot="1" title="Placer en raccourci 1">${svg('plus')} Slot 1</button>
+  <button data-action="pin-module" data-module="${currentView}" data-slot="2" title="Placer en raccourci 2">${svg('plus')} Slot 2</button>
+ </div>`:'';
+ document.getElementById('view-root').innerHTML=breadcrumb+(views[currentView]||homeView)();
  document.getElementById('today-small').textContent=formatDate(dateKey(new Date()),{weekday:'short',day:'numeric',month:'short'});
- iconsInDom();navActive();
+ applyUI();iconsInDom();navActive();
 }
+
 const section=(title,view)=>`<div class="section-title"><h2>${title}</h2><button data-view="${view}">Tout voir ${svg('arrow')}</button></div>`;
 const empty=(title,desc,icon='file')=>`<div class="empty">${svg(icon)}<strong>${escapeHtml(title)}</strong><p>${escapeHtml(desc)}</p></div>`;
 const noteLinks=(id)=>({
@@ -248,19 +322,27 @@ function transactionRow(t){
   <strong class="money-chip ${t.type==='income'?'positive':'negative'}">${t.type==='income'?'+':'−'}${money(t.amountCents)}</strong>
   <button class="row-arrow" data-action="transaction-detail" data-id="${t.id}">${svg('chevright')}</button></div>`;
 }
-function hubView(){
- const shortcuts=[
-  ['projects','briefcase','Projets',`${data.projects.filter(p=>p.status==='active').length} en cours`],
-  ['budget','wallet','Budget','Recettes et dépenses'],
-  ['purchases','cart','Achats',`${data.purchases.filter(p=>p.status==='planned').length} en attente`],
-  ['contacts','users','Personnes',`${data.contacts.length} contacts`],
+
+function categoriesView(){
+ const groups=[
+ ['CAPTURER & PLANIFIER',['notes','calendar','tasks']],
+ ['ORGANISER & RELIER',['projects','contacts']],
+ ['SUIVRE & PILOTER',['purchases','budget']]
  ];
- return `<div class="page-header"><div><div class="eyebrow">TOUT EST CONNECTÉ</div><h1 class="page-title">Explorer NEXUS</h1><p class="subtitle">Toutes tes fonctions, un seul espace.</p></div></div>
- <div class="hub-grid">${shortcuts.map(([view,icon,title,sub])=>`<button class="hub-card" data-view="${view}">
- <span class="hub-icon">${svg(icon)}</span><strong>${title}</strong><small>${escapeHtml(sub)}</small><span class="hub-arrow">${svg('arrow')}</span></button>`).join('')}</div>
- <div class="section-title" style="margin-top:30px"><h2>Capturer quelque chose</h2></div>
- <div class="quick-actions"><button data-action="new-note">${svg('notes')} Note</button><button data-action="new-project">${svg('briefcase')} Projet</button><button data-action="new-purchase">${svg('cart')} Achat</button><button data-action="new-transaction">${svg('wallet')} Opération</button></div>`;
+ return `<div class="nexus-page-heading"><div class="eyebrow">TON SYSTÈME, TES REPÈRES</div>
+ <h1 class="page-title">Catégories<span class="punctuation">.</span></h1>
+ <p class="subtitle">Sept blocs qui travaillent ensemble, sans t'imposer de parcours.</p></div>
+ ${groups.map(([name,views])=>`<section class="module-group"><h2 class="module-group-title">${name}</h2>
+ <div class="module-grid">${views.map(view=>{
+  const m=moduleInfo(view);
+  return `<button class="module-card" data-view="${view}"><span class="module-symbol">${svg(m[1])}</span>
+   <strong>${escapeHtml(m[2])}</strong><span class="module-desc">${escapeHtml(m[3])}</span>
+   <span class="module-foot">${escapeHtml(moduleCount(view))}${svg('arrow')}</span></button>`;
+ }).join('')}</div></section>`).join('')}
+ <div class="category-advice">${svg('link')} Une idée peut devenir un projet, un rendez-vous ou une dépense, sans perdre son contexte.</div>`;
 }
+function hubView(){return categoriesView();}
+
 function projectsView(){
  let items=[...data.projects].filter(p=>projectFilter==='all'||p.status===projectFilter).sort((a,b)=>(b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||''));
  return `<div class="page-header"><div><div class="eyebrow">IDÉES → ACTIONS</div><h1 class="page-title">Mes projets</h1><p class="subtitle">Notes, tâches, achats et dépenses réunis autour d'un objectif.</p></div><button class="btn" data-action="new-project">${svg('plus')} Projet</button></div>
@@ -655,6 +737,7 @@ function renderSearch(query){
  <div class="item-copy"><strong>${escapeHtml(x.title)}</strong><small>${labels[x.kind]}</small></div>
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
+function settingsView(){return `<div class="nexus-page-heading"><h1 class="page-title">Réglages</h1><p class="subtitle">Ton NEXUS, à ta façon.</p></div><div class="settings-backup-bridge"><button class="btn" data-action="settings-modal">Ouvrir les réglages existants</button></div>`;}
 function settings(){
  modal('Réglages & données',`<div class="eyebrow">NEXUS V0.6 · RAPPELS PAR RENDEZ-VOUS</div>
  <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
@@ -695,10 +778,14 @@ async function deleteEntity(kind,id){
  await persist();closeModal();render();toast('Élément supprimé');
 }
 document.addEventListener('click',async event=>{
+ const navigation=event.target.closest('[data-nav]');
+ if(navigation){event.preventDefault();closeModal();navTo(navDestination(navigation.dataset.nav));return;}
  const view=event.target.closest('[data-view]');if(view){event.preventDefault();closeModal();navTo(view.dataset.view);return;}
  const action=event.target.closest('[data-action]');if(!action)return;const kind=action.dataset.action,id=action.dataset.id;
  if(kind==='overlay'){if(event.target===action)closeModal();return;}
  if(kind==='close-modal'){closeModal();return;}
+ if(kind==='pin-module')setSlot(Number(action.dataset.slot),action.dataset.module);
+ if(kind==='settings-modal')settings();
  if(kind==='new-note')captureForm('note');
  if(kind==='new-event')captureForm('event');
  if(kind==='new-task')captureForm('task');
@@ -742,7 +829,7 @@ document.addEventListener('click',async event=>{
   budgetMonth=dateKey(d).slice(0,7);render();
  }
  if(kind==='search')showSearch();
- if(kind==='settings')settings();
+ if(kind==='settings')navTo('settings');
  if(kind==='cloud-vault')window.NexusCloud?.openPanel();
  if(kind==='push-settings')window.NexusPush?.openPanel();
  if(kind==='passkey-settings')window.NexusFace?.openPanel();
@@ -772,4 +859,4 @@ document.addEventListener('click',async event=>{
 });
 document.getElementById('restore-file').addEventListener('change',async event=>{const f=event.target.files?.[0];if(!f)return;try{if(f.size>20_000_000)throw new Error('Fichier trop volumineux');const parsed=JSON.parse(await f.text());if(parsed.app!=='NEXUS'||![1,2].includes(parsed.schemaVersion)||!parsed.data||!['notes','events','tasks','contacts'].every(key=>Array.isArray(parsed.data[key]))||Object.entries(parsed.data).some(([k,v])=>k in data&&!Array.isArray(v)))throw new Error('Ce fichier n’est pas une sauvegarde NEXUS valide.');if(confirm('La restauration remplacera les données actuelles. Continuer ?')){assignData(parsed.data);await persist();closeModal();render();toast('Sauvegarde restaurée');}}catch(err){alert(err.message||'Restauration impossible');}finally{event.target.value='';}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeModal();if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();showSearch();}});
-(async()=>{await loadData();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
+(async()=>{await loadData();applyUI();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
