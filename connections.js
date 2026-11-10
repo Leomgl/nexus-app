@@ -12,7 +12,7 @@
     ['routine_schedule','Routine → proposer un événement','Agenda'],
     ['routine_summary','Progression → proposer un résumé','Accueil']
    ]},
-  {id:'gaming',name:'Gaming',state:'Application à créer',detail:'Jeux, supports de stockage, passes et saisons',
+  {id:'gaming',name:'Gaming',state:'Bêta autonome · non connectée',detail:'Jeux, supports de stockage, passes et saisons',
    scopes:[
     ['installed_summary','Jeux installés → résumé NEXUS','Accueil'],
     ['future_spending','Dépense prévue → proposition d’achat','Achats / Projets'],
@@ -48,7 +48,9 @@
       '<div class="nx-connection-app"><div><strong>'+escape(app.name)+'</strong>'+
       '<small>'+escape(app.detail)+'</small>'+
       '<span class="nx-connection-status">'+escape(app.state)+' · '+numberEnabled(app.id)+' autorisation(s) préparée(s)</span></div>'+
-      '<button type="button" class="btn btn-soft btn-small" data-action="link-configure" data-app="'+app.id+'">Configurer</button></div>'
+      '<div class="nx-connection-actions"><button type="button" class="btn btn-soft btn-small" data-action="link-configure" data-app="'+app.id+'">Configurer</button>'+
+      (app.id==='gaming'?'<a class="btn btn-neutral btn-small" href="https://gaming-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Ouvrir Gaming</a>':'')+
+      '</div></div>'
     ).join('')+'</div>'+
     '<p class="nx-connection-disclaimer">'+svg('shield')+
     ' Configuration préliminaire uniquement : aucune application n’est reliée, aucune donnée n’est envoyée et aucun accès automatique n’est activé.</p></section>';
