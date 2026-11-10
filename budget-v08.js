@@ -14,17 +14,21 @@
  }
  function categoriesCatalog(){
   const map=new Map(categorySeeds().map(x=>[x.id,x]));
+  const deleted=(data.trash||[]).filter(e=>e.key==='budgetCategories'&&e.record?.id);
+  const deletedIDs=new Set(deleted.map(e=>e.record.id));
+  const deletedNames=new Set(deleted.map(e=>normalizeName(e.record.name)));
   for(const category of data.budgetCategories||[]){
    if(!category||!category.id||typeof category.name!=='string')continue;
    const name=category.name.trim();
    if(!name)continue;
    map.set(String(category.id),{id:String(category.id),name,color:asColor(category.color),archived:!!category.archived,builtIn:String(category.id).startsWith('default-')});
   }
+  for(const id of deletedIDs)map.delete(id);
   const names=new Set([...map.values()].map(x=>normalizeName(x.name)));
   const historical=[...data.transactions,...data.recurrences,...data.quickExpenses].map(x=>x.category).filter(Boolean);
   for(const raw of historical){
    const name=String(raw).trim();
-   if(!name||names.has(normalizeName(name)))continue;
+   if(!name||names.has(normalizeName(name))||deletedNames.has(normalizeName(name)))continue;
    names.add(normalizeName(name));
    // Historical unknown category: retain a stable, editable legacy entry until explicitly archived.
    map.set('legacy-'+Array.from(name).map(c=>c.codePointAt(0).toString(16)).join('-'),{id:'legacy-'+Array.from(name).map(c=>c.codePointAt(0).toString(16)).join('-'),name,color:'#83958a',archived:false,builtIn:false});
@@ -34,9 +38,11 @@
  function categoryByName(name){return categoriesCatalog().find(x=>normalizeName(x.name)===normalizeName(name));}
  function categoryOptionList(selected='Autres',editing=false){
   const active=categoriesCatalog().filter(c=>!c.archived||(editing&&normalizeName(c.name)===normalizeName(selected)));
+  if(editing&&selected&&!active.some(c=>normalizeName(c.name)===normalizeName(selected)))
+    active.push({id:'historical',name:selected,archived:true,color:'#83958a'});
   const chosen=active.some(c=>normalizeName(c.name)===normalizeName(selected))?
     selected:(active.find(c=>normalizeName(c.name)===normalizeName('Autres'))||active[0])?.name||'';
-  return active.map(c=>`<option value="${safe(c.name)}" ${normalizeName(c.name)===normalizeName(chosen)?'selected':''}>${safe(c.name)}${c.archived?' (archivée)':''}</option>`).join('');
+  return active.map(c=>`<option value="${safe(c.name)}" ${normalizeName(c.name)===normalizeName(chosen)?'selected':''}>${safe(c.name)}${c.archived?' (ancienne)':''}</option>`).join('');
  }
  function categoryHue(name){return asColor(categoryByName(name)?.color||'#83958a');}
  function categoryManager(){
@@ -49,6 +55,7 @@
     <span class="b9-category-label"><strong>${safe(cat.name)}</strong><small>${usage(cat.name)} utilisation(s) ${cat.archived?'· Archivée':''}</small></span>
     <button class="btn btn-neutral btn-small" data-action="b9-category-edit" data-id="${safe(cat.id)}">${svg('edit')} Modifier</button>
     <button class="btn btn-soft btn-small" data-action="b9-category-toggle" data-id="${safe(cat.id)}">${cat.archived?'Réactiver':'Archiver'}</button>
+    <button class="btn btn-neutral btn-small" data-action="b9-category-remove" data-id="${safe(cat.id)}" title="Placer dans la corbeille">${svg('trash')}</button>
     </div>`).join('')}</div>
    <div class="form-actions"><button class="btn btn-ghost" data-action="close-modal">Fermer</button>
     <button class="btn" data-action="b9-category-new">${svg('plus')} Nouvelle catégorie</button></div>
@@ -509,16 +516,10 @@
    await persist();refresh();toast(rule.active?'Récurrence activée.':'Récurrence en pause.');
  }
  async function deleteRule(id){
-   const rule=data.recurrences.find(x=>x.id===id);if(!rule)return;
-   if(!confirm('Supprimer la règle « '+rule.title+' » ? Ses opérations déjà enregistrées seront conservées.'))return;
-   data.recurrences=data.recurrences.filter(x=>x.id!==id);
-   await persist();closeModal();refresh();toast('Récurrence supprimée. Historique conservé.');
+  return window.NexusRecycle?.remove?.('recurrences',id);
  }
  async function deleteQuick(id){
-   const q=data.quickExpenses.find(x=>x.id===id);if(!q)return;
-   if(!confirm('Supprimer le raccourci « '+q.title+' » ? Les opérations existantes seront conservées.'))return;
-   data.quickExpenses=data.quickExpenses.filter(x=>x.id!==id);
-   await persist();closeModal();refresh();toast('Raccourci supprimé.');
+  return window.NexusRecycle?.remove?.('quickExpenses',id);
  }
  async function toggleQuickPin(id){
  const q=data.quickExpenses.find(x=>x.id===id);if(!q)return;
@@ -530,6 +531,10 @@
    if(action==='b9-category-new')return categoryForm();
    if(action==='b9-category-edit')return categoryForm(el.dataset.id);
    if(action==='b9-category-toggle')return toggleCategory(el.dataset.id);
+   if(action==='b9-category-remove'){
+    const cat=categoriesCatalog().find(c=>c.id===el.dataset.id);
+    if(cat)return window.NexusRecycle?.removeCategory?.(cat);
+   }
    if(action==='b9-quick-pin')return toggleQuickPin(el.dataset.id);
    if(action==='b8-switch-tab'){tab=el.dataset.tab;refresh();return;}
    if(action==='b8-rule-new')ruleForm();
