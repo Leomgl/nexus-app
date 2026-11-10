@@ -29,3 +29,10 @@ La V0.3 apporte **une sauvegarde cloud manuelle**, pas une synchronisation conti
 - Une clé de récupération compromise doit être considérée comme une compromission du coffre. **La rotation de clé est un chantier suivant.**
 - Avant une future connexion Face ID/passkey : vérifier WebAuthn côté serveur avec bibliothèque auditée, challenge à usage unique, RP ID `leomgl.github.io`, origine `https://leomgl.github.io`. Ne jamais faire confiance à une prétendue vérification biométrique envoyée par le client.
 - GitHub Pages héberge l'interface, Worker Cloudflare `nexus-app-api` et D1 `nexus-app-db` hébergent les données chiffrées.
+
+## Vérification technique (10 novembre 2026)
+- La migration V2 est appliquée sur D1 en juridiction UE.
+- Les tests du handler avec une vraie D1 via le connecteur ont validé : inscription (201), lecture (200), envoi (200), conflit de version (409), refus d'un mauvais jeton (401).
+- Le coffre de test a été nettoyé. Il reste un seul code d'invitation non utilisé, réservé à l'installation personnelle.
+- Le Worker a été uploadé sur Cloudflare et GitHub Pages sert le code client V0.3. Le parcours complet chiffré sur iPhone n'est **pas encore vérifié en situation réelle**.
+- **Limitation importante** : tous les chemins `https://leomgl.github.io/...` partagent la même origine web et l'accès à IndexedDB. Ce coffre n'est pas encore adapté aux données sensibles tant qu'une origine dédiée et un modèle de révocation ne sont pas en place.
