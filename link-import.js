@@ -80,9 +80,10 @@
   try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
   catch(e){api.toast('Réception Gaming : '+e.message.slice(0,80))}
  }
- const counters=()=>({pending:list().filter(x=>x.status==='pending').length,
-  accepted:list().filter(x=>x.status==='accepted').length,
-  rejected:list().filter(x=>x.status==='rejected').length});
+ const counters=()=>{const p=connection(),rows=list().filter(x=>x.pairId===p?.id);return {
+  pending:rows.filter(x=>x.status==='pending').length,
+  accepted:rows.filter(x=>x.status==='accepted').length,
+  rejected:rows.filter(x=>x.status==='rejected').length};};
  function panel(){
   const pair=connection();if(!pair){api.toast('Jumelle d’abord Gaming à NEXUS.');return}
   const mine=list().filter(x=>x.pairId===pair.id).sort((a,b)=>

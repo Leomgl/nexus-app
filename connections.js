@@ -49,7 +49,7 @@
       '<span class="nx-connection-status">'+escape(app.id==='gaming'&&data.linkConnections?.some(x=>x.sourceApp==='gaming')?'Jumelage configuré · synchro disponible':app.state)+' · '+numberEnabled(app.id)+' autorisation(s)</span></div>'+
       '<div class="nx-connection-actions"><button type="button" class="btn btn-soft btn-small" data-action="link-configure" data-app="'+app.id+'">Configurer</button>'+
       (app.id==='gaming'?'<a class="btn btn-neutral btn-small" href="https://gaming-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Ouvrir Gaming</a>':'')+
-      (app.id==='gaming'?'<button type="button" class="btn btn-soft btn-small" data-action="link-create">Jumeler</button><button type="button" class="btn btn-soft btn-small" data-action="link-proposals">Propositions ('+data.linkInbox.filter(x=>x.status==='pending').length+')</button><button type="button" class="btn btn-neutral btn-small" data-action="link-inbox">Tests</button>':'')+
+      (app.id==='gaming'?'<button type="button" class="btn btn-soft btn-small" data-action="link-create">Jumeler</button><button type="button" class="btn btn-soft btn-small" data-action="link-proposals">Propositions ('+data.linkInbox.filter(x=>x.status==='pending'&&x.pairId===ownPairs()[0]?.id).length+')</button><button type="button" class="btn btn-neutral btn-small" data-action="link-inbox">Tests</button>':'')+
       '</div></div>'
     ).join('')+'</div>'+
     '<p class="nx-connection-disclaimer">'+svg('shield')+
