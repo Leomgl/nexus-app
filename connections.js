@@ -108,13 +108,13 @@
   const pair=ownPairs()[0];
   if(!pair){toast('Connecte Gaming avant de consulter les messages.');return;}
   try{
-   const messages=await window.NexusLinkCore.inbox(pair);
+   const messages=(await window.NexusLinkCore.inbox(pair)).filter(m=>m.invalid||m.payload?.type==='test.ping');
    modal('NEXUS LINK · tests',`<div class="nx-link-modal">
     <p class="muted-note">Messages de test. Les données métier se trouvent dans « Propositions ».</p>
     <div class="nx-link-scopes">${messages.length?messages.map(msg=>`<div class="nx-link-scope" style="display:block">
       <strong>${escape(msg.invalid?'Message indéchiffrable':(msg.payload?.type==='test.ping'?'Test de connexion reçu':String(msg.payload?.title||'Proposition en attente')))}</strong>
       <small>Catégorie : ${escape(msg.scope||'Inconnue')} · Révision ${Number(msg.revision)||1}</small>
-      ${!msg.invalid?`<div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-ack" data-id="${escape(msg.id)}">Marquer comme lu</button></div>`:''}
+      ${!msg.invalid&&msg.payload?.type==='test.ping'?`<div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-ack" data-id="${escape(msg.id)}">Marquer comme lu</button></div>`:''}
     </div>`).join(''):'<div class="info-strip">Aucun message en attente. Envoie un test depuis Gaming.</div>'}</div>
     <div class="form-actions"><button class="btn btn-neutral" data-action="link-show-code">Voir le code</button>
     <button class="btn btn-ghost" data-action="link-revoke" data-id="${escape(pair.id)}">Révoquer</button>
