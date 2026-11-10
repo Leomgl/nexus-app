@@ -1,5 +1,4 @@
-/* NEXUS App Link — configuration preview only; NO network, NO credentials.
-   RITUEL and Gaming are NOT linked by this file. */
+/* NEXUS LINK — explicit encrypted pairing. No automatic financial/calendar imports. */
 'use strict';
 (() => {
  const STORE='nexus_link_config_draft_v1';
@@ -47,13 +46,14 @@
     '<div class="nx-connection-apps">'+APPS.map(app=>
       '<div class="nx-connection-app"><div><strong>'+escape(app.name)+'</strong>'+
       '<small>'+escape(app.detail)+'</small>'+
-      '<span class="nx-connection-status">'+escape(app.state)+' · '+numberEnabled(app.id)+' autorisation(s) préparée(s)</span></div>'+
+      '<span class="nx-connection-status">'+escape(app.id==='gaming'&&data.linkConnections?.some(x=>x.sourceApp==='gaming')?'Jumelage configuré · test manuel':app.state)+' · '+numberEnabled(app.id)+' autorisation(s)</span></div>'+
       '<div class="nx-connection-actions"><button type="button" class="btn btn-soft btn-small" data-action="link-configure" data-app="'+app.id+'">Configurer</button>'+
       (app.id==='gaming'?'<a class="btn btn-neutral btn-small" href="https://gaming-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Ouvrir Gaming</a>':'')+
+      (app.id==='gaming'?'<button type="button" class="btn btn-soft btn-small" data-action="link-create">Jumeler</button><button type="button" class="btn btn-neutral btn-small" data-action="link-inbox">Messages</button>':'')+
       '</div></div>'
     ).join('')+'</div>'+
     '<p class="nx-connection-disclaimer">'+svg('shield')+
-    ' Configuration préliminaire uniquement : aucune application n’est reliée, aucune donnée n’est envoyée et aucun accès automatique n’est activé.</p></section>';
+    ' Les jumelages sont chiffrés. Seuls les messages de test sont activés pour l’instant : aucune écriture automatique dans le Budget ou le Calendrier.</p></section>';
  }
  function show(id){
   const app=APPS.find(x=>x.id===id);
@@ -79,7 +79,73 @@
   save();
   return true;
  }
+
+ function ownPairs(){return (data.linkConnections||[]).filter(x=>x.sourceApp==='gaming');}
+ function pairingPanel(pair){
+  const code=window.NexusLinkCore.invitation(pair);
+  modal('Code de jumelage Gaming',`<div class="nx-link-modal">
+   <p class="muted-note">Code privé à usage personnel : copie-le dans Gaming → Réglages → NEXUS LINK. Ne le communique pas dans un chat : il donne accès à cette connexion chiffrée.</p>
+   <div class="field"><label for="nx-link-code">Code de jumelage</label>
+   <textarea id="nx-link-code" rows="5" readonly style="width:100%;overflow-wrap:anywhere;word-break:break-all">${escape(code)}</textarea></div>
+   <div class="form-actions"><button class="btn btn-neutral" data-action="link-copy">Copier le code</button><button class="btn btn-ghost" data-action="link-revoke" data-id="${escape(pair.id)}">Révoquer</button>
+   <button class="btn" data-action="link-inbox">Messages reçus</button></div></div>`);
+ }
+ async function createPairing(){
+  const core=window.NexusLinkCore;
+  if(!core){toast('Module NEXUS LINK indisponible : actualise la PWA.');return;}
+  if(ownPairs().length){pairingPanel(ownPairs()[0]);return;}
+  const scopes=Object.entries(cfg.grants.gaming||{}).filter(([_,allowed])=>allowed).map(([scope])=>scope);
+  if(!scopes.length){toast('Configure Gaming et coche au moins une autorisation avant le jumelage.');return;}
+  try{
+   const pair=await core.createPair('gaming',scopes);
+   data.linkConnections.push(pair);
+   await persist();render();pairingPanel(pair);
+  }catch(e){toast('Jumelage impossible : '+String(e.message).slice(0,75));}
+ }
+ async function inboxPanel(){
+  const pair=ownPairs()[0];
+  if(!pair){toast('Connecte Gaming avant de consulter les messages.');return;}
+  try{
+   const messages=await window.NexusLinkCore.inbox(pair);
+   modal('NEXUS LINK · messages',`<div class="nx-link-modal">
+    <p class="muted-note">Messages chiffrés reçus depuis Gaming. Aucune opération réelle n'est créée automatiquement.</p>
+    <div class="nx-link-scopes">${messages.length?messages.map(msg=>`<div class="nx-link-scope" style="display:block">
+      <strong>${escape(msg.invalid?'Message indéchiffrable':(msg.payload?.type==='test.ping'?'Test de connexion reçu':String(msg.payload?.title||'Proposition en attente')))}</strong>
+      <small>Catégorie : ${escape(msg.scope||'Inconnue')} · Révision ${Number(msg.revision)||1}</small>
+      ${!msg.invalid?`<div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-ack" data-id="${escape(msg.id)}">Marquer comme lu</button></div>`:''}
+    </div>`).join(''):'<div class="info-strip">Aucun message en attente. Envoie un test depuis Gaming.</div>'}</div>
+    <div class="form-actions"><button class="btn btn-neutral" data-action="link-show-code">Voir le code</button>
+    <button class="btn btn-ghost" data-action="link-revoke" data-id="${escape(pair.id)}">Révoquer</button>
+    <button class="btn" data-action="link-inbox">Actualiser</button></div></div>`);
+  }catch(e){toast('Réception impossible : '+String(e.message).slice(0,70));}
+ }
+ async function acknowledgeMessage(id){
+  const pair=ownPairs()[0];if(!pair)return;
+  try{await window.NexusLinkCore.acknowledge(pair,id);await inboxPanel();}
+  catch(e){toast('Accusé non envoyé : '+String(e.message).slice(0,60));}
+ }
+ async function revokePair(id){
+  const pair=ownPairs().find(x=>x.id===id);
+  if(!pair||!confirm('Révoquer définitivement le jumelage Gaming ? Les deux apps conserveront leurs données indépendantes.'))return;
+  try{await window.NexusLinkCore.revoke(pair);
+   data.linkConnections=data.linkConnections.filter(x=>x.id!==id);await persist();closeModal();render();toast('Jumelage révoqué.');
+  }catch(e){toast('Révocation impossible : '+String(e.message).slice(0,65));}
+ }
+ async function copyPair(){
+  const pair=ownPairs()[0];if(!pair)return;
+  const code=window.NexusLinkCore.invitation(pair);
+  try{await navigator.clipboard.writeText(code);toast('Code copié. Colle-le dans Gaming.');}
+  catch{const field=document.getElementById('nx-link-code');field?.focus();field?.select();toast('Sélectionne le code et copie-le manuellement.');}
+ }
+
  function act(kind,target){
+  if(kind==='link-create')return createPairing();
+  if(kind==='link-inbox')return inboxPanel();
+  if(kind==='link-show-code'){const pair=ownPairs()[0];if(pair)pairingPanel(pair);return;}
+  if(kind==='link-copy')return copyPair();
+  if(kind==='link-ack')return acknowledgeMessage(target.dataset.id);
+  if(kind==='link-revoke')return revokePair(target.dataset.id);
+
   if(kind==='link-configure'){show(target.dataset.app);return true;}
   if(kind==='link-finish'){closeModal();render();return true;}
   if(kind==='link-draft-reset'){

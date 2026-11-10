@@ -40,7 +40,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],trash:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],trash:[],linkConnections:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -838,7 +838,7 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.12 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.13 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
