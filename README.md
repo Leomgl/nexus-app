@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.12 bêta)
+# NEXUS — Second cerveau personnel (V0.13 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.12 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.13 bêta, coffre D1 V4 et NEXUS LINK séparé déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -259,3 +259,17 @@ Documents à lire avant de déployer la passerelle :
 Les apps sont actuellement sur des chemins différents de `leomgl.github.io`, **mais la même origine web**. Cela n'est pas une vraie barrière de sécurité entre les applications dans un navigateur classique. Pour une liaison inter-app authentifiée, utiliser des origines séparées ; préparer une migration avec export/restauration vérifiés avant de changer l'URL d'une PWA déjà installée sur iPhone.
 
 Aucune modification de Worker, de D1 ni de la base locale métier dans cette V0.12.
+
+## V0.13 — jumelage chiffré NEXUS ↔ Gaming (test technique)
+
+**NEXUS → Réglages → Applications & connexions → Configurer Gaming → choisir au moins une autorisation → Jumeler.**
+
+Le code privé s'affiche dans NEXUS ; le saisir dans Gaming → Réglages → NEXUS LINK → Jumeler. Gaming vérifie la liaison auprès du relais, puis peut envoyer un **message de test chiffré**. Dans NEXUS → Applications & connexions → Messages, tu peux le lire et l'accuser réception.
+
+La passerelle `https://nexus-link-api.q9pfwtztsc.workers.dev` utilise son propre Worker, une base D1 EU `nexus-link-db` et le protocole `link-core.js` partagé par NEXUS/Gaming. Les permissions sont figées au moment du jumelage ; pour les changer il faut révoquer le jumelage puis recommencer. Seul NEXUS peut révoquer le serveur via son jeton de lecture.
+
+**Aucune opération réelle n'est transférée en V0.13 :** pas de dépenses, dates d'agenda ou achats importés. Les messages de test ne contiennent aucune donnée personnelle. RITUEL dispose du SDK en attente, non chargé dans la PWA, et doit avoir une origine web distincte avant d'activer sa liaison.
+
+Les connexions NEXUS sont stockées dans `data.linkConnections[]`, incluses dans le coffre chiffré et l'export JSON (en clair sur l'appareil exportateur). Ne jamais envoyer le code de jumelage dans une conversation ou un ticket ; préserver les exports.
+
+Voir [docs/APP-LINK-IMPLEMENTATION.md](docs/APP-LINK-IMPLEMENTATION.md).
