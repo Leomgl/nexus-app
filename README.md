@@ -1,8 +1,8 @@
-# NEXUS — Second cerveau personnel (V0.4)
+# NEXUS — Second cerveau personnel (V0.5 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
-## Fonctions opérationnelles
+## Modules et fonctionnalités
 
 - **Notes** : capture rapide, texte libre, liens vers les éléments créés et suggestions locales.
 - **Agenda** : rendez-vous, date/heure, lieu, personne, notes liées, export iCalendar.
@@ -35,7 +35,15 @@ Sur iOS, Web Push nécessite iOS 16.4+, HTTPS, la **PWA installée depuis Safari
 - Si deux appareils modifient leurs données indépendamment, **la synchronisation est arrêtée**. Il n'existe pas encore de fusion multiéditeur en temps réel ; pour l'instant, ne modifie pas simultanément les données sur deux appareils.
 - L'export/import JSON reste disponible et il faut conserver au moins un export indépendant.
 
-**À ne pas confondre** : cette V0.4 n'inclut **ni identification par Face ID/passkey**, ni synchronisation temps réel avec résolution automatique des conflits. Les données **locales** dans IndexedDB restent en clair. L'origine GitHub Pages `leomgl.github.io` est partagée avec d'autres applications du même compte : les chemins ne constituent pas une frontière de sécurité. Ne pas y stocker encore de données très sensibles.
+**À ne pas confondre** : la V0.5 bêta inclut le **verrouillage optionnel par passkey vérifiée sur le serveur**, mais pas une authentification passkey autonome remplaçant la clé de récupération, ni une synchronisation multiéditeur avec fusion automatique. Les données **locales** dans IndexedDB restent en clair. L'origine GitHub Pages `leomgl.github.io` est partagée avec d'autres applications du même compte : les chemins ne constituent pas une frontière de sécurité. Ne pas y stocker encore de données très sensibles.
+
+## Face ID / passkeys — bêta V0.5
+
+Dans **Réglages → Face ID / Passkey → Activer**, NEXUS crée une passkey WebAuthn ES256 pour `leomgl.github.io` après confirmation iOS. Le serveur conserve seulement sa clé publique et vérifie chaque déverrouillage avec un défi à usage unique, la signature, le domaine et la présence de la vérification de l'utilisateur. L'appareil peut demander **Face ID ou son code de déverrouillage** selon les réglages iOS. L'interface se verrouille aux prochains lancements.
+
+Un accès de secours demande la clé de récupération du coffre. Le système n'est **pas un chiffrement des données locales**, ni une sécurité contre un navigateur compromis : IndexedDB et la clé de récupération restent accessibles au code de la même origine. Ne pas perdre la clé de récupération.
+
+La création et le déverrouillage en conditions réelles sur iPhone **ne sont pas encore validés**. Consulte [docs/PASSKEYS.md](docs/PASSKEYS.md).
 
 ## Architecture
 
@@ -44,17 +52,20 @@ iPhone PWA — GitHub Pages (/nexus-app/)
   ├── app.js : notes, calendrier, budget, projets, capture locale
   ├── cloud.js : chiffrement, coffre, synchronisation opt-in
   ├── push-client.js : permission iOS, préférences, abonnements
+  ├── passkey-client.js / lock-boot.js : UI lock WebAuthn optionnel
   ├── sw.js : offline + notificationclick / push
   └── IndexedDB : données personnelles locales
 
 Cloudflare Worker nexus-app-api
   ├── backend/src/index.js : accès au coffre + API authentifiée
   ├── backend/src/push.js : VAPID, Web Push, planification
+  ├── backend/src/passkeys.js : vérification WebAuthn côté serveur
   ├── Cron : */5 * * * *
   └── D1 nexus-app-db (juridiction EU)
         ├── tables métier V1 (réservées au futur modèle structuré)
         ├── vaults (snapshots chiffrés) V2
-        └── push_devices / push_jobs V3 (horaires et souscriptions)
+        ├── push_devices / push_jobs V3 (horaires et souscriptions)
+        └── passkey_credentials / passkey_challenges V4
 ```
 
 Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La clé publique est exposée dans le Worker pour permettre l'abonnement push. Le Worker a été mis en production directement via l'API Cloudflare ; GitHub Workers Builds n'est pas encore configuré. Les mises à jour du dossier `backend/` ne se déploient donc **pas automatiquement**.
@@ -68,15 +79,17 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.4 et schémas D1 V3 déployés.
+- ✅ Code GitHub V0.5 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
 - ⏳ À vérifier sur plusieurs appareils : restauration, réception automatique sans conflit, comportements hors ligne.
-- ⏳ À construire : connexion passkey/Face ID **avec vérification serveur WebAuthn**, rotation/révocation des clés, moteur de fusion multiappareil, refonte UI.
+- ✅ WebAuthn serveur : vérification de signature ES256 et de l'empreinte RP testées en laboratoire.
+- ⏳ À tester sur iPhone : inscription et déverrouillage Face ID / passkey.
+- ⏳ À construire : authentification passkey indépendante du jeton de récupération, rotation/révocation des clés, moteur de fusion multiappareil, refonte UI.
 
 ## Gratuité
 
 Projet conçu pour GitHub Free, Cloudflare Workers Free et D1 Free. Les limites et conditions des offres peuvent évoluer. **Ne jamais activer une offre payante sans accord explicite.**
 
-Documentation : [Notifications iOS](docs/NOTIFICATIONS-IOS.md) · [Synchronisation](docs/SYNCHRONISATION.md) · [Sécurité coffre](docs/COFFRE-CHIFFRE.md) · [Architecture cible](docs/ARCHITECTURE-CIBLE.md).
+Documentation : [Notifications iOS](docs/NOTIFICATIONS-IOS.md) · [Synchronisation](docs/SYNCHRONISATION.md) · [Passkeys](docs/PASSKEYS.md) · [Sécurité coffre](docs/COFFRE-CHIFFRE.md) · [Architecture cible](docs/ARCHITECTURE-CIBLE.md).
