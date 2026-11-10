@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.6 bêta)
+# NEXUS — Second cerveau personnel (V0.7 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.6 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.7 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -104,3 +104,52 @@ Documentation : [Notifications iOS](docs/NOTIFICATIONS-IOS.md) · [Synchronisati
 - Une fiche Projet affiche maintenant ses **rendez-vous associés**, avec un raccourci pour en créer un nouveau.
 
 Pour toute modification hors ligne, NEXUS actualise les notifications à son retour en ligne. Le service push reste soumis au déclencheur Cloudflare toutes les cinq minutes ; aucun horaire n'est garanti à la seconde.
+
+## Interface V0.7 — cockpit personnel
+
+NEXUS utilise désormais une navigation principale **à cinq emplacements** sur iPhone **et desktop** :
+
+1. **Accueil** — tableau de bord et capture rapide.
+2. **Catégories** — les sept modules : Notes, Agenda, Rappels, Personnes, Projets, Achats, Budget.
+3. **Raccourci 1** — projet par défaut, personnalisable.
+4. **Raccourci 2** — budget par défaut, personnalisable.
+5. **Réglages** — page complète pour la navigation, l’apparence, l’accueil, les notifications, la sécurité et les sauvegardes.
+
+Un module ouvert depuis Catégories propose également **Slot 1** / **Slot 2** pour l'épingler rapidement. Si le module est déjà attribué à l'autre slot, les raccourcis sont échangés ; aucun doublon.
+
+### Accueil
+
+La capture instantanée transforme du texte libre en **note locale**, puis ouvre la fiche et ses suggestions de rendez-vous, tâche, achat, projet ou dépense. Aucun élément lié n'est créé sans validation.
+
+Les widgets de l'accueil sont :
+
+- Aujourd'hui : RDV du jour, prochain événement, tâches en retard ou prioritaires.
+- Projet en focus : projet actif récemment mis à jour, avancement et dépenses associées.
+- Budget du mois : dépenses et plafond éventuel.
+- Activité récente : éléments récemment créés ou mis à jour.
+
+Depuis **Réglages → Accueil personnalisé**, l'utilisateur peut masquer, réactiver et **réordonner** les widgets. Les sections de capture et le résumé d'accueil restent fixes pour garantir un point d'entrée immédiat.
+
+### Apparence et préférences
+
+- Palette **Sauge** ou **Ardoise**, toutes deux **claires**.
+- Densité **Confortable** ou **Compacte**.
+- Réinitialisation de l'interface sans toucher aux notes ni aux sauvegardes.
+
+Les préférences sont enregistrées dans le `localStorage` de ce navigateur sous `nexus_interface_v07` : **elles sont propres à cet appareil**, pas synchronisées entre téléphones, ni incluses dans le snapshot de coffre chiffré. Les données métiers restent dans le même IndexedDB `nexus-v0-1`, schéma V0.6 inchangé.
+
+### Non-régression / tests
+
+- ✅ Analyse statique JavaScript : app, cloud, push, passkeys et service worker.
+- ✅ Cinq entrées mobiles et desktop dans le document HTML.
+- ✅ Parcours logique : Accueil → Catégories → Réglages.
+- ✅ Sept modules présents dans la page Catégories.
+- ✅ Raccourcis configurables, persistants et sans doublons.
+- ✅ Widgets configurables et ordre conservé après lecture des préférences.
+- ✅ Accueil rendu sans données et avec données de test (notes, rendez-vous, projet).
+- ✅ Cache PWA version `nexus-v0.7.0`.
+- ⏳ À confirmer sur iPhone réel : rendu visuel, mise à jour PWA après rechargement, interactions, lisibilité des réglages.
+
+Il n'y a **aucune migration D1 ou Worker** dans V0.7 ; le coffre existant, les notifications, la synchronisation et les passkeys conservent leur backend.
+
+Voir [docs/INTERFACE-V07.md](docs/INTERFACE-V07.md) pour les flux et décisions d'ergonomie.

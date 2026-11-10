@@ -839,21 +839,6 @@ function settingsView(){
   </section></div>
   <footer class="settings-version">NEXUS · V0.7 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
-function settings(){
- modal('Réglages & données',`<div class="eyebrow">NEXUS V0.6 · RAPPELS PAR RENDEZ-VOUS</div>
- <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
- <div class="settings-option"><div><strong>Exporter une sauvegarde</strong><p>Un fichier JSON avec notes, tâches, contacts, projets, achats et budget.</p></div>
- <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>
- <div class="settings-option"><div><strong>Restaurer une sauvegarde</strong><p>Compatible avec la V0.1 et V0.2. Remplace les données actuelles.</p></div>
- <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
- <div class="settings-option"><div><strong>Face ID / Passkey</strong><p>Verrouillage optionnel avec preuve cryptographique vérifiée par Cloudflare.</p></div><button class="btn btn-soft btn-small" data-action="passkey-settings">${svg('shield')} Configurer</button></div>
- <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Autorisation et test des notifications. Les délais se règlent désormais dans chaque rendez-vous.</p></div><button class="btn btn-soft btn-small" data-action="push-settings">${svg('clock')} Régler</button></div>
- <div class="settings-option"><div><strong>Coffre cloud chiffré</strong><p>Sauvegarde et restauration manuelles, chiffrées avant envoi. Aucune synchronisation forcée.</p></div>
- <button class="btn btn-soft btn-small" data-action="cloud-vault">${svg('shield')} Coffre</button></div>
- <div class="settings-option"><div><strong>Tout effacer</strong><p>Suppression locale irréversible sans sauvegarde.</p></div>
- <button class="btn btn-danger btn-small" data-action="clear-all">${svg('trash')} Effacer</button></div>
- <div class="info-strip">${svg('shield')} Les données restent en clair dans IndexedDB sur cet appareil. Le coffre optionnel chiffre les sauvegardes avant leur envoi. Garde des exports JSON.</div>`);
-}
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
 function icsEscape(value){return String(value||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
@@ -904,7 +889,6 @@ document.addEventListener('click',async event=>{
   }
  }
   if(kind==='pin-module')setSlot(Number(action.dataset.slot),action.dataset.module);
- if(kind==='settings-modal')navTo('settings');
  if(kind==='quick-save'){
   const content=document.getElementById('quick-capture')?.value.trim()||'';
   if(!content){toast('Écris quelque chose avant de capturer.');return;}
