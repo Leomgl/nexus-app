@@ -13,7 +13,7 @@
  const selectType=(selected='expense')=>`<label class="b8-field">Nature<select name="type"><option value="expense" ${selected==='expense'?'selected':''}>Dépense</option><option value="income" ${selected==='income'?'selected':''}>Recette</option></select></label>`;
  const safeNumber=x=>Number.isSafeInteger(x)&&x>0&&x<=100000000000;
  function monthKey(date){return dateKey(date).slice(0,7);}
- function monthParts(month){const match=/^(\\d{4})-(0[1-9]|1[0-2])$/.exec(month);if(!match)return null;return {year:Number(match[1]),month:Number(match[2])};}
+ function monthParts(month){const match=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);if(!match)return null;return {year:Number(match[1]),month:Number(match[2])};}
  function daysIn(year,month){return new Date(year,month,0).getDate();}
  function dateWithin(rule,date){return (!rule.startDate||date>=rule.startDate)&&(!rule.endDate||date<=rule.endDate);}
  function occurrences(rule,month){
