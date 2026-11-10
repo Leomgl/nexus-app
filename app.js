@@ -147,6 +147,54 @@ function projectTasks(id){return data.tasks.filter(t=>t.projectId===id);}
 function projectOptions(selected=''){
  return `<option value="">Aucun projet</option>`+data.projects.map(p=>`<option value="${escapeHtml(p.id)}" ${selected===p.id?'selected':''}>${escapeHtml(p.title)}</option>`).join('');
 }
+
+const NEW_PROJECT_VALUE='__create_project__';
+function projectField(selected=''){
+ return `<div class="field project-field"><label for="f-projectId">Projet associé</label>
+  <select name="projectId" id="f-projectId">${projectOptions(selected)}<option value="${NEW_PROJECT_VALUE}">＋ Créer un nouveau projet…</option></select>
+  <div class="inline-project-create" hidden>
+   <p class="muted-note">Le projet et cette fiche seront enregistrés ensemble.</p>
+   ${input('Nom du projet','newProjectTitle','','text','maxlength="120" placeholder="Ex. Préparation du voyage"')}
+   <div class="field"><label for="f-newProjectDescription">Description (facultative)</label>
+   <textarea name="newProjectDescription" id="f-newProjectDescription" rows="2" maxlength="1000" placeholder="Une idée, un objectif…"></textarea></div>
+  </div></div>`;
+}
+function wireProjectField(form){
+ const select=form.querySelector('#f-projectId'),panel=form.querySelector('.inline-project-create');
+ const name=form.querySelector('[name="newProjectTitle"]');
+ if(!select||!panel||!name)return;
+ const note=form.querySelector('#f-body');
+ function update(){
+  const isNew=select.value===NEW_PROJECT_VALUE;
+  panel.hidden=!isNew;
+  name.disabled=!isNew;name.required=isNew;
+  form.querySelector('[name="newProjectDescription"]').disabled=!isNew;
+  if(isNew&&!name.value.trim())name.value=(note?analyzeNote(note.value).projectTitle:'')||form.querySelector('[name="title"]')?.value.trim()||'';
+ }
+ select.addEventListener('change',update);
+ if(note)note.addEventListener('input',()=>{
+  if(select.value===NEW_PROJECT_VALUE&&!name.dataset.customized){
+   const suggestion=analyzeNote(note.value).projectTitle;
+   if(suggestion)name.value=suggestion;
+  }
+ });
+ name.addEventListener('input',()=>{name.dataset.customized='yes';});
+ update();
+}
+function takeInlineProject(values){
+ const creating=values.projectId===NEW_PROJECT_VALUE;
+ const title=String(values.newProjectTitle||'').trim();
+ if(creating&&!title)throw new Error('Donne un nom au nouveau projet.');
+ const now=new Date().toISOString();
+ const project=creating?{
+  id:uid(),title:title.slice(0,120),description:String(values.newProjectDescription||'').trim().slice(0,1000),
+  status:'active',deadline:'',budgetCents:null,createdAt:now,updatedAt:now
+ }:null;
+ if(project)values.projectId=project.id;
+ delete values.newProjectTitle;delete values.newProjectDescription;
+ return project;
+}
+
 const projectStatus={active:'En cours',paused:'En pause',completed:'Terminé'};
 const purchaseStatus={planned:'À acheter',purchased:'Acheté',canceled:'Abandonné'};
 const txCategories=['Courses','Transport','Maison','Loisirs','Santé','Abonnements','Shopping','Équipement','Autres','Salaire','Vente'];
@@ -284,7 +332,7 @@ function extraCaptureForm(kind,obj={},context={}){
   <div class="field-grid">${input('Prix estimé (€)','priceEuros',euroInput(obj.priceCents),'text','inputmode="decimal" placeholder="Facultatif"')}
   <div class="field"><label for="f-priority">Priorité</label><select name="priority" id="f-priority">${[[1,'Normale'],[2,'Importante'],[3,'Urgente']].map(([k,v])=>`<option value="${k}" ${Number(obj.priority||1)===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
   ${input('Boutique / lien (facultatif)','shop',obj.shop||'','text','maxlength="250"')}
-  <div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div>
+  ${projectField(obj.projectId||context.projectId||'')}
   <div class="field"><label for="f-status">État</label><select name="status" id="f-status">${Object.entries(purchaseStatus).map(([key,label])=>`<option value="${key}" ${obj.status===key?'selected':''}>${label}</option>`).join('')}</select></div>
   <div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details">${escapeHtml(obj.details||'')}</textarea></div>`;
  }
@@ -297,7 +345,7 @@ function extraCaptureForm(kind,obj={},context={}){
   <div class="field-grid">${input('Montant (€)','amountEuros',euroInput(obj.amountCents??purchase?.priceCents??detectedExpense.amountCents),'text','required inputmode="decimal" placeholder="Ex. 49,90"')}
   ${input('Date','date',obj.date||dateKey(new Date()),'date','required')}</div>
   <div class="field"><label for="f-category">Catégorie</label><select name="category" id="f-category">${txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Autres')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
-  <div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||purchase?.projectId||'')}</select></div>
+  ${projectField(obj.projectId||context.projectId||purchase?.projectId||'')}
   ${purchase?`<p class="muted-note">${svg('link')} Cette dépense sera reliée à l'achat « ${escapeHtml(purchase.title)} ».</p>`:''}`;
  }
  if(kind==='limit'){
@@ -307,7 +355,7 @@ function extraCaptureForm(kind,obj={},context={}){
   ${input('Montant maximum (€)','limitEuros',euroInput(current?.limitCents),'text','inputmode="decimal" placeholder="Ex. 800,00"')}`;
  }
  modal(title,`<form id="extra-form" data-kind="${kind}">${content}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button type="submit" class="btn">${svg('check')} Enregistrer</button></div></form>`);
- const form=document.getElementById('extra-form');
+ const form=document.getElementById('extra-form');wireProjectField(form);
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const v=Object.fromEntries(new FormData(form).entries());
@@ -319,7 +367,6 @@ function extraCaptureForm(kind,obj={},context={}){
   }else{
    const base={...obj,...v,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
    if(kind==='project'){
-    if(context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.projectId=base.id;n.updatedAt=new Date().toISOString();}}
     const cents=v.budgetEuros.trim()?toCents(v.budgetEuros):null;
     if(cents===null&&v.budgetEuros.trim()){toast('Budget invalide');return;}
     base.budgetCents=cents;delete base.budgetEuros;
@@ -345,6 +392,15 @@ function extraCaptureForm(kind,obj={},context={}){
     base.noteId=obj.noteId||context.noteId||null;
     delete base.amountEuros;
    }
+   if(kind==='purchase'||kind==='transaction'){
+    let newProject=null;
+    try{newProject=takeInlineProject(base);}catch(error){toast(error.message);return;}
+    if(newProject)data.projects.push(newProject);
+   }
+   if(kind==='project'&&context.noteId){
+    const note=data.notes.find(x=>x.id===context.noteId);
+    if(note){note.projectId=base.id;note.updatedAt=new Date().toISOString();}
+   }
    const key={project:'projects',purchase:'purchases',transaction:'transactions'}[kind];
    const ix=data[key].findIndex(x=>x.id===base.id);
    if(ix>=0)data[key][ix]=base;else data[key].push(base);
@@ -364,30 +420,36 @@ function captureForm(kind, obj={}, context={}){
  let title='',content='', existing=Boolean(obj.id);
  if(kind==='note'){
   title=existing?'Modifier la note':'Nouvelle note';
-  content=`<form id="entity-form" data-kind="note">${input('Titre','title',obj.title||'','text','required maxlength="120"')}<div class="field"><label for="f-body">Ta note</label><textarea id="f-body" name="body" placeholder="Ex. RDV chez le garagiste samedi à 14h à Lille. Penser à prendre le devis...">${escapeHtml(obj.body||'')}</textarea></div><div class="field"><label for="f-projectId">Projet associé (facultatif)</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="info-strip">${svg('sparkle')} Après l'enregistrement, NEXUS proposera des actions à partir du texte. Rien ne sera créé sans ta validation.</div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="note">${input('Titre','title',obj.title||'','text','required maxlength="120"')}<div class="field"><label for="f-body">Ta note</label><textarea id="f-body" name="body" placeholder="Ex. RDV chez le garagiste samedi à 14h à Lille. Penser à prendre le devis...">${escapeHtml(obj.body||'')}</textarea></div>${projectField(obj.projectId||context.projectId||'')}<div class="info-strip">${svg('sparkle')} Après l'enregistrement, NEXUS proposera des actions à partir du texte. Rien ne sera créé sans ta validation.</div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='event'){
   title=existing?'Modifier le rendez-vous':'Nouveau rendez-vous';
   const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null, detected=note?analyzeNote(note.body):{};
   const chosenDate=obj.start?.slice(0,10)||detected.date||selectedDay,chosenTime=obj.start?.slice(11,16)||detected.time||'14:00';
   const personId=obj.personId||detected.personId||'';
-  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${input('Lieu','location',obj.location||detected.location||'')}<div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(personId)}</select></div>${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||context.projectId||'')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(personId)}</select></div>${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
-  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div><div class="field"><label for="f-projectId">Projet associé</label><select name="projectId" id="f-projectId">${projectOptions(obj.projectId||context.projectId||'')}</select></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div>${projectField(obj.projectId||context.projectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
   title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  modal(title,content);
- const form=document.getElementById('entity-form');form.addEventListener('submit',async event=>{
+ const form=document.getElementById('entity-form');wireProjectField(form);form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
-  const values=Object.fromEntries(new FormData(form).entries());const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString()};
+  const values=Object.fromEntries(new FormData(form).entries());
+  let newProject=null;
+  if(form.querySelector('[name="projectId"]')){
+   try{newProject=takeInlineProject(values);}catch(error){toast(error.message);return;}
+  }
+  const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
-  if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId||obj.projectId||context.projectId||'';}
-  if(kind==='event'){base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId||obj.projectId||context.projectId||'';delete base.date;delete base.time;}
-  if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId||obj.projectId||context.projectId||'';}
+  if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??context.projectId??'';}
+  if(kind==='event'){base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??context.projectId??'';delete base.date;delete base.time;}
+  if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??context.projectId??'';}
+  if(newProject)data.projects.push(newProject);
   const key={note:'notes',event:'events',task:'tasks',contact:'contacts'}[kind];const ix=data[key].findIndex(v=>v.id===base.id);if(ix>=0)data[key][ix]=base;else data[key].push(base);
   await persist();closeModal();render();toast(existing?'Modifications enregistrées':'Élément enregistré');
   if(kind==='note')noteDetail(base.id);
