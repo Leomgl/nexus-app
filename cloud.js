@@ -85,6 +85,74 @@
   const busy = async (func) => {
     try{await func();}catch(err){alert(err.message||'Opération cloud impossible.');}
   };
+
+  // Guarded opt-in continuous backup. No silent destructive merges.
+  const fingerprint=async obj=>hex(await cryptoHash(JSON.stringify(obj.data)));
+  let autoTimer=null,autoRunning=false;
+  function queueAuto(delay=3500){
+    if(autoTimer)clearTimeout(autoTimer);
+    autoTimer=setTimeout(()=>autoStep().catch(err=>console.warn('NEXUS auto sync paused',err?.message)),delay);
+  }
+  async function autoStep(){
+    if(autoRunning||!navigator.onLine)return;
+    const st=await readState();
+    if(!st?.autoBackup||!st.canUpload||st.conflict||!st.lastSyncedDigest)return;
+    autoRunning=true;
+    try{
+      const key=await keys(st.secret),remote=await api('/api/v1/snapshot','GET',undefined,key.token);
+      const snapshot=localSnapshot(),localDigest=await fingerprint(snapshot);
+      if(remote.version!==st.version){
+        if(localDigest===st.lastSyncedDigest&&remote.payload){
+          const restored=await decrypt(remote.payload,key.aes);
+          const newDigest=await fingerprint(restored);
+          // Keep a separate local rollback copy of the previous snapshot.
+          const tx=db().transaction(DB_STORE,'readwrite');
+          tx.objectStore(DB_STORE).put(snapshot,'cloud_last_autosync_backup_v1');
+          await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+          assignData(restored.data);await persist();render();
+          await writeState({...st,version:remote.version,lastSyncedDigest:newDigest,conflict:false});
+          toast('NEXUS actualisé depuis ton coffre.');
+        }else{
+          await writeState({...st,autoBackup:false,conflict:true,canUpload:false});
+          toast('Conflit détecté : synchronisation suspendue.');
+        }
+        return;
+      }
+      if(localDigest===st.lastSyncedDigest)return;
+      const payload=await encrypt(snapshot,key.aes);
+      const result=await api('/api/v1/snapshot','PUT',{expectedVersion:st.version,payload},key.token);
+      const latest=await readState();
+      await writeState({...latest,version:result.version,lastSyncedDigest:localDigest,conflict:false});
+      const fresh=await fingerprint(localSnapshot());
+      if(fresh!==localDigest)queueAuto(2000);
+    }catch(err){
+      if(/conflit|VERSION_CONFLICT|409/i.test(String(err.message))){
+        const cur=await readState();await writeState({...cur,autoBackup:false,conflict:true,canUpload:false});
+        toast('Conflit cloud : synchro suspendue.');
+      }else{
+        console.warn('Cloud autosync retry on next online check',err?.message);
+      }
+    }finally{autoRunning=false;}
+  }
+  function toggleAuto(){
+    return busy(async()=>{
+      const st=await readState();
+      if(!st)throw new Error('Connecte ton coffre auparavant.');
+      if(st.autoBackup){
+        await writeState({...st,autoBackup:false});toast('Synchro automatique désactivée.');viewPanel();return;
+      }
+      if(st.conflict||!st.canUpload||!st.lastSyncedDigest){
+        throw new Error('Fais d’abord une sauvegarde cloud manuelle depuis cet appareil, ou résous le conflit.');
+      }
+      if(!confirm('Activer la sauvegarde automatique chiffrée et la réception des changements lorsque cet appareil est à jour ? En cas de modifications concurrentes, NEXUS suspendra la synchro.'))return;
+      await writeState({...st,autoBackup:true});
+      toast('Synchronisation prudente activée.');viewPanel();queueAuto(500);
+    });
+  }
+  window.addEventListener('online',()=>queueAuto(750));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)queueAuto(750);});
+  setInterval(()=>{if(!document.hidden)queueAuto(1000);},60000);
+
   async function viewPanel(){
     try{
       const state=await readState();
@@ -116,7 +184,7 @@
               const k=await keys(secret);
               const verifier=hex(await cryptoHash(k.token));
               await api('/api/v1/register','POST',{invite,verifier});
-              await writeState({secret,version:0,canUpload:true});
+              await writeState({secret,version:0,canUpload:true,autoBackup:false,conflict:false});
               showRecovery(secret);
             } finally{button.disabled=false;}
           });
@@ -125,7 +193,7 @@
           event.preventDefault();busy(async()=>{
             const secret=event.currentTarget.elements.secret.value.trim();
             const k=await keys(secret),remote=await api('/api/v1/snapshot','GET',undefined,k.token);
-            await writeState({secret,version:remote.version,canUpload:!remote.payload});
+            await writeState({secret,version:remote.version,canUpload:!remote.payload,autoBackup:false,conflict:false});
             toast('Coffre connecté. Aucune donnée locale modifiée.');
             viewPanel();
           });
@@ -137,6 +205,8 @@
         <div class="vault-metric"><span>Dernière version cloud connue</span><strong>V${Number(state.version)||0}</strong></div>
         <p class="muted-note">${state.canUpload?'Tu peux envoyer une sauvegarde chiffrée.':'Pour éviter d’écraser une sauvegarde distante, restaure d’abord la version cloud sur cet appareil.'}</p>
         <div class="vault-actions">
+          <button class="btn btn-neutral" id="vault-toggle-auto" type="button">${state.autoBackup?'Désactiver':'Activer'} la synchro automatique</button>
+          ${state.conflict?'<p class="muted-note">⚠️ Deux appareils ont divergé. Synchronisation arrêtée ; conserve tes sauvegardes locales et résous le conflit manuellement.</p>':''}
           <button class="btn" data-vault="send" ${state.canUpload?'':'disabled'}>${svg('upload')} Sauvegarder vers le cloud</button>
           <button class="btn btn-soft" data-vault="receive">${svg('download')} Restaurer depuis le cloud</button>
           <button class="btn btn-neutral" data-vault="key">${svg('shield')} Voir ma clé de récupération</button>
@@ -144,6 +214,7 @@
         </div>
         <small class="muted-note">La restauration remplace l'espace local uniquement après ton accord. Une sauvegarde JSON locale est conseillée avant.</small>
       `);
+      document.getElementById('vault-toggle-auto')?.addEventListener('click',toggleAuto);
       document.querySelectorAll('[data-vault]').forEach(el=>el.addEventListener('click',()=>busy(async()=>{
         const action=el.dataset.vault;
         if(action==='key'){if(confirm('Afficher ta clé privée à l’écran ? Ne la partage jamais.'))showRecovery(state.secret);return;}
@@ -159,7 +230,7 @@
           if(remote.version!==state.version)throw new Error('Le coffre a changé depuis ta dernière sauvegarde. Télécharge la nouvelle version avant tout envoi.');
           const payload=await encrypt(localSnapshot(),k.aes);
           const result=await api('/api/v1/snapshot','PUT',{expectedVersion:state.version,payload},k.token);
-          await writeState({...state,version:result.version,canUpload:true});
+          await writeState({...state,version:result.version,canUpload:true,conflict:false,lastSyncedDigest:await fingerprint(localSnapshot())});
           toast('Sauvegarde cloud chiffrée enregistrée.');viewPanel();return;
         }
         if(action==='receive'){
@@ -170,7 +241,7 @@
           if(!confirm(`Restaurer la version cloud V${remote.version} ? Cela REMPLACERA ${count} éléments locaux. Tu peux d’abord exporter un JSON dans Réglages.`))return;
           if(!confirm('Dernière confirmation : as-tu sauvegardé les données locales que tu souhaites conserver ?'))return;
           assignData(snapshot.data);await persist();
-          await writeState({...state,version:remote.version,canUpload:true});
+          await writeState({...state,version:remote.version,canUpload:true,conflict:false,lastSyncedDigest:await fingerprint(localSnapshot())});
           closeModal();render();toast('Sauvegarde cloud restaurée.');return;
         }
       })));
@@ -194,5 +265,6 @@
     document.getElementById('vault-back').addEventListener('click',viewPanel);
   }
   async function session(){const state=await readState();if(!state?.secret)return null;const k=await keys(state.secret);return {token:k.token,version:state.version};}
-  window.NexusCloud={openPanel:viewPanel,session};
+  window.NexusCloud={openPanel:viewPanel,session,onLocalChange:queueAuto};
+  queueAuto(12000);
 })();
