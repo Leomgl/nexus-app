@@ -154,7 +154,7 @@
    return `<div class="b8-panel-head"><div><h2>${title}</h2>${subtitle?`<p>${subtitle}</p>`:''}</div>${actions}</div>`;
  }
  function quickPanel(){
-   const templates=data.quickExpenses;
+   const templates=[...data.quickExpenses].sort((a,b)=>Number(!!b.pinned)-Number(!!a.pinned)||(a.title||'').localeCompare(b.title||'','fr'));
    return `<section class="b8-quick-panel">
     ${panelTitle('Dépenses rapides','Tes opérations habituelles, en un geste.',
       `<button class="btn btn-neutral btn-small" data-action="b8-quick-new">${svg('plus')} Nouveau raccourci</button>`)}
@@ -162,9 +162,29 @@
       <button class="b8-quick-trigger" data-action="b8-quick-use" data-id="${safe(t.id)}" title="${t.mode==='fixed'?'Enregistrer tout de suite':'Saisir le montant'}">
       <span class="b8-quick-symbol">${svg('bolt')}</span><strong>${safe(t.title)}</strong>
       <span>${t.mode==='fixed'?currencies(t.amountCents):'Montant libre'}</span></button>
-      <button class="b8-quick-edit" data-action="b8-quick-edit" data-id="${safe(t.id)}" aria-label="Modifier ${safe(t.title)}">${svg('edit')}</button>
+      <div class="b9-quick-controls"><button class="b9-quick-pin ${t.pinned?'active':''}" data-action="b9-quick-pin" data-id="${safe(t.id)}" title="${t.pinned?'Désépingler':'Épingler'}">${svg('star')}</button><button class="b8-quick-edit" data-action="b8-quick-edit" data-id="${safe(t.id)}" aria-label="Modifier ${safe(t.title)}">${svg('edit')}</button></div>
       </div>`).join('')}</div>`:
       `<div class="b8-zero">${svg('bolt')} <div><strong>Ton premier raccourci ?</strong><p>Exemple : dépense de 12 € en un tap, ou livraison à montant variable.</p></div></div>`}
+   </section>`;
+ }
+ function nextMonthsForecast(){
+  const p=monthParts(budgetMonth);
+  if(!p)return '';
+  const months=Array.from({length:3},(_,i)=>{
+   const date=new Date(p.year,p.month+i,1,12);
+   const key=monthKey(date),f=forecast(key),totals=monthTotals(key);
+   return {key,pending:f.pending.length,income:f.income+totals.income,expense:f.expense+totals.expense};
+  });
+  return `<section class="b8-panel b9-forecast-section">
+   ${panelTitle('Trois mois à venir','Projection des règles actives, hors dépenses imprévues.')}
+   <div class="b9-future-months">${months.map(m=>{
+     const net=m.income-m.expense;
+     return `<div class="b9-future-month"><strong>${formatDate(m.key+'-01',{month:'long',year:'numeric'})}</strong>
+      <span class="b9-future-net ${net<0?'negative':'positive'}">${net<0?'−':'+'}${currencies(Math.abs(net))}</span>
+      <small>+${currencies(m.income)} recettes · −${currencies(m.expense)} dépenses</small>
+      <small>${m.pending} échéance(s) non confirmée(s)</small></div>`;
+   }).join('')}</div>
+   <p class="b8-disclaimer">Les mois futurs sont des projections de flux, pas des soldes bancaires. Seules les règles créées par toi sont incluses.</p>
    </section>`;
  }
  function overview(){
@@ -192,6 +212,7 @@
       `<p class="muted-note">Aucun mouvement récurrent en attente pour ce mois.</p>`}</div>
     <p class="b8-disclaimer">* Projection des mouvements enregistrés et des récurrences restant à confirmer. Ce n'est pas un solde bancaire.</p>
    </section>
+   ${nextMonthsForecast()}
    <div class="b8-two-col">
     <section class="b8-panel">${panelTitle('Dernières dépenses','Les opérations réelles de ce mois.',
      `<button class="b8-text-btn" data-action="b8-switch-tab" data-tab="journal">Journal ${svg('arrow')}</button>`)}
@@ -412,7 +433,7 @@
      const v=Object.fromEntries(new FormData(form).entries());
      const amount=v.mode==='fixed'?toCents(v.amountEuros):null;
      if(v.mode==='fixed'&&!safeNumber(amount)){toast('Montant fixe invalide.');return;}
-     const q={...template,id:template.id||uid(),title:v.title.trim().slice(0,120),mode:v.mode,
+     const q={...template,id:template.id||uid(),pinned:!!template.pinned,title:v.title.trim().slice(0,120),mode:v.mode,
       amountCents:amount,category:v.category,projectId:v.projectId||'',
       createdAt:template.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
      const index=data.quickExpenses.findIndex(t=>t.id===q.id);
@@ -499,11 +520,17 @@
    data.quickExpenses=data.quickExpenses.filter(x=>x.id!==id);
    await persist();closeModal();refresh();toast('Raccourci supprimé.');
  }
+ async function toggleQuickPin(id){
+ const q=data.quickExpenses.find(x=>x.id===id);if(!q)return;
+ q.pinned=!q.pinned;q.updatedAt=new Date().toISOString();
+ await persist();refresh();toast(q.pinned?'Raccourci épinglé.':'Raccourci désépinglé.');
+ }
  function act(action,el){
    if(action==='b9-categories')return categoryManager();
    if(action==='b9-category-new')return categoryForm();
    if(action==='b9-category-edit')return categoryForm(el.dataset.id);
    if(action==='b9-category-toggle')return toggleCategory(el.dataset.id);
+   if(action==='b9-quick-pin')return toggleQuickPin(el.dataset.id);
    if(action==='b8-switch-tab'){tab=el.dataset.tab;refresh();return;}
    if(action==='b8-rule-new')ruleForm();
    if(action==='b8-rule-edit')ruleForm(data.recurrences.find(x=>x.id===el.dataset.id));
