@@ -1,5 +1,5 @@
-const CACHE_NAME = 'nexus-v0.2.0';
-const CORE = ['./', './index.html', './styles.css', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE_NAME = 'nexus-v0.3.0';
+const CORE = ['./', './index.html', './styles.css', './app.js', './cloud.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
@@ -11,4 +11,4 @@ self.addEventListener('fetch', event => {
     return response;
   }).catch(() => caches.match(event.request)));
 });
-// V0.2: push notifications deliberately not enabled. A private authenticated Worker and a D1 backend are required first.
+// V0.3: web push deliberately not enabled. Encrypted cloud backups are manual.

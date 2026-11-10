@@ -1,4 +1,4 @@
-# NEXUS — second cerveau PWA (prototype V0.2)
+# NEXUS — second cerveau PWA (V0.3, coffre chiffré manuel)
 
 Application personnelle **100 % gratuite**, installable sur iPhone comme une PWA. Développée en HTML, CSS et JavaScript avec IndexedDB (local-first). Cette version est **un prototype de test**, pas encore un service synchronisé.
 
@@ -55,3 +55,11 @@ Le stockage local utilise **le même nom de base IndexedDB que la V0.1** (`nexus
 La base `nexus-app-db` (D1, juridiction UE) et le schéma relationnel V1 ont été créés le 10 novembre 2026. Le backend `backend/` est prévu pour un Worker **séparé** de RITUEL. À ce stade il ne propose que des vérifications techniques : **aucune donnée personnelle n'est synchronisée ni envoyée au cloud**. Le verrou d'authentification doit être développé et testé avant activation de la synchronisation. Voir [docs/CLOUD.md](docs/CLOUD.md).
 
 **Backend déployé (état préparatoire)** : `nexus-app-api` est publié sur Cloudflare avec D1 `nexus-app-db`, région de juridiction UE. Les routes [health](https://nexus-app-api.q9pfwtztsc.workers.dev/api/health) et [config](https://nexus-app-api.q9pfwtztsc.workers.dev/api/config) sont destinées à la vérification technique. Cloud Sync reste désactivée en attendant l'authentification. Cette publication a été effectuée directement via Cloudflare ; GitHub Builds n'est pas encore activé.
+
+## Nouveauté V0.3 : coffre chiffré facultatif
+
+Dans **Réglages → Coffre cloud**, l'utilisateur peut créer son coffre avec une invitation à usage unique, conserver une clé de récupération, puis envoyer et restaurer des sauvegardes chiffrées manuellement. L'application **ne synchronise jamais automatiquement** et bloque les collisions de version. L'interface a désormais une politique CSP restrictive et le service worker utilise le cache `nexus-v0.3.0`.
+
+La clé aléatoire de 256 bits dérive séparément une clé d'authentification et une clé de chiffrement AES-GCM. Cloudflare D1 ne reçoit que le document chiffré. **Ne perds pas la clé de récupération** : elle n'est pas récupérable. Les données restent non chiffrées sur l'appareil.
+
+Voir [docs/COFFRE-CHIFFRE.md](docs/COFFRE-CHIFFRE.md) pour l'architecture. La connexion par passkey (Face ID) et la synchronisation bidirectionnelle restent des objectifs ultérieurs.

@@ -1,4 +1,4 @@
-/* NEXUS V0.2 — prototype local-first. No network API and no push in this version. */
+/* NEXUS V0.3 — local-first with encrypted manual cloud backup. */
 'use strict';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -83,7 +83,7 @@ function homeView(){
  const nextBuys=data.purchases.filter(x=>x.status==='planned').slice(0,3);
  return `
  <section class="hero"><div style="position:relative;z-index:1">
-  <div class="eyebrow">TON ESPACE PERSONNEL · V0.2</div>
+  <div class="eyebrow">TON ESPACE PERSONNEL · V0.3</div>
   <h1>Une idée.<br>Tout est connecté.</h1>
   <p>Capture, organise, relie. Tes notes deviennent des actions, tes achats rejoignent tes projets, et ton budget suit.</p>
   <button class="btn" data-action="new-note">${svg('plus')} Capture rapide</button>
@@ -463,15 +463,17 @@ function renderSearch(query){
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
 function settings(){
- modal('Réglages & données',`<div class="eyebrow">NEXUS V0.2 · TEST LOCAL</div>
- <p class="subtitle" style="margin-bottom:18px">Sept modules liés, sans serveur, abonnement ou compte. Tes informations restent sur cet appareil.</p>
+ modal('Réglages & données',`<div class="eyebrow">NEXUS V0.3 · LOCAL + COFFRE CHIFFRÉ</div>
+ <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
  <div class="settings-option"><div><strong>Exporter une sauvegarde</strong><p>Un fichier JSON avec notes, tâches, contacts, projets, achats et budget.</p></div>
  <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>
  <div class="settings-option"><div><strong>Restaurer une sauvegarde</strong><p>Compatible avec la V0.1 et V0.2. Remplace les données actuelles.</p></div>
  <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
+ <div class="settings-option"><div><strong>Coffre cloud chiffré</strong><p>Sauvegarde et restauration manuelles, chiffrées avant envoi. Aucune synchronisation forcée.</p></div>
+ <button class="btn btn-soft btn-small" data-action="cloud-vault">${svg('shield')} Coffre</button></div>
  <div class="settings-option"><div><strong>Tout effacer</strong><p>Suppression locale irréversible sans sauvegarde.</p></div>
  <button class="btn btn-danger btn-small" data-action="clear-all">${svg('trash')} Effacer</button></div>
- <div class="info-strip">${svg('shield')} Ne stocke pas encore de données financières réelles détaillées ou d'informations médicales sensibles : pas de connexion, de chiffrement applicatif ni de synchronisation Cloudflare dans ce prototype.</div>`);
+ <div class="info-strip">${svg('shield')} Les données restent en clair dans IndexedDB sur cet appareil. Le coffre optionnel chiffre les sauvegardes avant leur envoi. Garde des exports JSON.</div>`);
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -542,6 +544,7 @@ document.addEventListener('click',async event=>{
  }
  if(kind==='search')showSearch();
  if(kind==='settings')settings();
+ if(kind==='cloud-vault')window.NexusCloud?.openPanel();
  if(kind==='note-detail')noteDetail(id);
  if(kind==='event-detail')eventDetail(id);
  if(kind==='task-detail')taskDetail(id);
