@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.7 bêta)
+# NEXUS — Second cerveau personnel (V0.8 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -10,7 +10,7 @@ NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développ�
 - **Personnes** : répertoire personnel avec téléphone et courriel.
 - **Projets** : budget prévisionnel, progrès par tâches, achats et dépenses liés.
 - **Achats** : wishlist, priorités, projet, coût estimé, achat effectué et conversion *volontaire* en dépense.
-- **Budget** : recettes, dépenses, catégories et plafond mensuel.
+- **Budget V0.8** : récurrences (salaires, prêts, abonnements), journal d'opérations, dépenses rapides fixes ou variables, graphiques et plafond mensuel.
 
 La **capture intelligente V0.4** repère dates/heures/lieux français, personnes du répertoire, rendez-vous, actions à faire, achats, projets et dépenses. Elle propose, mais ne crée jamais rien sans validation. Les détections restent locales et déterministes (pas de modèle IA distant, pas de frais d'API).
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.7 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.8 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -153,3 +153,26 @@ Les préférences sont enregistrées dans le `localStorage` de ce navigateur sou
 Il n'y a **aucune migration D1 ou Worker** dans V0.7 ; le coffre existant, les notifications, la synchronisation et les passkeys conservent leur backend.
 
 Voir [docs/INTERFACE-V07.md](docs/INTERFACE-V07.md) pour les flux et décisions d'ergonomie.
+
+## Budget V0.8 — quatre espaces complémentaires
+
+Le module Budget présente désormais **Vue d'ensemble / Récurrences / Journal / Statistiques** et un panneau de dépenses rapides. Toutes les données sont locales et liées au même coffre chiffré.
+
+- **Récurrences** : règles mensuelles (jour 1–31), hebdomadaires (jour de la semaine) ou annuelles (jour + mois) pour les revenus et dépenses. Le jour 31 est automatiquement ramené au dernier jour d'un mois plus court. Chaque règle peut être modifiée, mise en pause, supprimée ou limitée par une date de fin. Une occurrence spécifique peut être ignorée pour la période concernée.
+- **Journal** : opérations réelles avec recherche par libellé/date/catégorie, filtres type et catégorie, consultation et édition via les formulaires existants. Les opérations générées à partir d'une récurrence ou d'un raccourci conservent un lien vers leur source.
+- **Dépenses rapides** : modèles « fixe » (un clic = dépense réelle immédiate datée du jour) ou « variable » (mini-formulaire pour saisir montant et date). Édition/suppression des modèles sans effacer les opérations passées.
+- **Statistiques** : évolution recettes/dépenses des six derniers mois, moyenne mensuelle, flux net, répartition par catégorie. Aucune requête externe, aucune connexion bancaire.
+
+### Prévisions vs opérations
+
+Les récurrences ne sont **pas automatiquement inscrites au journal**. Elles apparaissent comme **prévisions** jusqu'à validation. Le bouton « Confirmer » ouvre un formulaire avec montant et date modifiables : seul l'enregistrement explicite crée une opération réelle. Une occurrence confirmée cesse de compter parmi les prévisions, même si la règle est modifiée ultérieurement. Les événements ignorés ne sont pas intégrés au flux prévu. Le « flux net projeté » est basé sur les opérations déjà comptabilisées **plus** les échéances non validées du mois ; ce n'est ni le solde du compte ni un relevé bancaire.
+
+Un paiement entré directement dans le journal sans passer par le bouton « Confirmer » n'est pas automatiquement rapproché de sa récurrence. Utiliser « Ignorer » pour cette occurrence si nécessaire, afin d'éviter de la compter deux fois dans la projection.
+
+### Compatibilité et sauvegarde
+
+Le modèle local ajoute **`recurrences`** et **`quickExpenses`** aux tableaux de données. Les anciennes sauvegardes ne contiennent pas ces clés : elles seront chargées comme tableaux vides. Les exports JSON et snapshots chiffrés incluent les nouveaux tableaux sans migration D1 ni changement du Worker. Les préférences d'interface restent stockées séparément.
+
+**Tests V0.8** : mois de février avec jours 28/29/31, récurrence hebdomadaire, récurrence annuelle, échéance ignorée, échéance confirmée, règles en pause, écriture d'un montant réel ajusté, raccourcis fixes et variables, rendu des quatre vues. À tester sur Safari iPhone avant de considérer la version stable.
+
+Documentation détaillée : [docs/BUDGET-V08.md](docs/BUDGET-V08.md).

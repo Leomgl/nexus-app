@@ -52,7 +52,7 @@ const MODULES=[
  ['contacts','users','Personnes','Contacts et contexte'],
  ['projects','briefcase','Projets','Objectifs et suivi'],
  ['purchases','cart','Achats','Envies et besoins'],
- ['budget','wallet','Budget','Dépenses et revenus']
+ ['budget','wallet','Budget','Journal, récurrences et statistiques']
 ];
 const HOME_WIDGETS=[
  ['today',"Aujourd'hui",'Rendez-vous et tâches prioritaires'],
@@ -180,6 +180,8 @@ function homeView(){
   budget:()=>`<section class="nexus-widget"><div class="widget-title"><div><span class="eyebrow">PILOTER</span><h2>Budget du mois</h2></div><button data-view="budget">Détails ${svg('arrow')}</button></div>
    <button class="home-budget" data-view="budget"><span>Dépenses · ${formatDate(today,{month:'long',year:'numeric'})}</span><strong>${money(spent)}</strong>
     <small>${limit>0?`Sur ${money(limit)} de plafond · ${Math.round(spent/limit*100)}% utilisés`:'Aucun plafond défini'}</small>
+    ${window.NexusBudget?.forecast?.(month)?.pending?.length?
+      `<small class="b8-home-due">${window.NexusBudget.forecast(month).pending.length} échéance(s) à confirmer ce mois</small>`:''}
     ${limit>0?`<span class="progress-track"><i style="width:${Math.min(100,Math.round(spent/limit*100))}%"></i></span>`:''}</button></section>`,
   recent:()=>{const activity=[
     ...data.notes.map(x=>({date:x.updatedAt||x.createdAt,title:x.title,kind:'note',icon:'notes',id:x.id})),
