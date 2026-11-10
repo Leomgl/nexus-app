@@ -28,13 +28,16 @@ Ouvrir `http://localhost:8080/` dans un navigateur. Pour installer sur iPhone, i
 
 **Important :** les données ne quittent pas l'appareil, mais ne sont **pas chiffrées par NEXUS**. N'y saisis pas d'informations médicales ou financières sensibles dans cette V0.2. Effacer les données du site ou désinstaller l'app peut détruire son contenu. Utilise l'export JSON.
 
-## Déploiement visé (non effectué à ce stade)
+## Publication GitHub et installation iPhone
 
-1. Base de test V0.2 → tests fonctionnels et design sur iPhone.
-2. Dépôt **public** `nexus-app` → GitHub Pages pour PWA gratuite (code uniquement, jamais de données personnelles).
-3. Cloudflare Workers + D1 avec authentification côté serveur, modèle de relations et synchro multiappareil.
-4. Notifications Web Push iPhone via Worker + Cron et service worker adapté, avec consentement explicite.
-5. Améliorations progressives, toujours sans abonnement ni plan facturé.
+- **Code V0.2 publié** dans le dépôt public [Leomgl/nexus-app](https://github.com/Leomgl/nexus-app), branche `main` (14 fichiers), sans données personnelles.
+- **GitHub Pages reste à activer** dans le dépôt : `Settings > Pages > Build and deployment > Deploy from a branch > main / (root) > Save`.
+- Une fois le site actif, ouvrir `https://leomgl.github.io/nexus-app/` dans Safari, puis `Partager > Sur l'écran d'accueil > Ajouter`. Ouvrir ensuite NEXUS depuis son icône.
+- Tester l'ouverture hors ligne, la création d'une note, la sauvegarde JSON et l'import JSON avant d'enregistrer des informations importantes.
+- Les données de cette V0.2 restent **sur l'appareil**. Ne jamais publier d'export de données sur GitHub.
+- **Étapes futures, non déployées** : Cloudflare Workers + D1 avec authentification côté serveur, synchronisation, notifications Web Push iPhone avec consentement explicite.
+
+Le prototype est gratuit dans les limites des services utilisés. GitHub Pages doit être activé sur le dépôt pour rendre l'URL accessible.
 
 Consulter `docs/ARCHITECTURE-CIBLE.md` et `docs/schema-d1-projet.sql` (proposition **non déployée**).
 
