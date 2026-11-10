@@ -3,7 +3,20 @@
 (() => {
  const tabs=[['overview','Vue d’ensemble'],['recurring','Récurrences'],['journal','Journal'],['stats','Statistiques']];
  const frequencies={monthly:'Mensuelle',weekly:'Hebdomadaire',yearly:'Annuelle'};
- let tab='overview',journalType='all',journalSearch='',journalCategory='all',busy=false;
+ const JOURNAL_FILTERS_KEY='nexus_budget_journal_filters_v010';
+ function readJournalFilters(){
+  try{
+   const parsed=JSON.parse(localStorage.getItem(JOURNAL_FILTERS_KEY)||'null');
+   return {type:['all','expense','income'].includes(parsed?.type)?parsed.type:'all',
+    category:typeof parsed?.category==='string'&&parsed.category.length<100?parsed.category:'all'};
+  }catch{return {type:'all',category:'all'};}
+ }
+ const savedFilters=readJournalFilters();
+ let tab='overview',journalType=savedFilters.type,journalSearch='',journalCategory=savedFilters.category,busy=false;
+ function saveJournalFilters(){
+  try{localStorage.setItem(JOURNAL_FILTERS_KEY,JSON.stringify({type:journalType,category:journalCategory}));}
+  catch{ /* Local display settings may be unavailable in private mode. */ }
+ }
 
  const DEFAULT_CATEGORY_NAMES=['Courses','Transport','Maison','Loisirs','Santé','Abonnements','Shopping','Équipement','Autres','Salaire','Vente'];
  const DEFAULT_CATEGORY_COLORS=['#68957c','#6485af','#bc9472','#ae86b5','#70a4a0','#8396be','#c78991','#9da06c','#87948b','#68a37b','#c7a161'];
@@ -87,7 +100,7 @@
      for(const item of group)if(normalizeName(item.category)===normalizeName(old.name))
        {item.category=name;item.updatedAt=new Date().toISOString();}
     }
-    if(normalizeName(journalCategory)===normalizeName(old.name))journalCategory=name;
+    if(normalizeName(journalCategory)===normalizeName(old.name)){journalCategory=name;saveJournalFilters();}
    }
    const updated={id,name,color,archived:!!old?.archived,createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
    const index=data.budgetCategories.findIndex(x=>x.id===id);
@@ -102,7 +115,7 @@
   const index=data.budgetCategories.findIndex(x=>x.id===id);
   const updated={...cat,archived:!cat.archived,updatedAt:new Date().toISOString()};
   if(index>=0)data.budgetCategories[index]=updated;else data.budgetCategories.push(updated);
-  if(updated.archived&&normalizeName(journalCategory)===normalizeName(updated.name))journalCategory='all';
+  if(updated.archived&&normalizeName(journalCategory)===normalizeName(updated.name)){journalCategory='all';saveJournalFilters();}
   await persist();refresh();categoryManager();toast(updated.archived?'Catégorie archivée.':'Catégorie réactivée.');
  }
 
@@ -279,6 +292,55 @@
        <span class="b8-bar"><i style="width:${total?Math.round(n*100/total):0}%;background:${categoryHue(name)}"></i></span></div>`).join(''):
      '<p class="muted-note">Aucune dépense enregistrée.</p>'}</div>`;
  }
+
+ function journalRow(tx){
+  return `<div class="b10-journal-entry">
+   ${transactionRow(tx)}
+   <div class="b10-journal-entry-actions">
+    <button data-action="b10-fast-edit" data-id="${safe(tx.id)}" aria-label="Modifier rapidement ${safe(tx.title)}">${svg('edit')} Modifier</button>
+    <button data-action="b10-delete" data-id="${safe(tx.id)}" aria-label="Mettre ${safe(tx.title)} dans la corbeille">${svg('trash')} Supprimer</button>
+   </div></div>`;
+ }
+ function fastEdit(id){
+  const tx=data.transactions.find(item=>item.id===id);
+  if(!tx)return;
+  const markup=`<form id="b10-fast-form" class="b8-form">
+   <p class="b8-form-note">Modifie le minimum nécessaire. Projet, achat d'origine et lien de récurrence seront préservés.</p>
+   ${textField('Libellé','title',tx.title||'','required maxlength="140"')}
+   <div class="b8-form-grid">${selectType(tx.type)}${textField('Montant (€)','amountEuros',euroInput(tx.amountCents),'required inputmode="decimal"')}</div>
+   <div class="b8-form-grid">${textField('Date','date',tx.date||dateKey(new Date()),'type="date" required')}
+    <label class="b8-field">Catégorie<select name="category">${categoryOptions(tx.category||'Autres',true)}</select></label></div>
+   <p class="b8-form-note">${tx.recurrenceId?'Cette écriture restera reliée à sa récurrence. ':''}${tx.purchaseId?'Cette écriture restera reliée à son achat. ':''}L'historique reste disponible après la modification.</p>
+   <div class="form-actions">
+    <button type="button" class="btn btn-neutral" data-action="close-modal">Annuler</button>
+    <button type="button" class="btn btn-soft" data-action="b10-full-edit" data-id="${safe(tx.id)}">${svg('edit')} Fiche complète</button>
+    <button type="submit" class="btn">${svg('check')} Enregistrer</button>
+   </div></form>`;
+  modal('Édition express · '+tx.title,markup);
+  const form=document.getElementById('b10-fast-form');
+  form.addEventListener('submit',async event=>{
+   event.preventDefault();if(!form.reportValidity())return;
+   const values=Object.fromEntries(new FormData(form).entries());
+   const title=String(values.title||'').trim();
+   const amount=toCents(values.amountEuros);
+   const day=String(values.date||'');
+   if(!title||title.length>140){toast('Renseigne un libellé de 140 caractères maximum.');return;}
+   if(!safeNumber(amount)){toast('Le montant doit être supérieur à zéro.');return;}
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||dateKey(new Date(day+'T12:00:00'))!==day){
+    toast('La date indiquée est invalide.');return;
+   }
+   if(!['expense','income'].includes(values.type)){toast('Le type d’opération est invalide.');return;}
+   if(tx.purchaseId&&values.type==='income'){toast('Une dépense liée à un achat ne peut pas devenir une recette.');return;}
+   const category=String(values.category||'').trim();
+   const allowed=categoriesCatalog().some(item=>normalizeName(item.name)===normalizeName(category));
+   const historical=normalizeName(tx.category||'')===normalizeName(category);
+   if(!allowed&&!historical){toast('Cette catégorie n’est plus disponible.');return;}
+   // Never mutate links or overwrite records by identity: this form changes only five fields.
+   Object.assign(tx,{title,type:values.type,amountCents:amount,date:day,category,updatedAt:new Date().toISOString()});
+   await persist();closeModal();refresh();toast('Opération mise à jour.');
+  });
+ }
+
  function journalItems(){
    const q=journalSearch.trim().toLocaleLowerCase('fr-FR');
    return budgetEntries().filter(t=>(journalType==='all'||t.type===journalType)&&
@@ -291,13 +353,13 @@
    for(const tx of list){const key=tx.date||'Sans date';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(tx);}
    return `<div class="b8-journal-result-count">${list.length} opération(s) affichée(s)</div>
      ${[...groups.entries()].map(([day,rows])=>`<div class="b8-day-group"><h3>${day==='Sans date'?'Sans date':formatDate(day,{weekday:'long',day:'numeric',month:'long'})}</h3>
-      <div class="list-stack">${rows.map(transactionRow).join('')}</div></div>`).join('')||
+      <div class="list-stack">${rows.map(journalRow).join('')}</div></div>`).join('')||
      empty('Journal vide','Tes opérations confirmées apparaîtront ici.','wallet')}`;
  }
  function journal(){
-  const cats=[...new Set(budgetEntries().map(t=>t.category||'Autres'))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const cats=[...new Set([...budgetEntries().map(t=>t.category||'Autres'),...(journalCategory!=='all'?[journalCategory]:[])])].sort((a,b)=>a.localeCompare(b,'fr'));
   return `${quickPanel()}<section class="b8-panel">${panelTitle('Journal des opérations',
-    'Tes recettes et dépenses réelles, modifiables à tout moment.',
+    'Tes recettes et dépenses réelles. Modifier ou supprimer sans ouvrir chaque fiche.',
     `<button class="btn btn-small" data-action="new-transaction">${svg('plus')} Opération</button>`)}
    <div class="b8-journal-controls"><input type="search" id="b8-journal-search" value="${safe(journalSearch)}" placeholder="Chercher une opération..." aria-label="Rechercher une opération">
    <select id="b8-journal-type" aria-label="Type d'opération">
@@ -307,6 +369,8 @@
     <option value="all">Toutes catégories</option>
     ${cats.map(c=>`<option value="${safe(c)}" ${c===journalCategory?'selected':''}>${safe(c)}</option>`).join('')}
    </select></div>
+   <div class="b10-journal-filter-note"><span>Les filtres type et catégorie sont mémorisés sur cet appareil.</span>
+    <button data-action="b10-clear-filters" class="b10-filter-reset">${svg('x')} Effacer les filtres</button></div>
    <div id="b8-journal-results">${journalList()}</div>
   </section>`;
  }
@@ -527,6 +591,16 @@
  await persist();refresh();toast(q.pinned?'Raccourci épinglé.':'Raccourci désépinglé.');
  }
  function act(action,el){
+   if(action==='b10-fast-edit')return fastEdit(el.dataset.id);
+   if(action==='b10-full-edit'){
+    const tx=data.transactions.find(item=>item.id===el.dataset.id);
+    if(tx)return extraCaptureForm('transaction',tx);
+   }
+   if(action==='b10-delete')return window.NexusRecycle?.remove?.('transactions',el.dataset.id);
+   if(action==='b10-clear-filters'){
+    journalType='all';journalCategory='all';journalSearch='';
+    saveJournalFilters();refresh();toast('Filtres du journal réinitialisés.');return;
+   }
    if(action==='b9-categories')return categoryManager();
    if(action==='b9-category-new')return categoryForm();
    if(action==='b9-category-edit')return categoryForm(el.dataset.id);
@@ -552,8 +626,8 @@
    if(action==='b8-quick-use')useQuick(el.dataset.id);
  }
  function change(el){
-   if(el.id==='b8-journal-type'){journalType=el.value;updateJournal();}
-   if(el.id==='b8-journal-category'){journalCategory=el.value;updateJournal();}
+   if(el.id==='b8-journal-type'){journalType=el.value;saveJournalFilters();updateJournal();}
+   if(el.id==='b8-journal-category'){journalCategory=el.value;saveJournalFilters();updateJournal();}
  }
  function inputSearch(el){if(el.id==='b8-journal-search'){journalSearch=el.value;updateJournal();}}
  function updateJournal(){
