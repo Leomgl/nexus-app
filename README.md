@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.13 bêta)
+# NEXUS — Second cerveau personnel (V0.14 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -81,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.13 bêta, coffre D1 V4 et NEXUS LINK séparé déployés.
+- ✅ Code GitHub V0.14 bêta, coffre D1 V4 et NEXUS LINK activé pour les propositions Gaming.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -273,3 +273,27 @@ La passerelle `https://nexus-link-api.q9pfwtztsc.workers.dev` utilise son propre
 Les connexions NEXUS sont stockées dans `data.linkConnections[]`, incluses dans le coffre chiffré et l'export JSON (en clair sur l'appareil exportateur). Ne jamais envoyer le code de jumelage dans une conversation ou un ticket ; préserver les exports.
 
 Voir [docs/APP-LINK-IMPLEMENTATION.md](docs/APP-LINK-IMPLEMENTATION.md).
+
+## V0.14 — vraie synchronisation Gaming → NEXUS avec validation
+
+**Déjà jumelé ? Aucun changement de code ni de permissions nécessaire.** Ouvre Gaming → Réglages → NEXUS LINK → Synchroniser avec NEXUS → Envoyer maintenant. Dans NEXUS → Réglages → Applications & connexions → Propositions → Recevoir depuis Gaming.
+
+Le relais Cloudflare existant et son protocole de chiffrement AES-GCM sont conservés. L'application Gaming chiffre **sur le téléphone** les données métier autorisées par chaque scope de la connexion ; le serveur ne voit que des jetons de connexion, des hashes de source, les scopes, les révisions et du texte chiffré.
+
+| Permission | Proposition NEXUS |
+|---|---|
+| `pass_deadline` | Fin de saison → Agenda ; mi-saison, J−14, J−7 futurs → Rappels |
+| `pass_paid` | Seulement si pass acheté, montant connu → opération Budget **avec date réelle choisie** |
+| `future_spending` | Dépense prévue → achat |
+| `dlc_release` | DLC → date Agenda et achat à prévoir |
+| `game_release` | Sortie → date Agenda et achat à prévoir |
+| `gaming_event` | Événement Gaming → Agenda |
+| `installed_summary` | Résumé des nombres de jeux → Notes |
+
+Les scopes du jumelage sont fixes : la modification des droits exige de révoquer puis de refaire le jumelage. **Aucune création, modification ou suppression automatique d'un élément NEXUS.** Chaque proposition reçue doit être examinée et acceptée explicitement. Les nouvelles révisions se rattachent à l'élément précédemment accepté (ID NEXUS stable) et ne produisent pas de doublons. Les éléments supprimés dans NEXUS doivent être restaurés depuis la corbeille avant une mise à jour ultérieure.
+
+Réception sécurisée : jusqu'à 50 messages par lot, sauvegarde IndexedDB/backup du tableau `linkInbox[]`, lecture et comparaison avec la copie persistée, **puis seulement ACK au relais**. Les messages non persistés ne sont pas effacés côté relais. Les propositions demeurent dans la sauvegarde JSON et le coffre NEXUS, ainsi que les associations `originLink`.
+
+La synchronisation est **unidirectionnelle** : Gaming transmet à NEXUS, jamais l'inverse. Pas de synchronisation des mouvements de fichiers PS5, des clés ou des coffres. L'option d'envoi automatique dans Gaming est désactivée par défaut. La réception et la validation dans NEXUS restent manuelles. Si une fiche Gaming est supprimée, aucune fiche NEXUS n'est supprimée en cascade.
+
+Aucune nouvelle base Cloudflare, aucun abonnement ou accès payant. **La validation sur Safari/iOS avec des propositions personnelles reste à faire** ; les tests techniques utilisent des données synthétiques et n'ont pas traité les données du compte de l'utilisateur.
