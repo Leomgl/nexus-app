@@ -726,3 +726,14 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .nx-link-scopes{max-height:42dvh}
  .nx-link-scope{padding:11px}
 }
+
+/* Linked-app controls: keep the pairing and security actions usable on narrow iPhones. */
+.nx-connection-app{flex-wrap:wrap}
+.nx-connection-app>div:first-child{flex:1 1 180px}
+.nx-connection-app>.nx-connection-actions{flex:0 1 auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;min-width:0}
+.nx-connection-actions .btn{min-width:auto}
+.nx-link-scope:has(input:disabled){opacity:.7;cursor:default}
+@media(max-width:680px){
+ .nx-connection-app>.nx-connection-actions{flex-basis:100%;justify-content:stretch}
+ .nx-connection-actions .btn{flex:1 1 41%;text-align:center;padding:8px 5px;font-size:10px}
+}

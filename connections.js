@@ -58,12 +58,13 @@
  function show(id){
   const app=APPS.find(x=>x.id===id);
   if(!app)return;
+  const linked=id==='gaming'&&ownPairs().length>0;
   modal('Connexion · '+app.name,
-   '<div class="nx-link-modal"><p class="muted-note">Choisis les échanges que tu aimerais autoriser. '+
-   'Pour le moment, ces choix sont enregistrés uniquement sur cet appareil : <strong>aucune synchronisation n’a lieu.</strong></p>'+
+   '<div class="nx-link-modal"><p class="muted-note">'+
+   (linked?'Connexion de test active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle Gaming à nouveau.':'Choisis les informations que tu souhaites autoriser. Aucune dépense ni événement n’est transféré automatiquement.')+'</p>'+
    '<div class="nx-link-scopes">'+app.scopes.map(([key,label,destination])=>
      '<label class="nx-link-scope"><input type="checkbox" data-connector-scope="'+key+
-     '" data-connector-app="'+app.id+'" '+(cfg.grants[id][key]?'checked':'')+'>'+
+     '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+(cfg.grants[id][key]?'checked':'')+'>'+
      '<span><strong>'+escape(label)+'</strong><small>Destination : '+escape(destination)+'</small></span></label>'
    ).join('')+'</div><div class="info-strip">'+svg('shield')+
    ' Fonctionnement prévu : propositions à valider dans NEXUS, aucun paiement créé automatiquement et aucune clé de coffre partagée.</div>'+
@@ -75,6 +76,7 @@
   const app=APPS.find(x=>x.id===target.dataset.connectorApp);
   const scope=target.dataset.connectorScope;
   if(!app||!app.scopes.some(([key])=>key===scope))return true;
+  if(app.id==='gaming'&&ownPairs().length)return true;
   cfg.grants[app.id][scope]=Boolean(target.checked);
   save();
   return true;
