@@ -62,7 +62,7 @@
   const linked=ownPairs(id).length>0;
   modal('Connexion · '+app.name,
    '<div class="nx-link-modal"><p class="muted-note">'+
-   (linked?'Connexion chiffrée active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle Gaming à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
+   (linked?'Connexion chiffrée active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle cette application à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
    '<div class="nx-link-scopes">'+app.scopes.map(([key,label,destination])=>
      '<label class="nx-link-scope"><input type="checkbox" data-connector-scope="'+key+
      '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+((linked?ownPairs(id)[0].scopes.includes(key):cfg.grants[id][key])?'checked':'')+'>'+
@@ -115,7 +115,7 @@
     <div class="nx-link-scopes">${messages.length?messages.map(msg=>`<div class="nx-link-scope" style="display:block">
       <strong>${escape(msg.invalid?'Message indéchiffrable':(msg.payload?.type==='test.ping'?'Test de connexion reçu':String(msg.payload?.title||'Proposition en attente')))}</strong>
       <small>Catégorie : ${escape(msg.scope||'Inconnue')} · Révision ${Number(msg.revision)||1}</small>
-      ${!msg.invalid&&msg.payload?.type==='test.ping'?`<div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-ack" data-id="${escape(msg.id)}">Marquer comme lu</button></div>`:''}
+      ${!msg.invalid&&msg.payload?.type==='test.ping'?`<div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-ack" data-app="${escape(appId)}" data-id="${escape(msg.id)}">Marquer comme lu</button></div>`:''}
     </div>`).join(''):'<div class="info-strip">Aucun message en attente. Envoie un test depuis l’application.</div>'}</div>
     <div class="form-actions"><button class="btn btn-neutral" data-action="link-show-code" data-app="${escape(appId)}">Voir le code</button>
     <button class="btn btn-ghost" data-action="link-revoke" data-id="${escape(pair.id)}">Révoquer</button>
