@@ -40,7 +40,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],trash:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -253,7 +253,9 @@ function projectSpent(id){
 }
 function projectTasks(id){return data.tasks.filter(t=>t.projectId===id);}
 function projectOptions(selected=''){
- return `<option value="">Aucun projet</option>`+data.projects.map(p=>`<option value="${escapeHtml(p.id)}" ${selected===p.id?'selected':''}>${escapeHtml(p.title)}</option>`).join('');
+ const removed=selected&&!data.projects.some(p=>p.id===selected);
+  return `<option value="">Aucun projet</option>`+(removed?`<option value="${escapeHtml(selected)}" selected>Projet lié temporairement indisponible</option>`:'')+
+   data.projects.map(p=>`<option value="${escapeHtml(p.id)}" ${selected===p.id?'selected':''}>${escapeHtml(p.title)}</option>`).join('');
 }
 
 const NEW_PROJECT_VALUE='__create_project__';
@@ -824,8 +826,10 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="export">${svg('download')} Export</button></div>
    <div class="settings-option"><div><strong>Importer une sauvegarde</strong><p>Remplace tes données locales après confirmation.</p></div>
     <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
-   <div class="settings-option"><div><strong>Effacer les données locales</strong><p>Suppression irréversible sans export préalable.</p></div>
-    <button class="btn btn-danger btn-small" data-action="clear-all">${svg('trash')} Effacer</button></div>
+   <div class="settings-option"><div><strong>Corbeille universelle</strong><p>Éléments supprimés, restaurations et suppression définitive. ${window.NexusRecycle?.counts?.().items||0} élément(s) actuellement dans la corbeille.</p></div>
+    <button class="btn btn-soft btn-small" data-action="trash-panel">${svg('trash')} Ouvrir</button></div>
+   <div class="settings-option"><div><strong>Réinitialisations par module</strong><p>Vider uniquement les Notes, l'Agenda, le Budget ou un autre bloc, avec retour arrière possible.</p></div>
+    <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section></div>
   <footer class="settings-version">NEXUS · V0.9 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
@@ -835,24 +839,10 @@ function downloadFile(name,text,type){const blob=new Blob([text],{type});const u
 function icsEscape(value){return String(value||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');}
 function eventToIcs(e){const begin=new Date(e.start),end=new Date(begin.getTime()+60*60000);if(isNaN(begin.getTime()))return toast('Date invalide');const dt=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//NEXUS//FR','BEGIN:VEVENT',`UID:${e.id}@nexus.local`,`DTSTAMP:${dt(new Date())}`,`DTSTART:${dt(begin)}`,`DTEND:${dt(end)}`,`SUMMARY:${icsEscape(e.title)}`,`LOCATION:${icsEscape(e.location)}`,`DESCRIPTION:${icsEscape(e.details)}`,'END:VEVENT','END:VCALENDAR'];downloadFile(`nexus-${dateKey(begin)}.ics`,lines.join('\r\n')+'\r\n','text/calendar');toast('Fichier calendrier généré');}
 async function deleteEntity(kind,id){
- const key={note:'notes',event:'events',task:'tasks',contact:'contacts',project:'projects',purchase:'purchases',transaction:'transactions'}[kind];
+ const key={note:'notes',event:'events',task:'tasks',contact:'contacts',
+  project:'projects',purchase:'purchases',transaction:'transactions'}[kind];
  if(!key)return;
- const labels={note:'cette note',event:'ce rendez-vous',task:'ce rappel',contact:'cette personne',project:'ce projet',purchase:'cet achat',transaction:'cette opération'};
- if(!confirm(`Supprimer ${labels[kind]} ? Les éléments reliés seront conservés.`))return;
- data[key]=data[key].filter(x=>x.id!==id);
- if(kind==='note'){
-  for(const key of ['events','tasks','purchases','transactions'])for(const obj of data[key])if(obj.noteId===id)obj.noteId=null;
- }
- if(kind==='contact'){
-  for(const key of ['events','tasks'])for(const obj of data[key])if(obj.personId===id)obj.personId='';
- }
- if(kind==='project'){
-  for(const key of ['notes','events','tasks','purchases','transactions'])for(const obj of data[key])if(obj.projectId===id)obj.projectId='';
- }
- if(kind==='purchase'){
-  for(const obj of data.transactions)if(obj.purchaseId===id)obj.purchaseId=null;
- }
- await persist();closeModal();render();toast('Élément supprimé');
+ await window.NexusRecycle?.remove?.(key,id);
 }
 document.addEventListener('click',async event=>{
  const navigation=event.target.closest('[data-nav]');
@@ -958,7 +948,7 @@ document.addEventListener('click',async event=>{
  if(kind==='event-ics'){const e=data.events.find(x=>x.id===id);if(e)eventToIcs(e);}
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
- if(kind==='clear-all'){if(confirm('Tout effacer sur cet appareil ? Cette action est irréversible sans sauvegarde.')){assignData({});await persist();closeModal();render();toast('Espace vidé');}}
+ if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
  if(event.target?.id?.startsWith('b8-journal-')){window.NexusBudget?.change?.(event.target);return;}
