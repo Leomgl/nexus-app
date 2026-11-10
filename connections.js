@@ -46,14 +46,14 @@
     '<div class="nx-connection-apps">'+APPS.map(app=>
       '<div class="nx-connection-app"><div><strong>'+escape(app.name)+'</strong>'+
       '<small>'+escape(app.detail)+'</small>'+
-      '<span class="nx-connection-status">'+escape(app.id==='gaming'&&data.linkConnections?.some(x=>x.sourceApp==='gaming')?'Jumelage configuré · test manuel':app.state)+' · '+numberEnabled(app.id)+' autorisation(s)</span></div>'+
+      '<span class="nx-connection-status">'+escape(app.id==='gaming'&&data.linkConnections?.some(x=>x.sourceApp==='gaming')?'Jumelage configuré · synchro disponible':app.state)+' · '+numberEnabled(app.id)+' autorisation(s)</span></div>'+
       '<div class="nx-connection-actions"><button type="button" class="btn btn-soft btn-small" data-action="link-configure" data-app="'+app.id+'">Configurer</button>'+
       (app.id==='gaming'?'<a class="btn btn-neutral btn-small" href="https://gaming-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Ouvrir Gaming</a>':'')+
-      (app.id==='gaming'?'<button type="button" class="btn btn-soft btn-small" data-action="link-create">Jumeler</button><button type="button" class="btn btn-neutral btn-small" data-action="link-inbox">Messages</button>':'')+
+      (app.id==='gaming'?'<button type="button" class="btn btn-soft btn-small" data-action="link-create">Jumeler</button><button type="button" class="btn btn-soft btn-small" data-action="link-proposals">Propositions ('+data.linkInbox.filter(x=>x.status==='pending').length+')</button><button type="button" class="btn btn-neutral btn-small" data-action="link-inbox">Tests</button>':'')+
       '</div></div>'
     ).join('')+'</div>'+
     '<p class="nx-connection-disclaimer">'+svg('shield')+
-    ' Les jumelages sont chiffrés. Seuls les messages de test sont activés pour l’instant : aucune écriture automatique dans le Budget ou le Calendrier.</p></section>';
+    ' Les propositions Gaming sont chiffrées et doivent être acceptées dans NEXUS. Aucune dépense réelle n’est créée automatiquement.</p></section>';
  }
  function show(id){
   const app=APPS.find(x=>x.id===id);
@@ -61,13 +61,13 @@
   const linked=id==='gaming'&&ownPairs().length>0;
   modal('Connexion · '+app.name,
    '<div class="nx-link-modal"><p class="muted-note">'+
-   (linked?'Connexion de test active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle Gaming à nouveau.':'Choisis les informations que tu souhaites autoriser. Aucune dépense ni événement n’est transféré automatiquement.')+'</p>'+
+   (linked?'Connexion chiffrée active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle Gaming à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
    '<div class="nx-link-scopes">'+app.scopes.map(([key,label,destination])=>
      '<label class="nx-link-scope"><input type="checkbox" data-connector-scope="'+key+
      '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+(cfg.grants[id][key]?'checked':'')+'>'+
      '<span><strong>'+escape(label)+'</strong><small>Destination : '+escape(destination)+'</small></span></label>'
    ).join('')+'</div><div class="info-strip">'+svg('shield')+
-   ' Fonctionnement prévu : propositions à valider dans NEXUS, aucun paiement créé automatiquement et aucune clé de coffre partagée.</div>'+
+   ' Gaming → NEXUS : propositions à valider, aucun paiement créé automatiquement et aucune clé de coffre partagée.</div>'+
    '<div class="form-actions"><button type="button" class="btn btn-neutral" data-action="link-draft-reset" data-app="'+id+
    '">Tout désélectionner</button><button type="button" class="btn" data-action="link-finish">Terminer</button></div></div>');
  }
@@ -109,8 +109,8 @@
   if(!pair){toast('Connecte Gaming avant de consulter les messages.');return;}
   try{
    const messages=await window.NexusLinkCore.inbox(pair);
-   modal('NEXUS LINK · messages',`<div class="nx-link-modal">
-    <p class="muted-note">Messages chiffrés reçus depuis Gaming. Aucune opération réelle n'est créée automatiquement.</p>
+   modal('NEXUS LINK · tests',`<div class="nx-link-modal">
+    <p class="muted-note">Messages de test. Les données métier se trouvent dans « Propositions ».</p>
     <div class="nx-link-scopes">${messages.length?messages.map(msg=>`<div class="nx-link-scope" style="display:block">
       <strong>${escape(msg.invalid?'Message indéchiffrable':(msg.payload?.type==='test.ping'?'Test de connexion reçu':String(msg.payload?.title||'Proposition en attente')))}</strong>
       <small>Catégorie : ${escape(msg.scope||'Inconnue')} · Révision ${Number(msg.revision)||1}</small>
@@ -141,6 +141,7 @@
  }
 
  function act(kind,target){
+  if(window.NexusGamingImport?.act?.(kind,target))return true;
   if(kind==='link-create')return createPairing();
   if(kind==='link-inbox')return inboxPanel();
   if(kind==='link-show-code'){const pair=ownPairs()[0];if(pair)pairingPanel(pair);return;}
