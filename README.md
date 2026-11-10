@@ -53,3 +53,5 @@ Le stockage local utilise **le même nom de base IndexedDB que la V0.1** (`nexus
 ## Infrastructure Cloudflare V0.3 (préparatoire)
 
 La base `nexus-app-db` (D1, juridiction UE) et le schéma relationnel V1 ont été créés le 10 novembre 2026. Le backend `backend/` est prévu pour un Worker **séparé** de RITUEL. À ce stade il ne propose que des vérifications techniques : **aucune donnée personnelle n'est synchronisée ni envoyée au cloud**. Le verrou d'authentification doit être développé et testé avant activation de la synchronisation. Voir [docs/CLOUD.md](docs/CLOUD.md).
+
+**Backend déployé (état préparatoire)** : `nexus-app-api` est publié sur Cloudflare avec D1 `nexus-app-db`, région de juridiction UE. Les routes [health](https://nexus-app-api.q9pfwtztsc.workers.dev/api/health) et [config](https://nexus-app-api.q9pfwtztsc.workers.dev/api/config) sont destinées à la vérification technique. Cloud Sync reste désactivée en attendant l'authentification. Cette publication a été effectuée directement via Cloudflare ; GitHub Builds n'est pas encore activé.

@@ -26,3 +26,11 @@ Le code est conçu pour être testé même sans Cloudflare, mais les endpoints D
 
 ## Zéro frais
 Garder exclusivement Workers Free et D1 Free. En cas de dépassement des quotas, l'app doit être en erreur/réessayer plus tard, **pas déclencher une migration payante**. Aucun secret ni information personnelle n'est placé dans GitHub.
+
+## Déploiement constaté (10/11/2026)
+- Upload du Worker `nexus-app-api` confirmé par l'API Cloudflare.
+- Sous-domaine `workers.dev` activé. URL attendue : https://nexus-app-api.q9pfwtztsc.workers.dev
+- Test manuel : [health](https://nexus-app-api.q9pfwtztsc.workers.dev/api/health), [config](https://nexus-app-api.q9pfwtztsc.workers.dev/api/config).
+- D1 V1 vérifiée via API : `schema_version=1`, `users=0`, `items=0`, `links=0`.
+- Le chargement HTTP public de l'URL Worker n'a pas été confirmé par un test client ; l'activation de l'URL workers.dev a cependant été confirmée par l'API.
+- Le déploiement Cloudflare effectué directement via l'API **n'active pas encore l'autodéploiement depuis GitHub**. Pour les prochains commits, configurer Workers Builds sur le répertoire `backend`, sinon déployer via l'API / Wrangler.
