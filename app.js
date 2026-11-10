@@ -355,7 +355,7 @@ function extraCaptureForm(kind,obj={},context={}){
  let title='',content='';
  if(kind==='project'){
   title=existing?'Modifier le projet':'Nouveau projet';
-  content=`${input('Nom du projet','title',obj.title||((context.noteId&&data.notes.find(n=>n.id===context.noteId))?analyzeNote(data.notes.find(n=>n.id===context.noteId).body).projectTitle:'')||'','text','required maxlength="120"')}<div class="field"><label for="f-description">Description</label><textarea name="description" id="f-description" placeholder="Objectif, idées, contexte...">${escapeHtml(obj.description||'')}</textarea></div>
+  content=`${input('Nom du projet','title',obj.title||((context.noteId&&data.notes.find(n=>n.id===context.noteId))?(analyzeNote(data.notes.find(n=>n.id===context.noteId).body).projectTitle||data.notes.find(n=>n.id===context.noteId).title):'')||'','text','required maxlength="120"')}<div class="field"><label for="f-description">Description</label><textarea name="description" id="f-description" placeholder="Objectif, idées, contexte...">${escapeHtml(obj.description||'')}</textarea></div>
   <div class="field-grid">${input('Échéance (facultative)','deadline',obj.deadline||'','date')}
   <div class="field"><label for="f-status">État</label><select name="status" id="f-status">${Object.entries(projectStatus).map(([key,label])=>`<option value="${key}" ${obj.status===key?'selected':''}>${label}</option>`).join('')}</select></div></div>
   ${input('Budget prévu (€), facultatif','budgetEuros',euroInput(obj.budgetCents),'text','inputmode="decimal" placeholder="Ex. 350,00"')}`;
@@ -594,7 +594,8 @@ function noteDetail(id){
  <div class="detail-content">${escapeHtml(n.body||'Cette note est vide.')}</div>
  ${project?`<div class="project-facts"><button class="btn btn-neutral btn-small" data-action="project-detail" data-id="${project.id}">${svg('briefcase')} ${escapeHtml(project.title)}</button></div>`:''}
  <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="edit-note" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-note" data-id="${id}">${svg('trash')} Supprimer</button></div>
- <div class="linked-section"><h3>${svg('sparkle')} Actions suggérées</h3>${suggestions||'<p class="muted-note">Pas de suggestion détectée. Tu peux créer les éléments manuellement.</p>'}
+ ${!project?`<div class="note-project-start"><strong>Cette note peut devenir un projet.</strong><p>Son contenu restera la première note du projet. Ajoute ensuite des rendez-vous, achats et dépenses.</p><button class="btn btn-small" data-action="project-from-note" data-id="${id}">${svg('briefcase')} Transformer en projet</button></div>`:''}
+  <div class="linked-section"><h3>${svg('sparkle')} Actions suggérées</h3>${suggestions||'<p class="muted-note">Pas de suggestion détectée. Tu peux créer les éléments manuellement.</p>'}
  <div class="form-actions" style="justify-content:flex-start"><button class="btn btn-neutral btn-small" data-action="event-from-note" data-id="${id}">${svg('calendar')} RDV</button>
  <button class="btn btn-neutral btn-small" data-action="task-from-note" data-id="${id}">${svg('check')} Rappel</button>
  <button class="btn btn-neutral btn-small" data-action="purchase-from-note" data-id="${id}">${svg('cart')} Achat</button>
@@ -651,14 +652,14 @@ function renderSearch(query){
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
 function settings(){
- modal('Réglages & données',`<div class="eyebrow">NEXUS V0.4 · PUSH + COFFRE CHIFFRÉ</div>
+ modal('Réglages & données',`<div class="eyebrow">NEXUS V0.6 · RAPPELS PAR RENDEZ-VOUS</div>
  <p class="subtitle" style="margin-bottom:18px">Sept modules liés. Le coffre chiffré est facultatif et fonctionne uniquement sur demande.</p>
  <div class="settings-option"><div><strong>Exporter une sauvegarde</strong><p>Un fichier JSON avec notes, tâches, contacts, projets, achats et budget.</p></div>
  <button class="btn btn-soft btn-small" data-action="export">${svg('download')} Export</button></div>
  <div class="settings-option"><div><strong>Restaurer une sauvegarde</strong><p>Compatible avec la V0.1 et V0.2. Remplace les données actuelles.</p></div>
  <button class="btn btn-neutral btn-small" data-action="restore">${svg('upload')} Import</button></div>
  <div class="settings-option"><div><strong>Face ID / Passkey</strong><p>Verrouillage optionnel avec preuve cryptographique vérifiée par Cloudflare.</p></div><button class="btn btn-soft btn-small" data-action="passkey-settings">${svg('shield')} Configurer</button></div>
- <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Rendez-vous et tâches, délais personnalisés, alertes lorsque NEXUS est fermé.</p></div><button class="btn btn-soft btn-small" data-action="push-settings">${svg('clock')} Régler</button></div>
+ <div class="settings-option"><div><strong>Notifications iPhone</strong><p>Autorisation et test des notifications. Les délais se règlent désormais dans chaque rendez-vous.</p></div><button class="btn btn-soft btn-small" data-action="push-settings">${svg('clock')} Régler</button></div>
  <div class="settings-option"><div><strong>Coffre cloud chiffré</strong><p>Sauvegarde et restauration manuelles, chiffrées avant envoi. Aucune synchronisation forcée.</p></div>
  <button class="btn btn-soft btn-small" data-action="cloud-vault">${svg('shield')} Coffre</button></div>
  <div class="settings-option"><div><strong>Tout effacer</strong><p>Suppression locale irréversible sans sauvegarde.</p></div>

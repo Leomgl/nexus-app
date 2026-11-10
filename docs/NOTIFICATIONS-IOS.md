@@ -10,7 +10,7 @@ Le Cron Cloudflare `*/5 * * * *` est **actif**. Le service Worker PWA `sw.js` é
 
 1. Ouvrir NEXUS depuis l'icône de l'écran d'accueil iOS 16.4+.
 2. Aller à **Réglages → Notifications iPhone**.
-3. Choisir 24 h / 1 h / 15 min pour les rendez-vous et tâches.
+3. Pour un **rendez-vous**, ouvrir Agenda → événement → Modifier et choisir ses délais spécifiques : 1 jour, 2 h, 45 min, 15 min, etc., avec cumul possible. Pour les **tâches**, leurs délais par défaut se configurent dans les réglages de notifications.
 4. **Activer les notifications**, accepter le dialogue iOS ; cliquer sur **Envoyer une notification test**.
 5. Créer un rendez-vous à une date future et rouvrir le panneau de notification pour contrôler l'état.
 6. Fermer NEXUS et vérifier la notification à l'échéance (délais non garantis à la minute).
@@ -45,3 +45,11 @@ Un cron toutes les 5 minutes parcourt les rappels dus, réserve les envois pour 
 ### Débogage
 
 Si le bouton est indisponible : vérifier l'installation écran d'accueil, les permissions iOS et la présence du coffre chiffré. Si le test échoue : réouvrir NEXUS en ligne, vérifier l'abonnement et les paramètres iOS. Ne pas désinstaller l'app pour une simple mise à jour.
+
+## Évolution V0.6 — chaque rendez-vous choisit ses propres rappels
+
+Le champ `event.reminderMinutes` est un tableau de minutes avant `event.start`, par exemple `[1440,120,15]` (médecin) ou `[45]` (train). Un tableau vide `[]` signifie **aucune notification**. Les événements historiques n'ayant pas ce champ continuent d'utiliser `settings.eventMins` jusqu'à leur modification.
+
+La génération des `push_jobs` utilise désormais cette liste par événement, sans envoyer de titres ni de lieux au Worker. Les rappels enregistrés sont annulés/reprogrammés après sauvegarde d'un événement, y compris modification ou suppression, à condition que l'iPhone soit connecté et que les notifications soient activées.
+
+**Test local du calcul :** médecin à 1 jour + 2 heures + 15 minutes, train à 45 minutes, aucun rappel pour un événement désactivé et conservation d'un ancien rappel de 1 heure : 5 jobs générés, aux délais attendus.

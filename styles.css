@@ -117,3 +117,20 @@
 .nx-lock-card label{display:block;font-size:12px;margin:13px 0 7px}
 .nx-lock-card input{width:100%;height:43px;border:1px solid #dce6d9;border-radius:10px;padding:10px}
 .nx-lock-card small{font-size:10px;color:#869588;line-height:1.6;display:block}
+
+/* NEXUS V0.6: per-appointment reminders and in-form project creation */
+.inline-project-create[hidden]{display:none!important}
+.inline-project-create{border:1px solid #bdd3bf;border-radius:14px;background:#f3f8f1;padding:12px 14px;margin-top:10px}
+.inline-project-create .field{margin:8px 0}
+.inline-project-create .muted-note{margin:0 0 10px}
+.event-reminders{margin:17px 0;padding:14px;border:1px solid #d5e5d5;border-radius:15px;background:#f9fbf8;min-width:0}
+.event-reminders legend{font-weight:750;color:#284f3a;padding:0 7px;font-size:14px}
+.event-reminders .muted-note{font-size:12px;line-height:1.55;margin:5px 0 12px}
+.reminder-choices{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.reminder-choice{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:white;border:1px solid #c7d9c5;padding:8px 11px;cursor:pointer;font-size:12px;font-weight:650;color:#3c5b49;user-select:none}
+.reminder-choice:has(input:checked){background:#e5f2df;border-color:#75a17b;color:#204a30}
+.reminder-choice input{margin:0;width:16px;height:16px;accent-color:#2a6945}
+.event-reminders .field{margin-top:12px}
+.note-project-start{padding:15px;margin:12px 0;border-radius:13px;background:#eef6e9;border:1px solid #d1e4ca}
+.note-project-start strong{font-size:14px;color:#254936}
+.note-project-start p{font-size:12px;color:#597260;margin:8px 0 12px;line-height:1.6}

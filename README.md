@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.5 bêta)
+# NEXUS — Second cerveau personnel (V0.6 bêta)
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
@@ -19,10 +19,12 @@ La **capture intelligente V0.4** repère dates/heures/lieux français, personnes
 Le Worker Cloudflare `nexus-app-api` et son Cron **toutes les 5 minutes** sont déployés. Le calendrier des alertes est transmis **uniquement après activation explicite des notifications** sur l'iPhone. Cloudflare reçoit l'identifiant opaque du rappel, son échéance, son type `event`/`task` et une souscription Web Push, **jamais le titre, le lieu, le contact ou la note**. Une notification générique s'affiche même écran verrouillé.
 
 Dans NEXUS installé sur l'écran d'accueil iPhone :
-1. Ouvrir **Réglages → Notifications iPhone → Activer les notifications**.
-2. Choisir 24 h, 1 h et/ou 15 min avant un rendez-vous ou une tâche.
-3. Autoriser les notifications à l'invite iOS, puis toucher **Envoyer une notification test**.
-4. Créer ou modifier un rendez-vous futur : NEXUS met à jour son planning côté serveur après l'enregistrement. Tâches sans heure : défaut 09:00 (heure locale du téléphone).
+1. Activer une fois les notifications dans **Réglages → Notifications iPhone**, puis utiliser **Envoyer une notification test**.
+2. **Ouvrir un rendez-vous → Modifier** : régler individuellement ses alertes. Exemples : médecin **1 jour + 2 h + 15 min avant** ; train **45 min avant**. Possibilité de sélectionner zéro, un ou plusieurs délais.
+3. Enregistrer : NEXUS met à jour les horaires des rappels côté Cloudflare après sauvegarde (l'appareil doit être en ligne).
+4. Pour les **tâches**, les délais par défaut restent réglables dans les paramètres de notifications. Sans heure : 09:00 en heure locale.
+
+Les rendez-vous créés avant V0.6, qui n'ont pas encore de liste de rappels propre, conservent **leurs anciennes préférences générales** jusqu'à leur prochaine modification. Cela évite d'annuler brutalement d'anciennes alertes.
 
 Sur iOS, Web Push nécessite iOS 16.4+, HTTPS, la **PWA installée depuis Safari et ouverte depuis son icône**, ainsi qu'une autorisation iOS. Le cron et le réseau n'offrent aucune garantie à la seconde. Un changement effectué hors ligne ne peut pas immédiatement annuler un ancien rappel sur le serveur : ouvrir NEXUS une fois Internet revenu.
 
@@ -79,7 +81,7 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 
 ## Suivi des tests
 
-- ✅ Code GitHub V0.5 bêta et schémas D1 V4 déployés.
+- ✅ Code GitHub V0.6 bêta et schémas D1 V4 déployés.
 - ✅ Tests serveur Cloudflare : création coffre, refus mauvaise clé, conflits, abonnement Web Push, planification et désinscription. Données de test nettoyées.
 - ✅ Test cryptographique simulé : chiffrement AES128GCM du push et signature VAPID vérifiés.
 - ⏳ À vérifier sur vrai iPhone : permission Web Push, réception push de test et rappel planifié après fermeture de l'app.
@@ -93,3 +95,12 @@ Les secrets VAPID privés **restent dans Cloudflare**, jamais sur GitHub. La cl�
 Projet conçu pour GitHub Free, Cloudflare Workers Free et D1 Free. Les limites et conditions des offres peuvent évoluer. **Ne jamais activer une offre payante sans accord explicite.**
 
 Documentation : [Notifications iOS](docs/NOTIFICATIONS-IOS.md) · [Synchronisation](docs/SYNCHRONISATION.md) · [Passkeys](docs/PASSKEYS.md) · [Sécurité coffre](docs/COFFRE-CHIFFRE.md) · [Architecture cible](docs/ARCHITECTURE-CIBLE.md).
+
+## Nouveautés V0.6 (10 novembre 2026)
+
+- **Alertes par rendez-vous**, et non plus globales. Dans l'édition d'un événement, cocher autant de délais que nécessaire : 1 jour, 12 h, 4 h, 2 h, 1 h, 45 min, 30 min, 15 min, 5 min ou une durée personnalisée de 1 à 10 080 minutes. Décocher tout coupe les rappels de cet événement.
+- **Projets créés depuis n'importe quelle fiche** : note, RDV, tâche, achat ou transaction. Dans « Projet associé », choisir « ＋ Créer un nouveau projet… », entrer son nom et enregistrer l'élément. Le projet et son lien sont alors créés ensemble ; annuler ne crée rien.
+- Une note enregistrée peut aussi devenir le point de départ d'un projet grâce à **Transformer en projet**. Son titre pré-remplit celui du projet et la note lui reste associée.
+- Une fiche Projet affiche maintenant ses **rendez-vous associés**, avec un raccourci pour en créer un nouveau.
+
+Pour toute modification hors ligne, NEXUS actualise les notifications à son retour en ligne. Le service push reste soumis au déclencheur Cloudflare toutes les cinq minutes ; aucun horaire n'est garanti à la seconde.
