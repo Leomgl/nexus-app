@@ -1,4 +1,4 @@
--- NEXUS: schéma de travail NON DEPLOYE. À revoir avec l'authentification avant utilisation.
+-- NEXUS: schéma de référence V1 déjà appliqué à D1. Authentification et synchro NON activées.
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_links_target ON links(user_id, target_item_id);
 -- Les appartenances des deux éléments liés au user_id doivent être validées côté Worker.
 
 
--- Extension prévue V0.2, non déployée, sans aucune donnée réelle
+-- Extension V0.2, tables appliquées sur D1 vide
 CREATE TABLE IF NOT EXISTS project_details (
   item_id TEXT PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
   description TEXT,

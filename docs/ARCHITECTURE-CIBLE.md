@@ -32,12 +32,12 @@ La même mécanique pourra accueillir plus tard des documents, lieux, habitudes 
 - `links`: relations plusieurs-à-plusieurs ; les deux extrémités doivent appartenir au même propriétaire.
 - Extension plus tard : `tags`, `files`, `locations`, `reminder_rules`, `push_subscriptions`. Les plafonds budgétaires sont dans `budget_limits`.
 
-Voir `schema-d1-projet.sql` pour une première version du schéma, **non déployée**.
+Voir `schema-d1-projet.sql` pour le schéma V1, désormais **déployé sur D1 sans données privées**. L'API de synchronisation reste désactivée en attendant l'authentification.
 
 ## Sécurité et limites
 - **Public** : tout code GitHub Pages ; les jetons, clés privées et données privées ne doivent jamais apparaître dans le dépôt ni côté client.
 - Worker : vérifier l'identité utilisateur sur **chaque** requête ; les paramètres `owner_id` côté client ne sont jamais fiables. Limiter les actions et contrôler l'accès aux relations.
-- À définir avant D1 : authentification (par exemple Cloudflare Access ou solution équivalente), session, stratégie de sauvegarde, suppression, chiffrement de données sensibles, verrouillage éventuel sur l'appareil.
+- À définir avant d'activer la synchronisation D1 : authentification (par exemple Cloudflare Access ou solution équivalente), session, stratégie de sauvegarde, suppression, chiffrement de données sensibles, verrouillage éventuel sur l'appareil.
 - Notes médicales : ne pas publier ni entrer de véritables informations de santé dans cette version de démonstration. Ne pas promettre de chiffrement de bout en bout tant qu'il n'est pas mis en place.
 - Contacts : NEXUS dispose d'un carnet interne et de liens `tel:` / `mailto:`. Une PWA iOS n'a pas le même accès direct au carnet iPhone qu'une app native.
 - Calendrier Apple : export `.ics` ponctuel ; ce n'est **pas** une synchronisation bidirectionnelle, et un nouvel import peut créer des doublons.
