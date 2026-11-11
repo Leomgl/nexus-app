@@ -36,6 +36,7 @@ const ICONS = {
   sliders:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="16" cy="17" r="3"/>',
   more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   euro:'<path d="M19 6a8 8 0 1 0 0 12M4 10h11M4 14h11"/>',
+  refresh:'<path d="M3 11a9 9 0 0 1 15-6l3 3M21 3v5h-5M21 13a9 9 0 0 1-15 6l-3-3M3 21v-5h5"/>',
   circlecheck:'<circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/>'
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
@@ -898,9 +899,9 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh-cw')} <div><h2>Version de NEXUS</h2><p>V0.17.4 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.17.4 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
-    <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh-cw')} Actualiser</button></div>
+    <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
   <footer class="settings-version">NEXUS · V0.17.4 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
