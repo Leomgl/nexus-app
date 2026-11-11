@@ -1,6 +1,27 @@
-# NEXUS — Second cerveau personnel (V0.14 bêta)
+# NEXUS — Second cerveau personnel (V0.18.0 · Pulse)
 
-NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
+> **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
+>
+> La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.18 et le dossier de reprise font foi pour l'état actuel.
+
+NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
+
+
+## Version V0.18.0 — NEXUS Pulse (11 novembre 2026)
+
+L'accueil devient un **cockpit de la journée** avec widgets personnalisables :
+
+- **Aujourd'hui** : rendez-vous restants, rappels urgents/en retard et prochain événement ;
+- **Météo** : Open-Meteo, ville initiale Lille modifiable, géolocalisation facultative après clic, prévisions du jour et cache local de 45 minutes ;
+- **Budget** : dépenses du mois, plafond restant et échéances prévues ;
+- **Projet en focus**, **Applications liées** (propositions Gaming/Rituel) et **activité récente** ;
+- **Capture éclair** inchangée dans son principe : une note en premier, puis suggestions locales explicites ; raccourcis RDV, Rappel, Achat et Dépense.
+
+Les préférences d'accueil existantes sont conservées ; les deux nouveaux widgets apparaissent une fois et peuvent être masqués ou déplacés dans **Réglages → Accueil personnalisé**. Aucun contenu privé n'est introduit dans GitHub, pas de migration de base. Météo désactivable en masquant le widget. Les données météo partent directement vers Open-Meteo sans transiter par le Worker NEXUS.
+
+**Le passage de Gaming à un achat payé créé dans le Journal, les suggestions de tenues Vestiaire, les abonnements/prêts avancés et le Command Center restent des étapes futures**. Voir la roadmap dans [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md).
+
+**Recette manuelle sur iPhone nécessaire**, même après réussite des tests automatiques : météo réseau/hors ligne, rang et tailles des widgets, conservation des préférences, capture éclair et accès aux modules.
 
 ## Modules et fonctionnalités
 
@@ -9,7 +30,7 @@ NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développ�
 - **Rappels** : tâches, échéance, heure, état terminé, projets, origine.
 - **Personnes** : répertoire personnel avec téléphone et courriel.
 - **Projets** : budget prévisionnel, progrès par tâches, achats et dépenses liés.
-- **Achats** : wishlist, priorités, projet, coût estimé, achat effectué et conversion *volontaire* en dépense.
+- **Achats** : wishlist, priorités, projet, coût estimé, achat effectué avec **dépense créée automatiquement** lors du passage à « Acheté » si prix valide, sans doublon.
 - **Budget V0.8** : récurrences (salaires, prêts, abonnements), journal d'opérations, dépenses rapides fixes ou variables, graphiques et plafond mensuel.
 
 La **capture intelligente V0.4** repère dates/heures/lieux français, personnes du répertoire, rendez-vous, actions à faire, achats, projets et dépenses. Elle propose, mais ne crée jamais rien sans validation. Les détections restent locales et déterministes (pas de modèle IA distant, pas de frais d'API).
@@ -121,7 +142,7 @@ Un module ouvert depuis Catégories propose également **Slot 1** / **Slot 2** p
 
 La capture instantanée transforme du texte libre en **note locale**, puis ouvre la fiche et ses suggestions de rendez-vous, tâche, achat, projet ou dépense. Aucun élément lié n'est créé sans validation.
 
-Les widgets de l'accueil sont :
+Les widgets historiques de l'accueil (V0.7) étaient :
 
 - Aujourd'hui : RDV du jour, prochain événement, tâches en retard ou prioritaires.
 - Projet en focus : projet actif récemment mis à jour, avancement et dépenses associées.
