@@ -1,8 +1,14 @@
-# NEXUS — Second cerveau personnel (V0.21.2 · Revenus automatiques)
+# NEXUS — Second cerveau personnel (V0.21.3 · Notifications contextuelles)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
 > La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.21.2 et le dossier de reprise font foi pour l'état actuel.
+
+## V0.21.3 — FORGE #5 · Notifications adaptées au contexte
+
+NEXUS prépare maintenant des Web Push distincts pour l'Agenda, les Rappels et les échéances de Budget. Les revenus et dépenses récurrents peuvent alerter **J-2 et le jour J à 9h**, ou selon les options propres à chaque règle (J-7/J-2/J0, y compris désactivation). Aucun paiement n'est automatiquement considéré comme effectué.
+
+Le serveur conserve **uniquement les dates, le type technique et un ID opaque** ; les intitulés, lieux, contacts et montants sont résolus par le Service Worker sur l'iPhone, sans être transmis à Cloudflare. **Afficher les détails sur l'écran verrouillé** est une option explicite dans Réglages → Notifications iPhone ; le mode discret reste le défaut. Aucune migration D1, aucun nouveau Worker ou service payant. Tests de code et validation physique iPhone sont des étapes distinctes. Voir [docs/PUSH-V0213.md](docs/PUSH-V0213.md).
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
