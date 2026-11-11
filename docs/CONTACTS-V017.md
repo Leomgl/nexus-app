@@ -60,3 +60,26 @@ Automatiques : analyse syntaxique des fichiers JS et tests Node sur le parsing d
 - Version `0.17` : nouveau module `contacts-v017.js` à la place de `contacts-v016.js`.
 - Cache PWA incrémenté, sans migration D1, Worker, IndexedDB, Web Push ou passkeys.
 - Données existantes conservées : `data.contacts[]` inclut des attributs optionnels simplement absents pour les fiches historiques.
+
+
+## V0.17.2 — Réimport complet sans rupture des liens
+
+Dans **Personnes → Gérer le carnet**, deux actions sont séparées :
+
+- **Réimporter et remplacer** (recommandé) : charge un nouveau fichier .vcf, calcule un aperçu des contacts reconnus, nouveaux et absents, ainsi que des photos intégrées. Après saisie exacte de `REMPLACER`, une sauvegarde JSON NEXUS est téléchargée avant modification. Les contacts reconnus conservent leur **ID**, leurs favoris et leurs tags. Le nom, téléphone, e-mail et informations complémentaires sont actualisés depuis les champs non vides du fichier. Leurs notes locales sont conservées en priorité ; les photos peuvent être remplacées si elles sont fournies et décodables. Les contacts absents du .vcf sont déplacés sous une entrée groupée de corbeille. Toute restauration éventuelle conserve les IDs et leurs liens antérieurs.
+- **Vider le carnet** : délègue au moteur de réinitialisation existant (`NexusRecycle.resetModule('contacts')`), avec confirmation `PERSONNES` et récupération via corbeille. **Attention :** les contacts réimportés ensuite obtiennent de nouveaux IDs, donc ce choix peut rompre les liens avec Agenda/Rappels.
+- **Exporter NEXUS** : produit une copie JSON complète du carnet et des autres modules ; fichier en clair à protéger.
+
+L'aperçu indique aussi le nombre de photos `PHOTO` détectées dans le .vcf. Si zéro photo est annoncée, vider le carnet n'en créera pas : il faut d'abord réexporter les fiches iPhone avec leurs photos.
+
+Les photos restent miniaturisées localement avec le plafond existant : au plus 250 photos décodées par import, et un plafond de stockage. Les contacts supprimés placés en corbeille restent dans les sauvegardes chiffrées **et dans le JSON local en clair** jusqu'à purge, laquelle ne supprime pas d'anciennes sauvegardes.
+
+### Sécurité et limites vérifiées dans le code
+
+- IndexedDB `nexus-v0-1` : **données non chiffrées au repos** (contacts et clé de récupération incluse dans une entrée séparée), dépendantes du système de sécurité iOS et de l'origine web.
+- Coffre Cloudflare : clé de récupération locale, dérivation HKDF, AES-256-GCM pour les snapshots. D1 stocke un texte chiffré et un vérificateur ; le serveur peut traiter des métadonnées techniques, pas la liste des contacts en clair en fonctionnement normal.
+- Les plusieurs PWAs servies sous `https://leomgl.github.io` partagent la **même origine web**. Un script compromis sur cette origine, ou du JavaScript injecté, pourrait accéder aux stockages et aux clés. La CSP et le chiffrement cloud ne suffisent pas à contrer ce scénario.
+- Export JSON local **non chiffré**. Le contenu d'une corbeille ou d'une sauvegarde antérieure demeure accessible jusqu'à sa purge. Face ID/passkeys protègent un flux d'accès mais ne constituent pas un chiffrement local indépendant.
+- **Avant usage avec des données très sensibles :** isoler NEXUS sur son propre hostname (migration prudente de l'origine de la PWA, restauration vérifiée des données et adaptations de l'API/du RP WebAuthn), ajouter un mécanisme de rotation/révocation et faire un audit des accès. Aucun slogan « impossible à voler » n'est justifié.
+
+Tests à faire sur iPhone : import d'un .vcf avec photos, prévisualisation, remplacement (après export), conservation des IDs des contacts reconnus, restauration d'une fiche absente depuis la corbeille, absence de doublons et préservation des RDV/rappels.
