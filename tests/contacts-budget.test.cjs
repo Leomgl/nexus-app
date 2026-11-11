@@ -183,25 +183,32 @@ test('rendered directory alphabet sections always display A before M even with e
  }finally{global.document=priorDocument;}
 });
 
-test('UI and offline cache agree on version 0.19.1',()=>{
+test('UI and offline cache agree on version 0.20.0',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(html,/Version 0\.19\.1/);
- assert.match(app,/V0\.19\.1/);
+ assert.match(html,/Version 0\.20\.0/);
+ assert.match(app,/V0\.20\.0/);
  assert.match(html,/contacts-v017\.js\?v=0174/);
  assert.match(html,/pulse-v018\.js\?v=0180/);
  assert.match(html,/pulse-v018\.css\?v=0180/);
  assert.match(sw,/pulse-v018\.js\?v=0180/);
  assert.match(html,/https:\/\/api\.open-meteo\.com/);
  assert.match(html,/https:\/\/geocoding-api\.open-meteo\.com/);
- assert.match(html,/app\.js\?v=0191/);
- assert.match(sw,/nexus-v0\.19\.1/);
+ assert.match(html,/app\.js\?v=0200/);
+ assert.match(sw,/nexus-v0\.20\.0/);
  assert.match(sw,/contacts-v017\.js\?v=0174/);
  assert.match(html,/connect-v019\.js\?v=0191/);
  assert.match(sw,/connect-v019\.js\?v=0191/);
  assert.match(html,/link-import\.js\?v=0190/);
  assert.match(html,/rituel-import\.js\?v=0190/);
+ assert.match(html,/budget-v08\.js\?v=0200/);
+ assert.match(html,/budget-v020\.js\?v=0200/);
+ assert.match(html,/budget-v020\.css\?v=0200/);
+ assert.match(sw,/budget-v020\.js\?v=0200/);
+ assert.match(sw,/recycle\.js\?v=0200/);
+ assert.match(app,/savingsGoals:\[\]/);
+
 });
 
 test('Pulse prioritizes overdue tasks and upcoming appointments without changing source records',()=>{
