@@ -1,7 +1,8 @@
 /* NEXUS V0.8 — Budget cockpit, local-first. No bank automation or hidden bookings. */
 'use strict';
 (() => {
- const tabs=[['overview','Vue d’ensemble'],['recurring','Récurrences'],['journal','Journal'],['stats','Statistiques']];
+ const tabs=[['overview','Vue d’ensemble'],['journal','Journal'],['stats','Statistiques']];
+  const sections=[['daily','Quotidien'],['commitments','Engagements'],['goals','Objectifs']];
  const frequencies={monthly:'Mensuelle',weekly:'Hebdomadaire',yearly:'Annuelle'};
  const JOURNAL_FILTERS_KEY='nexus_budget_journal_filters_v010';
  function readJournalFilters(){
@@ -12,7 +13,7 @@
   }catch{return {type:'all',category:'all'};}
  }
  const savedFilters=readJournalFilters();
- let tab='overview',journalType=savedFilters.type,journalSearch='',journalCategory=savedFilters.category,busy=false;
+ let tab='overview',section='daily',journalType=savedFilters.type,journalSearch='',journalCategory=savedFilters.category,busy=false;
  function saveJournalFilters(){
   try{localStorage.setItem(JOURNAL_FILTERS_KEY,JSON.stringify({type:journalType,category:journalCategory}));}
   catch{ /* Local display settings may be unavailable in private mode. */ }
@@ -262,15 +263,15 @@
     </div></div>`;
  }
  function recurring(){
-   const list=recurrenceOccurrences(budgetMonth),rules=[...data.recurrences].sort((a,b)=>(b.active===true)-(a.active===true)?(a.active?-1:1):(a.title||'').localeCompare(b.title||'','fr'));
-   const active=data.recurrences.filter(x=>x.active).length;
+   const list=recurrenceOccurrences(budgetMonth),rules=[...data.recurrences].filter(r=>!r.commitmentKind).sort((a,b)=>(b.active===true)-(a.active===true)?(a.active?-1:1):(a.title||'').localeCompare(b.title||'','fr'));
+   const active=rules.filter(x=>x.active).length;
    return `<section class="b8-panel">${panelTitle('Échéancier · '+formatDate(budgetMonth+'-01',{month:'long',year:'numeric'}),
        'Les dates prévues et leur validation indépendante du journal.',
        `<button class="btn btn-small" data-action="b8-rule-new">${svg('plus')} Récurrence</button>`)}
      <div class="b8-reminder-list">${list.length?list.map(occurrenceRow).join(''):
       `<div class="b8-zero">${svg('calendar')} <p>Aucune échéance active prévue ce mois.</p></div>`}</div>
    </section>
-   <section class="b8-panel">${panelTitle('Mes récurrences',active+' active(s) · '+data.recurrences.length+' enregistrée(s)')}
+   <section class="b8-panel">${panelTitle('Autres récurrences',active+' active(s) · '+rules.length+' enregistrée(s)')}
     <div class="b8-rules">${rules.length?rules.map(r=>`<div class="b8-rule-row">
       <span class="b8-rule-icon ${r.type}">${svg(r.type==='income'?'arrow':'wallet')}</span>
       <span class="b8-rule-copy"><strong>${safe(r.title)}</strong><small>${safe(rulePeriodDescription(r))}
@@ -418,9 +419,14 @@
     <div><button data-action="budget-prev" aria-label="Mois précédent">${svg('chevleft')}</button>
     <button data-action="budget-next" aria-label="Mois suivant">${svg('chevright')}</button></div></div>
     <div class="b9-budget-tools"><button class="btn btn-neutral btn-small" data-action="b9-categories">${svg('edit')} Gérer mes catégories</button></div>
-    <div class="b8-tabs" role="tablist" aria-label="Sections Budget">${tabs.map(([key,label])=>
-      `<button type="button" role="tab" aria-selected="${tab===key}" class="${tab===key?'active':''}" data-action="b8-switch-tab" data-tab="${key}">${label}</button>`).join('')}</div>
-    ${tab==='recurring'?recurring():tab==='journal'?journal():tab==='stats'?stats():overview()}
+    <div class="b20-tabs" role="tablist" aria-label="Espaces du budget">${sections.map(([key,label])=>
+      `<button type="button" role="tab" aria-selected="${section===key}" class="${section===key?'active':''}" data-action="b8-switch-section" data-section="${key}">${label}</button>`).join('')}</div>
+    ${section==='daily'?`<div class="b8-tabs b20-daily-tabs" role="tablist" aria-label="Vues du quotidien">${tabs.map(([key,label])=>
+      `<button type="button" role="tab" aria-selected="${tab===key}" class="${tab===key?'active':''}" data-action="b8-switch-tab" data-tab="${key}">${label}</button>`).join('')}</div>`:
+       `<p class="b20-section-caption">${section==='commitments'?'Abonnements, prêts et échéances à confirmer.':'Épargne suivie manuellement pour tes projets.'}</p>`}
+    ${section==='commitments'?(window.NexusBudget20?.commitmentsView?.(recurring())||recurring()):
+      section==='goals'?(window.NexusBudget20?.goalsView?.()||'<p class="muted-note">Chargement des objectifs…</p>'):
+      tab==='journal'?journal():tab==='stats'?stats():overview()}
     <div class="info-strip">${svg('shield')} Suivi local indicatif : sans connexion bancaire. Les prévisions ne sont jamais considérées comme payées sans ta confirmation.</div>
    </div>`;
  }
@@ -610,7 +616,16 @@
     if(cat)return window.NexusRecycle?.removeCategory?.(cat);
    }
    if(action==='b9-quick-pin')return toggleQuickPin(el.dataset.id);
-   if(action==='b8-switch-tab'){tab=el.dataset.tab;refresh();return;}
+   if(action==='b8-switch-section'){
+    const next=el.dataset.section;
+    if(sections.some(([key])=>key===next)){section=next;refresh();}
+    return;
+   }
+   if(action==='b8-switch-tab'){
+    if(el.dataset.tab==='recurring'){section='commitments';refresh();return;}
+    if(tabs.some(([key])=>key===el.dataset.tab)){tab=el.dataset.tab;section='daily';refresh();}
+    return;
+   }
    if(action==='b8-rule-new')ruleForm();
    if(action==='b8-rule-edit')ruleForm(data.recurrences.find(x=>x.id===el.dataset.id));
    if(action==='b8-rule-toggle')toggleRule(el.dataset.id);
