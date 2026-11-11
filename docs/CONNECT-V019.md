@@ -1,4 +1,4 @@
-# NEXUS Connect 2.0 · V0.19.0 (11 novembre 2026)
+# NEXUS Connect 2.0 · V0.19.1 (11 novembre 2026)
 
 > **État : code intégré dans NEXUS, Gaming et RITUEL sur GitHub ; tests automatiques NEXUS passés. Recette PWA iPhone et disponibilité Cloudflare des apps sources à vérifier séparément.**
 > Lire [PROJECT-HANDOFF.md](PROJECT-HANDOFF.md) avant un nouveau thread.
@@ -101,3 +101,7 @@ Ces préférences sont **locales à l'appareil**, non synchronisées dans le cof
 - V0.20 : Budget avancé (Quotidien, Engagements, Objectifs).
 - V0.21 : Vestiaire suggestions contextuelles de tenues pour RDV + météo, avec consentement.
 - V0.22 : Command Center (recherche universelle et capture intelligente).
+
+### Correctif V0.19.1
+
+Le rollback après refus de la vérification IndexedDB restaure aussi l'état persisté et supprime les métadonnées transitoires de la proposition. Le service worker NEXUS et les paramètres de cache des scripts `app.js` / `connect-v019.js` ont été incrémentés pour ne pas servir une version précédente dans la PWA iPhone.
