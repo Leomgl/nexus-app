@@ -154,6 +154,7 @@
    focus:()=>focusWidget(d),
    links:()=>connectionsWidget(d,p),
    outfit:()=>window.NexusVestiaire?.widget?.()||'',
+   health:()=>window.NexusSanteBridge?.widget?.()||'',
    recent:()=>recentWidget(d)
   };
   const blocks=Array.isArray(selected)?selected.filter(id=>typeof options[id]==='function'):[];
