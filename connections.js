@@ -83,7 +83,7 @@
   return true;
  }
 
- function ownPairs(appId='gaming'){return (data.linkConnections||[]).filter(x=>x.sourceApp===appId);}
+ function ownPairs(appId='gaming'){return (data.linkConnections||[]).filter(x=>x.sourceApp===appId&&!x.scopes?.includes('trip_context'));}
  function pairingPanel(pair){
   const code=window.NexusLinkCore.invitation(pair);
   modal('Code de jumelage '+(pair.sourceApp==='rituel'?'RITUEL':'Gaming'),`<div class="nx-link-modal">
