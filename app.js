@@ -930,11 +930,11 @@ function settingsView(){
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.21.0 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.21.1 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
     <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.21.0 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.21.1 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
