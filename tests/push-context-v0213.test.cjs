@@ -26,7 +26,7 @@ test('budget creates two notifications at J-2 and due date, 09:00 local',async()
  const result=await build({recurrences:[salary],transactions:[]},{budgetEnabled:true,showDetails:true},hash,date);
  assert.equal(result.jobs.length,2);
  const dates=result.jobs.map(row=>new Date(row.fireAt*1000));
- assert.deepEqual(dates.map(d=>[d.getFullYear(),d.getMonth()+1,d.getDate(),d.getHours()]),[[2026,11,9,9],[2026,11,11,9]]);
+ assert.deepEqual(JSON.parse(JSON.stringify(dates.map(d=>[d.getFullYear(),d.getMonth()+1,d.getDate(),d.getHours()]))),[[2026,11,9,9],[2026,11,11,9]]);
  assert.ok(result.jobs.every(j=>j.kind==='task'&&/^[a-f0-9]{64}$/.test(j.id)));
  assert.ok(Object.values(result.contexts).some(x=>x.title.includes('Dans 2 jours')));
  assert.ok(Object.values(result.contexts).some(x=>x.title.includes('Aujourd')));
