@@ -297,6 +297,7 @@ function showManage(){
  const count=contacts().length;
  adapter.modal('Gérer le carnet',`<div class="nx-contact-manage-panel">
   <p class="muted-note">${count} contact(s) actuellement enregistrés. Pour récupérer les photos depuis l'iPhone, privilégie le réimport complet : tes rendez-vous et rappels conserveront leurs liens.</p>
+  <div class="info-strip">${icon('shield')} Données locales non chiffrées par NEXUS ; copies Cloudflare chiffrées si le coffre est activé. Un export JSON contient tes contacts en clair : conserve-le en lieu sûr.</div>
   <div class="nx-contact-manage-option">
    <strong>${icon('upload')} Réimporter et remplacer</strong>
    <p>Relit toutes les fiches du fichier .vcf, complète les photos, évite les doublons, conserve les favoris et les liens des contacts reconnus. Les contacts absents du fichier seront placés dans la corbeille.</p>
@@ -318,8 +319,8 @@ function planReimport(parsed){
  const before=contacts(),seenOld=new Set(),newOnes=[],updates=[];
  let duplicateCount=0;
  for(const item of parsed){
-  const existing=findDuplicate(item,before.filter(c=>!seenOld.has(c.id)));
-  if(existing){seenOld.add(existing.id);updates.push({old:existing,from:item});continue;}
+  const existing=findDuplicate(item,before);
+  if(existing){if(seenOld.has(existing.id)){duplicateCount++;continue;}seenOld.add(existing.id);updates.push({old:existing,from:item});continue;}
   if(findDuplicate(item,newOnes)){duplicateCount++;continue;}
   newOnes.push(item);
  }
@@ -328,7 +329,7 @@ function planReimport(parsed){
 }
 async function buildReimportRecords(job,now){
  let usage=0,photoCount=0,photos=0;
- const records=[],included=new Set(),generated=[];
+ const records=[],generated=[];
  async function make(from,old){
   const {photoRaw,...fields}=from;
   const record=old?{...old}:{id:adapter.uid(),createdAt:now,favorite:false,tags:[]};
@@ -347,7 +348,7 @@ async function buildReimportRecords(job,now){
   else delete record.photo;
   record.updatedAt=now;return record;
  }
- for(const entry of job.updates){const record=await make(entry.from,entry.old);records.push(record);included.add(record.id);}
+ for(const entry of job.updates){const record=await make(entry.from,entry.old);records.push(record);}
  for(const entry of job.newOnes){if(findDuplicate(entry,generated))continue;const record=await make(entry,null);records.push(record);generated.push(entry);}
  return {records,photos,photoLimit:photoCount};
 }
@@ -457,5 +458,5 @@ async function buildReimportRecords(job,now){
   adapter.closeModal();adapter.toast(`${added} contact(s) ajouté(s), ${enriched} photo(s) récupérée(s).`);
  }
  window.NexusContacts={attach(v){adapter=v;},view,redrawResults,detail,onChange,onInput,act,
-  openImport,confirmImport,parseVcards,visibleContacts,tagCatalog};
+  openImport,confirmImport,parseVcards,visibleContacts,tagCatalog,planReimport,buildReimportRecords};
 })();
