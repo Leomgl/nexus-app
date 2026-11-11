@@ -1,4 +1,4 @@
-/* NEXUS V0.7 — modular command center, unchanged local data model. */
+/* NEXUS V0.18 — modular Pulse cockpit and existing local-first data model. */
 'use strict';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -37,6 +37,11 @@ const ICONS = {
   more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   euro:'<path d="M19 6a8 8 0 1 0 0 12M4 10h11M4 14h11"/>',
   refresh:'<path d="M3 11a9 9 0 0 1 15-6l3 3M21 3v5h-5M21 13a9 9 0 0 1-15 6l-3-3M3 21v-5h5"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  cloud:'<path d="M20 17H7a5 5 0 1 1 1.6-9.7A7 7 0 0 1 21 13c0 1.6-.4 3-1 4z"/>',
+  cloudsun:'<path d="M12 2v2M4 6l1.4 1.4M2 13h2"/><path d="M21 18H8a4 4 0 0 1-1-7.9A6 6 0 0 1 18 12a4 4 0 0 1 3 6z"/>',
+  rain:'<path d="M20 16H7a5 5 0 1 1 1.6-9.7A7 7 0 0 1 21 12c0 1.5-.4 2.9-1 4zM9 19l-1 3M14 19l-1 3M19 19l-1 3"/>',
+  snow:'<path d="M12 2v20M4 6l16 12M20 6 4 18M9 4l3 3 3-3M9 20l3-3 3 3"/>',
   circlecheck:'<circle cx="12" cy="12" r="10"/><path d="m7 12 3 3 7-7"/>'
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
@@ -58,12 +63,14 @@ const MODULES=[
 ];
 const HOME_WIDGETS=[
  ['today',"Aujourd'hui",'Rendez-vous et tâches prioritaires'],
+ ['weather','Météo','Prévisions de la ville choisie'],
+ ['budget','Budget du mois','Dépenses et échéances'],
  ['focus','Projet en focus','Un objectif à faire avancer'],
- ['budget','Budget du mois','Dépenses et plafond'],
+ ['links','Applications liées','Propositions Gaming et Rituel'],
  ['recent','Activité récente','Derniers éléments']
 ];
 const UI_KEY='nexus_interface_v07';
-const defaultUI=()=>({slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',widgets:HOME_WIDGETS.map(x=>x[0])});
+const defaultUI=()=>({slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',pulseVersion:18,widgets:HOME_WIDGETS.map(x=>x[0])});
 function readUI(){
  const defaults=defaultUI();let stored;
  try{stored=JSON.parse(localStorage.getItem(UI_KEY)||'null');}catch{return defaults;}
@@ -73,8 +80,13 @@ function readUI(){
  let slot2=valid(stored.slot2)?stored.slot2:defaults.slot2;
  if(slot1===slot2)slot2=MODULES.find(m=>m[0]!==slot1)[0];
  const widgets=Array.isArray(stored.widgets)?[...new Set(stored.widgets.filter(x=>HOME_WIDGETS.some(w=>w[0]===x)))]:defaults.widgets;
+ if(stored.pulseVersion!==18&&Array.isArray(stored.widgets)){
+   // First Pulse launch: preserve the user's existing layout and choices.
+   if(!widgets.includes('weather')) widgets.splice(Math.max(0,widgets.indexOf('today')+1),0,'weather');
+   if(!widgets.includes('links')) widgets.push('links');
+ }
  return {slot1,slot2,widgets,theme:['sage','slate'].includes(stored.theme)?stored.theme:'sage',
-   density:['comfortable','compact'].includes(stored.density)?stored.density:'comfortable'};
+    density:['comfortable','compact'].includes(stored.density)?stored.density:'comfortable',pulseVersion:18};
 }
 let UI=readUI();
 function applyUI(){
@@ -143,6 +155,7 @@ function render(){
  document.getElementById('today-small').textContent=formatDate(dateKey(new Date()),{weekday:'short',day:'numeric',month:'short'});
  applyUI();iconsInDom();navActive();
  if(currentView==='contacts')window.NexusContacts?.redrawResults?.();
+ if(currentView==='home')window.NexusPulse?.afterRender?.();
 }
 
 const section=(title,view)=>`<div class="section-title"><h2>${title}</h2><button data-view="${view}">Tout voir ${svg('arrow')}</button></div>`;
@@ -154,6 +167,8 @@ const noteLinks=(id)=>({
 
 
 function homeView(){
+ const pulse=window.NexusPulse?.view?.(UI.widgets);
+ if(pulse)return pulse;
  const now=new Date(),today=dateKey(now),month=today.slice(0,7);
  const next=sortEvents(data.events.filter(e=>e.start&&new Date(e.start).getTime()>=Date.now()));
  const todayEvents=sortEvents(data.events.filter(e=>e.start?.slice(0,10)===today));
@@ -898,12 +913,13 @@ function settingsView(){
    <div class="settings-option"><div><strong>Réinitialisations par module</strong><p>Vider uniquement les Notes, l'Agenda, le Budget ou un autre bloc, avec retour arrière possible.</p></div>
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
+  </section>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.17.4 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.18.0 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
     <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.17.4 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.18.0 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -922,6 +938,7 @@ document.addEventListener('click',async event=>{
  const action=event.target.closest('[data-action]');if(!action)return;const kind=action.dataset.action,id=action.dataset.id;
  if(kind==='overlay'){if(event.target===action)closeModal();return;}
  if(kind==='close-modal'){closeModal();return;}
+ if(kind.startsWith('pulse-')){await window.NexusPulse?.act?.(kind,action);return;}
  if(kind==='toggle-widget'){
   const id=action.dataset.widget;
   if(HOME_WIDGETS.some(w=>w[0]===id)){
@@ -1091,6 +1108,7 @@ function attachGamingImport(){
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
+ window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
 }
 
 (async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
