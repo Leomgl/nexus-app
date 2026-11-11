@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.19.0 Connect 2.0**, sous réserve des vérifications de publication et des tests réels sur iPhone.
+> Version du code : **V0.19.1 Connect 2.0**, sous réserve des vérifications de publication et des tests réels sur iPhone.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -92,3 +92,5 @@
 - V0.19 peut créer automatiquement des transactions réelles inter-app **uniquement si l'option correspondante est activée**, si les deux apps ont transmis un message chiffré valide et si la date d'achat/prix sont présents ; cela reste à vérifier sur vrais iPhone/Workers déployés. Les anciennes propositions sans date réelle demandent une validation manuelle.
 - La synchronisation du coffre doit éviter les conflits entre appareils.
 - Prochain retour de l'utilisateur : V0.19 visible dans NEXUS, champs date d'achat et envoi Gaming/RITUEL disponibles sur leurs origines Cloudflare, puis essai d'un pass payé (sans doublon) et d'un produit acheté Rituel. Ensuite V0.20 Budget.
+
+**Hotfix V0.19.1 :** rollback intégral des écritures Connect après échec de vérification et mise à jour SW/cache ; la recette iPhone reste à faire. Les apps spécialisées ont des versions internes indépendantes.
