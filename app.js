@@ -577,6 +577,37 @@ function modal(title,content){document.getElementById('modal-root').innerHTML=`<
 function closeModal(){document.getElementById('modal-root').innerHTML='';}
 const input=(label,name,value='',type='text',other='')=>`<div class="field"><label for="f-${name}">${escapeHtml(label)}</label><input id="f-${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${other}></div>`;
 function contactOptions(selected=''){return `<option value="">Aucune / à renseigner</option>`+data.contacts.map(c=>`<option value="${c.id}" ${c.id===selected?'selected':''}>${escapeHtml(c.name)}</option>`).join('');}
+function inlineContactField(selected=''){
+ return `<div class="field contact-field"><label for="f-personId">Personne liée</label>
+  <select id="f-personId" name="personId">${contactOptions(selected)}</select>
+  <button type="button" class="btn btn-neutral btn-small inline-contact-toggle" data-action="inline-new-contact" aria-expanded="false">${svg('plus')} Créer un contact</button>
+  <div class="inline-contact-create" hidden>
+   <p class="muted-note">Le contact sera enregistré avec le rendez-vous ou le rappel, puis automatiquement associé.</p>
+   ${input('Nom du nouveau contact','newContactName','','text','maxlength="130"')}
+   <div class="field-grid">${input('Téléphone','newContactPhone','','tel','maxlength="45"')}
+    ${input('E-mail','newContactEmail','','email','maxlength="160"')}</div>
+   ${input('Rôle / contexte','newContactRole','','text','maxlength="120"')}
+  </div>
+ </div>`;
+}
+function takeInlineContact(values,form){
+ const panel=form.querySelector('.inline-contact-create');
+ const active=panel&&!panel.hidden;
+ const name=String(values.newContactName||'').trim().slice(0,130);
+ const phone=String(values.newContactPhone||'').trim().slice(0,45);
+ const email=String(values.newContactEmail||'').trim().slice(0,160);
+ const role=String(values.newContactRole||'').trim().slice(0,120);
+ delete values.newContactName;delete values.newContactPhone;delete values.newContactEmail;delete values.newContactRole;
+ if(!active)return null;
+ if(!name)throw Error('Indique le nom du nouveau contact.');
+ const norm=s=>String(s||'').trim().toLocaleLowerCase('fr-FR');
+ const digits=s=>String(s||'').replace(/\D/g,'');
+ const match=data.contacts.find(c=>norm(c.name)===norm(name)||
+  (email&&norm(c.email)===norm(email))||
+  (digits(phone)&&digits(c.phone)===digits(phone)));
+ if(match)throw Error('Ce contact existe déjà : sélectionne-le dans la liste.');
+ return {id:uid(),name,phone,email,role,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+}
 function captureForm(kind, obj={}, context={}){
  const originNote=context.noteId?data.notes.find(n=>n.id===context.noteId):null;
  const inheritedProjectId=context.projectId||originNote?.projectId||'';
@@ -590,19 +621,23 @@ function captureForm(kind, obj={}, context={}){
   const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null, detected=note?analyzeNote(note.body):{};
   const chosenDate=obj.start?.slice(0,10)||detected.date||selectedDay,chosenTime=obj.start?.slice(11,16)||detected.time||'14:00';
   const personId=obj.personId||detected.personId||'';
-  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${eventRemindersField(obj)}${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||inheritedProjectId||'')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(personId)}</select></div>${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${eventRemindersField(obj)}${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||inheritedProjectId||'')}${inlineContactField(personId)}${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
-  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}<div class="field"><label for="f-personId">Personne liée</label><select id="f-personId" name="personId">${contactOptions(obj.personId||detected.personId||'')}</select></div>${projectField(obj.projectId||inheritedProjectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}${inlineContactField(obj.personId||detected.personId||'')}${projectField(obj.projectId||inheritedProjectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
-  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email','maxlength="160"')}${input('Entreprise / organisation','organization',obj.organization||'','text','maxlength="160"')}${input('Adresse','address',obj.address||'','text','maxlength="300"')}<div class="field"><label for="f-contactNotes">Notes / contexte</label><textarea name="notes" id="f-contactNotes" maxlength="2000">${escapeHtml(obj.notes||'')}</textarea></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  modal(title,content);
  const form=document.getElementById('entity-form');wireProjectField(form);form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const values=Object.fromEntries(new FormData(form).entries());
+  let newContact=null;
+  if(kind==='event'||kind==='task'){
+   try{newContact=takeInlineContact(values,form);}catch(error){toast(error.message);return;}
+  }
   const reminders=kind==='event'?[...form.querySelectorAll('input[name="reminderMinute"]:checked')].map(el=>Number(el.value)):[];
   if(kind==='event'&&values.customReminderMinutes){
    const minutes=Number(values.customReminderMinutes);
@@ -615,11 +650,13 @@ function captureForm(kind, obj={}, context={}){
    try{newProject=takeInlineProject(values);}catch(error){toast(error.message);return;}
   }
   const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+  if(newContact){base.personId=newContact.id;if(kind==='event')base.personText='';}
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
   if(kind==='event'){base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
   if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
   if(newProject)data.projects.push(newProject);
+  if(newContact)data.contacts.push(newContact);
   const key={note:'notes',event:'events',task:'tasks',contact:'contacts'}[kind];const ix=data[key].findIndex(v=>v.id===base.id);if(ix>=0)data[key][ix]=base;else data[key].push(base);
   await persist();closeModal();render();toast(existing?'Modifications enregistrées':'Élément enregistré');
   if(kind==='note')noteDetail(base.id);
@@ -901,6 +938,15 @@ document.addEventListener('click',async event=>{
  if(kind==='new-event')captureForm('event');
  if(kind==='new-task')captureForm('task');
  if(kind==='new-contact')captureForm('contact');
+ if(kind==='contacts-import')window.NexusContacts?.openImport?.();
+ if(kind==='contacts-import-confirm')await window.NexusContacts?.confirmImport?.();
+ if(kind==='inline-new-contact'){
+  const panel=action.closest('.contact-field')?.querySelector('.inline-contact-create');
+  if(panel){panel.hidden=!panel.hidden;action.setAttribute('aria-expanded',String(!panel.hidden));
+   const name=panel.querySelector('[name="newContactName"]');if(name)name.required=!panel.hidden;
+   if(!panel.hidden){const sel=action.closest('.contact-field').querySelector('[name="personId"]');if(sel)sel.value='';name?.focus();}
+  }
+ }
 
  if(kind==='new-project')extraCaptureForm('project');
  if(kind==='new-purchase')extraCaptureForm('purchase');
