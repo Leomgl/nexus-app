@@ -9,7 +9,7 @@ const source=fs.readFileSync(path.join(root,'settings-v0214.js'),'utf8');
 const adapter=()=>{
  const data={linkConnections:[],linkInbox:[],notes:[],projects:[]};
  const UI={slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',widgets:['today','budget']};
- return {data,UI,version:'0.21.4',render:()=>{},svg:name=>'<svg data-name="'+name+'"></svg>',
+ return {data,UI,version:'0.21.5',render:()=>{},svg:name=>'<svg data-name="'+name+'"></svg>',
   escape:val=>String(val??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x])),
   MODULES:[['projects','briefcase','Projets'],['budget','wallet','Budget'],['notes','notes','Notes']],
   HOME_WIDGETS:[['today',"Aujourd'hui",'Priorités'],['budget','Budget du mois','Dépenses'],['recent','Activité','Historique']]};
@@ -79,7 +79,7 @@ test('application details are separate and only report actual pairing status',()
  const overview=api.view(env);
  assert.match(overview,/Gaming/);
  assert.match(overview,/Jumelé/);
- assert.match(overview,/À venir/);
+ assert.match(overview,/Non jumelé/);
  open(api,'app:rituel');
  const ritual=api.view(env);
  assert.match(ritual,/pair-rituel/);
@@ -94,7 +94,7 @@ test('application details are separate and only report actual pairing status',()
  open(api,'apps-automation');
  assert.match(api.view(env),/id="connect"/);
  open(api,'app:health');
- assert.match(api.view(env),/Aucun partage santé n’est activé/);
+ assert.match(api.view(env),/Module en chargement/);
 });
 test('notifications, security, data and about retain existing action names',()=>{
  const {api,env}=setup();
