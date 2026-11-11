@@ -4,7 +4,23 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.21.4 Réglages réorganisés** (incluant V0.21.3 Notifications contextuelles) (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+> Version du code : **V0.21.5 Santé Connect** (incluant V0.21.3 Notifications contextuelles) (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+
+## Dernière livraison — NEXUS V0.21.5 Santé Connect (11/11/2026)
+
+**À lire en premier avec les docs Santé** : dépôt privé Leomgl/sante-app, docs/PROJECT-HANDOFF.md, et NEXUS documents actuels. Définition fonctionnelle validée : **Nexus pilote rendez-vous, vaccins et notifications Agenda ; Santé possède le dossier clinique, les traitements et les notifications de prises.**
+
+Nouveaux fichiers Nexus : sante-link-core.js, nexus-sante.js, nexus-sante.css. Modifiés : app.js (NEXUS_VERSION 0.21.5), pulse-v018.js (widget « health »), settings-v0214.js (panneau Santé), index.html (CSP + scripts), sw.js (cache nexus-v0.21.5), tests/sante-bridge-v0215.test.cjs.
+
+**Connexion** : Worker indépendant sante-nexus-link, adresse https://sante-nexus-link.q9pfwtztsc.workers.dev, base D1 EU sante-nexus-link-db identifiant 5dc83559-bd23-437b-8e0b-b5bf0c5bfff3. Source dans Santé/backend/health-link-relay.mjs. Permissions dose_summary et health_calendar exclusivement, E2EE HKDF + AES-GCM, invitation privée NXS1. Son secret LINK_PEPPER Cloudflare est à préserver ; ne jamais toucher au relay original des autres apps.
+
+**NEXUS DATA** : santeDaily[] et santeCalendars[] ajoutés sans effacer les autres champs ; linkConnections[] contient un pair sourceApp=sante. Ce contenu est conservé en local en clair par Nexus même si le transport E2EE est chiffré. Le consentement doit rester explicite. Les noms des traitements sont cachés par défaut dans les projections. Le widget Pulse n'affiche pas un suivi du jour périmé comme actuel : si la date est ancienne, il demande une actualisation.
+
+**Agenda et notifications** : Santé transmet appointments/vaccine due dates ; Nexus les conserve temporairement en santeCalendars[] puis les ajoute à events[] sur import manuel ou autorisation d'import auto. Chaque événement importé reçoit originApp/originSourceId/sourceRevision et des champs syncedTitle/syncedStart/syncedLocation. Révisions et suppressions n'écrasent pas silencieusement les éditions manuelles de Nexus. Notifications Nexus déclenchées via reminderMinutes (RDV J−1 et H−1, vaccins J−7 et J−1) et seulement si les notifications iOS Nexus sont autorisées et les événements effectivement importés. Santé ne génère plus ces notifications. Les traitements sont confirmés exclusivement dans Santé et les prises sont un widget en lecture seule dans Nexus.
+
+**Limites** : Flux disponible actuellement seulement **Santé → Nexus**. Ne pas annoncer « synchronisation bidirectionnelle complète ». Prochaine étape : éditer RDV/rappels depuis Nexus avec retour sécurisé dans Santé, arbitrage des conflits/anti-doublons. Ni publication automatique des modifications lorsque PWA fermée, ni test E2E sur iPhone confirmé.
+
+**Recette iPhone avec données fictives** : Nexus → Réglages → Applications connectées → Santé → Créer / Copier code. Santé → ⚙ → Nexus LINK → Coller / Relier → Envoyer. Nexus → Recevoir, vérifier carte 1/2 et suivi des heures, puis importer RDV dans Agenda, tester notification Nexus, modification, absence de doublon, suspension du lien. Ne pas réinstaller/effacer les données pour actualiser la PWA.
 
 ## Vision confirmée avec l'utilisateur
 
