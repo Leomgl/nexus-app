@@ -183,21 +183,25 @@ test('rendered directory alphabet sections always display A before M even with e
  }finally{global.document=priorDocument;}
 });
 
-test('UI and offline cache agree on version 0.18.0',()=>{
+test('UI and offline cache agree on version 0.19.0',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(html,/Version 0\.18\.0/);
- assert.match(app,/V0\.18\.0/);
+ assert.match(html,/Version 0\.19\.0/);
+ assert.match(app,/V0\.19\.0/);
  assert.match(html,/contacts-v017\.js\?v=0174/);
  assert.match(html,/pulse-v018\.js\?v=0180/);
  assert.match(html,/pulse-v018\.css\?v=0180/);
  assert.match(sw,/pulse-v018\.js\?v=0180/);
  assert.match(html,/https:\/\/api\.open-meteo\.com/);
  assert.match(html,/https:\/\/geocoding-api\.open-meteo\.com/);
- assert.match(html,/app\.js\?v=0180/);
- assert.match(sw,/nexus-v0\.18\.0/);
+ assert.match(html,/app\.js\?v=0190/);
+ assert.match(sw,/nexus-v0\.19\.0/);
  assert.match(sw,/contacts-v017\.js\?v=0174/);
+ assert.match(html,/connect-v019\.js\?v=0190/);
+ assert.match(sw,/connect-v019\.js\?v=0190/);
+ assert.match(html,/link-import\.js\?v=0190/);
+ assert.match(html,/rituel-import\.js\?v=0190/);
 });
 
 test('Pulse prioritizes overdue tasks and upcoming appointments without changing source records',()=>{
@@ -241,4 +245,84 @@ test('Pulse renders a personalizable compact cockpit and preserves quick capture
  assert.equal(window.NexusPulse.getLocation().label,'Lille');
  assert.deepEqual(window.NexusPulse.weatherLabel(61),['Pluie','rain']);
  assert.doesNotMatch(window.NexusPulse.view(['recent']),/nxp-widget-today/);
+});
+
+
+test('Connect 2.0 requires explicit opt-in and a verified paid date before adding Gaming expenses',async()=>{
+ global.window={};delete require.cache[require.resolve('../connect-v019.js')];
+ require('../connect-v019.js');
+ const prefs=new Map();
+ global.localStorage={getItem:key=>prefs.get(key)||null,setItem:(key,value)=>prefs.set(key,value)};
+ const data={transactions:[],linkConnections:[{id:'pair-1',sourceApp:'gaming',scopes:['pass_paid']}],linkInbox:[]};
+ const make=(id,paymentDate)=>({id,pairId:'pair-1',sourceKey:id[0].repeat(64),revision:1,scope:'pass_paid',status:'pending',
+  targetId:'',targetKind:'',createdAt:'2026-11-11T12:00:00.000Z',
+  payload:{type:'gaming.proposal.v1',sourceApp:'gaming',destination:'transactions',
+   sourceId:'battle-pass-1:paid',title:'Pass saison 12',isPaid:true,currency:'EUR',paymentDate,priceCents:1299}});
+ data.linkInbox.push(make('a','2026-11-09'));
+ let n=0;let saved;
+ window.NexusConnect2.attach({state:()=>data,uid:()=> 'tx-'+(++n),
+  persist:async()=>{saved=structuredClone(data);},
+  verifyLedger:async(id,pairId,sourceKey)=>saved.transactions.some(t=>t.id===id&&t.amountCents===1299)&&
+    saved.linkInbox.some(x=>x.targetId===id&&x.pairId===pairId&&x.sourceKey===sourceKey&&x.status==='accepted'),
+  safeRender:()=>{},toast:()=>{},svg:()=>'',escape:x=>x});
+ assert.equal((await window.NexusConnect2.accept(data.linkInbox[0])).reason,'disabled');
+ assert.equal(data.transactions.length,0);
+ prefs.set('nexus_connect_v019_preferences',JSON.stringify({autoReceive:true,autoGaming:true,autoRituel:false}));
+ const accepted=await window.NexusConnect2.accept(data.linkInbox[0]);
+ assert.equal(accepted.created,true);
+ assert.equal(data.transactions.length,1);
+ assert.equal(data.transactions[0].date,'2026-11-09');
+ assert.equal(data.transactions[0].amountCents,1299);
+ assert.equal(data.transactions[0].originSourceId,'battle-pass-1:paid');
+ assert.equal(data.linkInbox[0].status,'accepted');
+ data.linkInbox.push(make('b','2026-11-09'));
+ const duplicate=await window.NexusConnect2.accept(data.linkInbox[1]);
+ assert.equal(duplicate.accepted,true);
+ assert.equal(duplicate.created,false);
+ assert.equal(data.transactions.length,1);
+ assert.equal(data.linkInbox[1].targetId,'tx-1');
+ data.linkInbox.push(make('c',''));
+ assert.equal((await window.NexusConnect2.accept(data.linkInbox[2])).reason,'ineligible');
+ data.linkInbox.push({...make('d','2026-11-09'),sourceKey:'d'.repeat(64),targetId:'tx-1'});
+ assert.equal((await window.NexusConnect2.accept(data.linkInbox[3])).reason,'ineligible');
+ delete global.localStorage;
+});
+
+test('Connect 2.0 validates permission, EUR currency, paid flag and verified Rituel purchases',async()=>{
+ global.window={};delete require.cache[require.resolve('../connect-v019.js')];require('../connect-v019.js');
+ global.localStorage={getItem:()=>JSON.stringify({autoReceive:true,autoGaming:false,autoRituel:true}),setItem:()=>{}};
+ const d={transactions:[],linkConnections:[{id:'pair-r',sourceApp:'rituel',scopes:['product_paid']}],linkInbox:[]};
+ const row={id:'rituel-row',pairId:'pair-r',sourceKey:'e'.repeat(64),revision:1,scope:'product_paid',status:'pending',targetId:'',targetKind:'',
+  payload:{type:'rituel.proposal.v1',sourceApp:'rituel',destination:'transactions',sourceId:'purchase-1',
+   title:'Parfum payé',currency:'EUR',isPaid:true,paymentDate:'2026-11-10',priceCents:3999}};
+ d.linkInbox.push(row);
+ window.NexusConnect2.attach({state:()=>d,uid:()=> 'rituel-tx',persist:async()=>{},verifyLedger:async()=>true,
+   safeRender:()=>{},escape:x=>x,svg:()=>'',toast:()=>{}});
+ assert.equal(window.NexusConnect2.sourceOf(row).app,'rituel');
+ let check={...row,payload:{...row.payload,currency:'USD'}};
+ assert.equal(window.NexusConnect2.sourceOf(check),null);
+ check={...row,payload:{...row.payload,isPaid:false}};assert.equal(window.NexusConnect2.sourceOf(check),null);
+ check={...row,scope:'restock_purchase'};assert.equal(window.NexusConnect2.sourceOf(check),null);
+ const done=await window.NexusConnect2.accept(row);
+ assert.equal(done.created,true);
+ assert.equal(d.transactions[0].category,'Shopping');
+ assert.equal(d.transactions[0].date,'2026-11-10');
+ delete global.localStorage;
+});
+
+test('Connect 2.0 rolls back unsaved budget writes and preserves pending proposal',async()=>{
+ global.window={};delete require.cache[require.resolve('../connect-v019.js')];require('../connect-v019.js');
+ global.localStorage={getItem:()=>JSON.stringify({autoGaming:true,autoReceive:true}),setItem:()=>{}};
+ const row={id:'bad-write',pairId:'pg',sourceKey:'f'.repeat(64),revision:1,scope:'pass_paid',status:'pending',targetId:'',targetKind:'',
+  payload:{type:'gaming.proposal.v1',sourceApp:'gaming',destination:'transactions',sourceId:'pass-5:paid',
+   title:'Pass testé',currency:'EUR',isPaid:true,paymentDate:'2026-11-11',priceCents:499}};
+ const d={transactions:[],linkConnections:[{id:'pg',sourceApp:'gaming',scopes:['pass_paid']}],linkInbox:[row]};
+ window.NexusConnect2.attach({state:()=>d,uid:()=> 'no-save',persist:async()=>{},
+  verifyLedger:async()=>false,safeRender:()=>{},escape:x=>x,svg:()=>{},toast:()=>{}});
+ const result=await window.NexusConnect2.accept(row);
+ assert.equal(result.reason,'persist-failed');
+ assert.equal(d.transactions.length,0);
+ assert.equal(row.status,'pending');
+ assert.equal(row.targetId,'');
+ delete global.localStorage;
 });
