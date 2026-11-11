@@ -13,7 +13,7 @@
  const mapping={
   restock_purchase:['purchases'],restock_task:['tasks'],product_paid:['transactions'],routine_schedule:['events'],routine_summary:['notes']
  };
- function connection(){return api?.state().linkConnections?.find(x=>x.sourceApp==='rituel')}
+ function connection(){return api?.state().linkConnections?.find(x=>x.sourceApp==='rituel'&&!x.scopes?.includes('trip_context'))}
  function list(){return api?.state().linkInbox||[]}
  function valid(msg,pair){
   const p=msg?.payload;
