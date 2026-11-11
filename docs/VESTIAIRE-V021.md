@@ -70,3 +70,12 @@ Sans connexion, Pulse propose de connecter Vestiaire. Sans look reçu, il invite
 - Améliorer la granularité météo : localisation du rendez-vous ou prévisions au moment réel de l'événement, uniquement avec consentement.
 - Gestion des catalogues au-delà des 24 looks via pages chiffrées ou index incrémental ; pas de partage massif automatique.
 - Test réel multi-apps + contrôle de confidentialité d'une sauvegarde .vestiaire contenant la clé LINK.
+
+
+## Correctif serveur : création du code Vestiaire
+
+L'écran NEXUS pouvait afficher `PAIR_ALREADY_EXISTS` lors de la création du code Vestiaire : la table D1 du relais LINK n'acceptait que `gaming` et `rituel` dans la colonne `source_app`, tandis que le Worker acceptait déjà `vestiaire`. Ce n'était **pas** une vraie collision de code.
+
+Le 11/11/2026, la migration `bridge/migrations/0002_vestiaire.sql` a été exécutée en production : trois connexions et 40 messages chiffrés existants conservés, `PRAGMA foreign_key_check` OK. Le Worker LINK signale désormais correctement les autres erreurs. **Aucun vidage de NEXUS, aucune réinstallation et aucune révocation Gaming/Rituel nécessaires.**
+
+Test de recette restant : appuyer à nouveau sur **Créer la connexion Vestiaire** ; le code privé doit apparaître. Le copier uniquement dans Vestiaire et **ne pas envoyer de capture montrant le code**. Si une erreur `PAIR_LIMIT` survient après trop de tentatives, le signaler sans effacer d'autres connexions.
