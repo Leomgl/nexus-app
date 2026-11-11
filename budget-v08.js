@@ -168,7 +168,7 @@
  // Recettes automatiquement reportées dans le Journal, mais jamais certifiées par une banque.
  // Toutes les clés de récurrence existantes restent les identifiants de dédoublonnage.
  const isoDate=value=>{
-  if(typeof value!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
   const d=new Date(value+'T12:00:00Z');
   return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;
  };
@@ -200,12 +200,17 @@
  async function autoPostIncome({redraw=true,at=new Date()}={}){
   if(autoIncomeBusy||!autoIncomeReady)return {created:0,busy:autoIncomeBusy};
   autoIncomeBusy=true;
-  let created=[];
+  let created=[],ambiguous=0;
   try{
    for(const occurrence of autoIncomeCandidates(data,at)){
     if(data.transactions.some(tx=>tx.recurrenceId===occurrence.rule.id&&tx.occurrenceKey===occurrence.identity))continue;
-    const now=new Date().toISOString();
     const r=occurrence.rule;
+    // Don't silently double a salary already entered manually without a recurrence link.
+    const potentialDuplicate=data.transactions.some(tx=>tx.type==='income'&&!tx.recurrenceId&&
+      tx.date===occurrence.date&&tx.amountCents===r.amountCents&&
+      normalizeName(tx.title)===normalizeName(r.title));
+    if(potentialDuplicate){ambiguous++;continue;}
+    const now=new Date().toISOString();
     const entry={id:uid(),title:r.title,type:'income',amountCents:r.amountCents,
      category:r.category||'Salaire',date:occurrence.date,projectId:r.projectId||'',
      recurrenceId:r.id,occurrenceKey:occurrence.identity,
@@ -215,7 +220,10 @@
     data.transactions.push(entry);
     created.push(entry);
    }
-   if(!created.length)return {created:0};
+   if(!created.length){
+    if(ambiguous)toast(ambiguous+' recette(s) similaires déjà saisies : vérifie puis confirme/ignore l’échéance manuellement.');
+    return {created:0,ambiguous};
+   }
    await persist();
    const verified=await autoIncomeVerify?.(created);
    if(verified!==true){
