@@ -1,11 +1,23 @@
-# NEXUS — Second cerveau personnel (V0.20.1 · Budget avancé)
+# NEXUS — Second cerveau personnel (V0.21.0 · Vestiaire contextuel)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
-> La suite ci-dessous contient aussi des notes d'anciennes versions ; la section V0.20 et le dossier de reprise font foi pour l'état actuel.
+> La suite ci-dessous contient aussi des notes d'anciennes versions ; la section V0.21 et le dossier de reprise font foi pour l'état actuel.
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
+
+## Version V0.21.0 — Vestiaire contextuel (11 novembre 2026)
+
+**NEXUS × Vestiaire :** propositions de tenues adaptées aux événements Agenda et à la météo Pulse, dans un widget **Tenue du jour** configurable. Classement local selon restaurant, travail, soirée, sortie, sport et voyage, sans IA distante payante.
+
+Vestiaire V0.6 conserve le dressing, les images, la disponibilité et le mannequin. Après jumelage et consentement, il envoie via NEXUS LINK chiffré au plus 24 **résumés de looks** : identifiant, nom, occasion, style, disponibilité et niveau de chaleur. **Aucune photo ni pièce détaillée, aucun contact et aucun événement NEXUS ne sont envoyés vers Vestiaire.** L'envoi automatique est désactivé par défaut, uniquement quand Vestiaire est ouverte.
+
+Depuis NEXUS, on peut **choisir une tenue pour un RDV** et la retrouver sur sa fiche Agenda, puis ouvrir son look dans Vestiaire. Le choix ne modifie **pas** le planning de Vestiaire automatiquement. Aucune dépense ni tâche n'est créée.
+
+**Mise à jour technique :** NEXUS et Vestiaire intégrés sur GitHub. Workers Cloudflare concernés mis à jour avec bindings existants préservés, sans nouvelle base ni offre payante. Tests automatiques réussis mais validation du jumelage et du rendu sur iPhone encore nécessaire.
+
+[Spécification et recette V0.21](docs/VESTIAIRE-V021.md) · [Dossier de reprise](docs/PROJECT-HANDOFF.md)
 
 ## Version V0.20.1 — Budget avancé (11 novembre 2026)
 
