@@ -153,6 +153,7 @@
    budget:()=>budgetWidget(d,p),
    focus:()=>focusWidget(d),
    links:()=>connectionsWidget(d,p),
+   outfit:()=>window.NexusVestiaire?.widget?.()||'',
    recent:()=>recentWidget(d)
   };
   const blocks=Array.isArray(selected)?selected.filter(id=>typeof options[id]==='function'):[];
