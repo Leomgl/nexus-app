@@ -184,7 +184,9 @@
   db().vestiaireSelections=before.filter(x=>x.eventId!==eventId);
   await api.persist();
   if(!await api.verify('removedSelection',eventId)){db().vestiaireSelections=before;await api.persist();return api.toast('Impossible de retirer la sélection.');}
-  api.safeRender?.();api.toast('Tenue retirée du rendez-vous.');
+  api.safeRender?.();
+  if(typeof document!=='undefined'&&document.querySelector('.modal-overlay'))api.showEvent?.(eventId);
+  api.toast('Tenue retirée du rendez-vous.');
  }
  async function revoke(){
   const p=pair();if(!p)return;
