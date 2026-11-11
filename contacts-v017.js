@@ -1,7 +1,7 @@
 (function nexusContactsV017(){
  'use strict';
  let adapter=null,pending=null,picker=null,photoPicker=null,photoTarget=null;
- const MAX_BYTES=8*1024*1024,MAX_CONTACTS=5000,MAX_IMAGE_BYTES=5*1024*1024;
+ const MAX_BYTES=20*1024*1024,MAX_CONTACTS=5000,MAX_IMAGE_BYTES=5*1024*1024;
  const MAX_PHOTO_CHARS=16000,MAX_TOTAL_PHOTO_CHARS=1600000,MAX_PHOTO_IMPORT=250;
  const LETTERS='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
  const state={query:'',onlyFavorites:false,tag:'',sort:'az'};
@@ -180,9 +180,9 @@
  }
  function photoData(value,type){
   const v=String(value||'').trim();
-  if(/^data:image\/(?:jpeg|png|webp);base64,/i.test(v)&&v.length<MAX_IMAGE_BYTES*1.4)return v;
+  if(/^data:image\/(?:jpeg|png|webp|heic|heif);base64,/i.test(v)&&v.length<MAX_IMAGE_BYTES*1.4)return v;
   if(!/^[A-Za-z0-9+/\s=]+$/.test(v)||v.length>MAX_IMAGE_BYTES*1.4)return '';
-  const mime=/PNG/i.test(type)?'image/png':/WEBP/i.test(type)?'image/webp':'image/jpeg';
+  const mime=/PNG/i.test(type)?'image/png':/WEBP/i.test(type)?'image/webp':/HEIC/i.test(type)?'image/heic':/HEIF/i.test(type)?'image/heif':'image/jpeg';
   return `data:${mime};base64,${v.replace(/\s/g,'')}`;
  }
  function parseVcards(source){
@@ -237,7 +237,7 @@
  }
  function resizePhoto(raw){
   return new Promise(resolve=>{
-   if(!raw||raw.length>MAX_IMAGE_BYTES*1.4||!/^data:image\/(?:jpeg|png|webp);base64,/i.test(raw)){resolve('');return;}
+   if(!raw||raw.length>MAX_IMAGE_BYTES*1.4||!/^data:image\/(?:jpeg|png|webp|heic|heif);base64,/i.test(raw)){resolve('');return;}
    if(typeof Image==='undefined'||typeof document==='undefined'){resolve('');return;}
    const img=new Image();
    img.onload=()=>{
@@ -260,13 +260,13 @@
   photoTarget=id;
   if(!photoPicker){
    photoPicker=document.createElement('input');
-   photoPicker.type='file';photoPicker.accept='image/jpeg,image/png,image/webp,image/*';photoPicker.hidden=true;
+   photoPicker.type='file';photoPicker.accept='image/*,.heic,.heif';photoPicker.hidden=true;
    document.body.appendChild(photoPicker);
    photoPicker.addEventListener('change',async()=>{
     const f=photoPicker.files?.[0];photoPicker.value='';const id=photoTarget;
     if(!f||!id)return;
     if(f.size>MAX_IMAGE_BYTES){adapter.toast('Image trop lourde (5 Mo maximum).');return;}
-    if(!/^image\/(jpeg|png|webp)$/.test(f.type)){adapter.toast('Utilise une photo JPEG, PNG ou WebP.');return;}
+    if(!/^image\/(jpeg|png|webp|heic|heif)$/.test(f.type)){adapter.toast('Format non pris en charge : JPEG, PNG, WebP ou HEIC.');return;}
     try{
      const raw=await new Promise((resolve,reject)=>{
       const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(f);
@@ -292,7 +292,7 @@
     const f=picker.files?.[0];picker.value='';pending=null;
     if(!f)return;
     try{
-     if(f.size>MAX_BYTES)throw Error('Fichier trop volumineux : 8 Mo maximum.');
+     if(f.size>MAX_BYTES)throw Error('Fichier trop volumineux : 20 Mo maximum.');
      const parsed=parseVcards(await f.text());
      if(!parsed.length)throw Error('Aucune fiche reconnue dans ce fichier.');
      const newOnes=[],photoUpdates=[],seen=[];
