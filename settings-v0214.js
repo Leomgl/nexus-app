@@ -53,9 +53,11 @@
       '<div class="slots-visual"><span>'+ico('home')+' Accueil</span><span>'+ico('grid')+' Catégories</span><span class="custom-slot">'+ico(m1[1])+' '+e(m1[2])+'</span><span class="custom-slot">'+ico(m2[1])+' '+e(m2[2])+'</span><span>'+ico('sliders')+' Réglages</span></div>'+
       '<div class="pref-select-grid">'+chooseSlot(1)+chooseSlot(2)+'</div><p class="pref-hint">Un même module ne peut pas occuper les deux raccourcis : Nexus échange les emplacements.</p>');
     const appearance=panel('Apparence','Personnalise le confort de lecture.','sparkle',
-      '<div class="pref-select-grid"><label class="ui-select"><span>Palette</span><select data-pref-option="theme"><option value="sage"'+(env.UI.theme==='sage'?' selected':'')+'>Sauge · naturel</option><option value="slate"'+(env.UI.theme==='slate'?' selected':'')+'>Ardoise · contrasté</option></select></label>'+
-      '<label class="ui-select"><span>Densité</span><select data-pref-option="density"><option value="comfortable"'+(env.UI.density==='comfortable'?' selected':'')+'>Confortable</option><option value="compact"'+(env.UI.density==='compact'?' selected':'')+'>Compacte</option></select></label></div>'+
-      '<p class="pref-hint">Mode sombre à venir après vérification des contrastes sur tous les modules.</p>');
+      '<span class="nx-set-mini-label">Palette · aperçu instantané</span><div class="nx-set-theme-grid">'+
+      '<button type="button" class="nx-set-theme nx-set-theme-sage'+(env.UI.theme==='sage'?' selected':'')+'" data-action="settings-theme" data-theme="sage" aria-pressed="'+(env.UI.theme==='sage')+'"><span class="nx-set-theme-preview"><b></b><i></i><i></i></span><strong>Sauge</strong><small>Naturel</small></button>'+
+      '<button type="button" class="nx-set-theme nx-set-theme-slate'+(env.UI.theme==='slate'?' selected':'')+'" data-action="settings-theme" data-theme="slate" aria-pressed="'+(env.UI.theme==='slate')+'"><span class="nx-set-theme-preview"><b></b><i></i><i></i></span><strong>Ardoise</strong><small>Contrasté</small></button></div>'+
+      '<div class="pref-select-grid"><label class="ui-select"><span>Densité</span><select data-pref-option="density"><option value="comfortable"'+(env.UI.density==='comfortable'?' selected':'')+'>Confortable</option><option value="compact"'+(env.UI.density==='compact'?' selected':'')+'>Compacte</option></select></label></div>'+
+      '<p class="pref-hint">Choisis une palette pour voir immédiatement le résultat. Mode sombre à venir après vérification des contrastes.</p>');
     const widgetRows=widgets.map(id=>{
       const w=env.HOME_WIDGETS.find(x=>x[0]===id),enabled=env.UI.widgets.includes(id),i=env.UI.widgets.indexOf(id);
       if(!w)return '';
@@ -159,6 +161,11 @@
       body+'<p class="nx-set-footer">NEXUS · V'+e(env.version)+'</p></div>';
   }
   function act(kind,target){
+    if(kind==='settings-theme'){
+      const value=target?.dataset?.theme;
+      if(['sage','slate'].includes(value)){env.UI.theme=value;env.saveUI?.();}
+      return true;
+    }
     if(kind!=='settings-open')return false;
     const next=target?.dataset?.page;
     if(next!=='home'&&!routes.some(x=>x.id===next))return true;
