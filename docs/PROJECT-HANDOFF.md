@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.21.3 Notifications contextuelles** (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+> Version du code : **V0.21.4 Réglages réorganisés** (incluant V0.21.3 Notifications contextuelles) (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -155,3 +155,13 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - `push-client.js` transmet à Cloudflare **uniquement** `id,kind,fireAt`, et écrit localement une table `nexus_push_context_v1` dans la même IndexedDB. `sw.js` résout les détails sur l'iPhone via `tag=nexus-<prefix>`. Une nouvelle option `showDetails` OFF par défaut contrôle l'exposition sur écran verrouillé ; `budgetEnabled` autorise les échéances récurrentes. Pas de nouveaux secrets ni de migration D1 : budget utilise `kind:'task'` pour compatibilité de transport avec le CHECK SQL existant.
 - Nouveau champ additif `recurrence.notifyDays`, optionnel. Édition de chaque règle Budget sans migration. Les anciennes règles utilisent virtuellement `[2,0]`, sans écriture préalable.
 - `index.html`, `app.js`, `sw.js` et tests incrémentés à 0.21.3. **Vérifier l'arrivée effective des notifications PWA iOS et le rendu des détails en essai réel** ; l'app peut recevoir un ancien job si la modification a été faite hors ligne. Documentation [PUSH-V0213.md](PUSH-V0213.md).
+
+### V0.21.4 — Réglages regroupés (11 novembre 2026)
+
+- Remplacement du long écran Réglages par un accueil à **six rubriques**, recherche locale sans accent et sous-pages : Interface, Notifications, Applications connectées, Sécurité, Données, À propos.
+- `settings-v0214.js/css` contient le nouvel écran et ses styles iPhone. `app.js` délègue l'affichage à ce module ; l'ancien `legacySettingsView()` est conservé comme fallback. Tous les `data-action` existants sont réutilisés, sans migration.
+- Gaming/Rituel affichés séparément via `NexusConnections.settingsCard(appId)`, voyages Rituel dans Rituel, Vestiaire dans Vestiaire, Connect 2.0 dans Automatisations. Santé est seulement un emplacement futur, **aucune intégration fictive**.
+- Constante de version UI `NEXUS_VERSION='0.21.4'` ; indicateur HTML alimenté dynamiquement ; Service Worker cache `nexus-v0.21.4` ; fichiers versionnés dans index et SW.
+- Tests ajoutés dans `tests/settings-v0214.test.cjs` ; tests de cache existants alignés. Validation syntaxique, des 13 vues/sous-vues et du cache effectuée ; **vraie recette Safari iOS toujours attendue**.
+- Aucune modification des objets métier, IndexedDB, préférences existantes, coffre, passkeys, push, Workers Cloudflare. Ne pas désinstaller Nexus pour rafraîchir.
+- Documentation : [SETTINGS-V0214.md](SETTINGS-V0214.md).
