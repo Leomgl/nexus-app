@@ -755,3 +755,21 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
 .nx-gaming-approve input,.nx-gaming-approve select,.nx-gaming-approve textarea{width:100%;max-width:100%;padding:10px;border-radius:9px;border:1px solid var(--nx-border,#ccc);background:var(--nx-card,#fff);color:var(--nx-ink,#222)}
 .nx-gaming-approve textarea{min-height:80px}
 @media(max-width:690px){.nx-gaming-proposals{max-height:49dvh}.nx-gaming-stats{gap:4px}.nx-gaming-stats>div{padding:9px}}
+
+/* V0.16 — contacts, inline creation and iOS vCard preview */
+.contacts-header-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.contacts-import-hint{margin-bottom:20px;font-size:12px;line-height:1.6}
+.contact-field .inline-contact-toggle{align-self:flex-start;margin-top:8px}
+.inline-contact-create{border:1px solid var(--nx-border,#dbe5d9);background:var(--nx-card-alt,#f4f7f2);border-radius:14px;padding:14px;display:grid;gap:10px;margin-top:10px}
+.inline-contact-create[hidden]{display:none!important}
+.inline-contact-create .field-grid{gap:10px}
+.contacts-quick-actions{flex-wrap:wrap}
+.contacts-import-review{display:grid;gap:14px}
+.contacts-import-preview{display:grid;gap:7px;max-height:46dvh;overflow:auto}
+.contacts-import-preview>div{border:1px solid var(--nx-border,#ddd);border-radius:10px;padding:10px 12px;display:grid;gap:4px}
+.contacts-import-preview small{color:var(--nx-muted,#637168);overflow-wrap:anywhere}
+@media(max-width:650px){
+ .contacts-header-actions{width:100%}
+ .contacts-header-actions .btn{flex:1 1 120px;justify-content:center}
+ .contacts-import-review .form-actions{flex-wrap:wrap}
+}
