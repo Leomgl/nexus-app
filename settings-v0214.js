@@ -24,7 +24,7 @@
     {id:'app:gaming',label:'Gaming',detail:'Jumelage, permissions et propositions',keywords:'jeu saison pass achats'},
     {id:'app:rituel',label:'Rituel',detail:'Jumelage, achats et voyages',keywords:'trousse produits week-end'},
     {id:'app:vestiaire',label:'Vestiaire',detail:'Catalogue de tenues et jumelage',keywords:'vêtement look dressing'},
-    {id:'app:health',label:'Santé',detail:'Future intégration Nexus LINK',keywords:'rendez-vous santé médical'},
+    {id:'app:health',label:'Santé',detail:'Traitements du jour et Agenda Nexus',keywords:'rendez-vous santé médical traitement jumelage'},
     {id:'apps-automation',label:'Synchronisation et automatisations',detail:'Réception et dépenses autorisées',keywords:'connect 2.0 automatique gaming rituel'},
     {id:'data-advanced',label:'Réinitialisations par module',detail:'Actions de maintenance sensibles',keywords:'effacer vider suppression'}
   ];
@@ -89,15 +89,14 @@
       link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Jumelé':'Non jumelé')+
       link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Jumelé':'Non jumelé')+
       link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Jumelé':'Non jumelé')+
-      link('Santé','Base santé spécialisée · intégration à préparer','shield','app:health','À venir')+
+      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Jumelé':'Non jumelé')+
       '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Seules les informations autorisées transitent par Nexus LINK.</p>')+
       panel('Automatisations','Décide ce qui est reçu ou inscrit au Budget.','refresh',
         '<div class="nx-set-app-list">'+link('Connect 2.0','Réception et inscriptions budgétaires autorisées','sliders','apps-automation')+'</div>')+'</div>';
   }
   function appPage(id){
     if(id==='health'){
-      return panel('Santé × Nexus','Connexion dédiée à venir.','shield',
-      '<div class="info-strip">'+ico('info')+' Nexus restera le cockpit ; Santé conservera les données médicales détaillées. Aucun partage santé n’est activé par cet écran.</div>');
+      return '<div class="nx-set-stack">'+(window.NexusSanteBridge?.settingsCard?.()||panel('Santé','Module en chargement.','shield',''))+'</div>';
     }
     if(id==='vestiaire')return '<div class="nx-set-stack">'+(window.NexusVestiaire?.settingsCard?.()||panel('Vestiaire','Module indisponible.','users',''))+'</div>';
     if(id==='gaming'||id==='rituel'){
