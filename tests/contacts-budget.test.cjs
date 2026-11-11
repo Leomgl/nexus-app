@@ -115,7 +115,7 @@ test('safe replacement matches old IDs, preserves favorites and keeps missing co
   'BEGIN:VCARD','FN:Bastien','EMAIL:bastien@example.fr','END:VCARD',
   'BEGIN:VCARD','FN:Émilie','TEL:+33603030303','END:VCARD',
   'BEGIN:VCARD','FN:Alice','TEL:+33601010101','END:VCARD'
- ].join('\\r\\n');
+ ].join('\r\n');
  const parsed=window.NexusContacts.parseVcards(vcard);
  const plan=window.NexusContacts.planReimport(parsed);
  assert.equal(plan.updates.length,2);
