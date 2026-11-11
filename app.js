@@ -338,6 +338,15 @@ function eventRemindersField(obj){
 
 const projectStatus={active:'En cours',paused:'En pause',completed:'Terminé'};
 const purchaseStatus={planned:'À acheter',purchased:'Acheté',canceled:'Abandonné'};
+function registerPurchaseExpense(p){
+ if(!p||p.status!=='purchased'||data.transactions.some(t=>t.purchaseId===p.id))return false;
+ if(!Number.isSafeInteger(p.priceCents)||p.priceCents<=0)return false;
+ const now=new Date().toISOString();
+ data.transactions.push({id:uid(),title:p.title,type:'expense',amountCents:p.priceCents,
+  date:p.purchasedAt||dateKey(new Date()),category:p.category||'Shopping',
+  projectId:p.projectId||'',noteId:p.noteId||null,purchaseId:p.id,createdAt:now,updatedAt:now});
+ return true;
+}
 const txCategories=['Courses','Transport','Maison','Loisirs','Santé','Abonnements','Shopping','Équipement','Autres','Salaire','Vente'];
 function projectMini(p){
  const tasks=projectTasks(p.id),done=tasks.filter(t=>t.done).length,percent=tasks.length?Math.round(100*done/tasks.length):0;
@@ -476,8 +485,9 @@ function extraCaptureForm(kind,obj={},context={}){
   <div class="field"><label for="f-priority">Priorité</label><select name="priority" id="f-priority">${[[1,'Normale'],[2,'Importante'],[3,'Urgente']].map(([k,v])=>`<option value="${k}" ${Number(obj.priority||1)===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
   ${input('Boutique / lien (facultatif)','shop',obj.shop||'','text','maxlength="250"')}
   ${projectField(obj.projectId||inheritedProjectId||'')}
+  <div class="field"><label for="f-purchaseCategory">Catégorie budget (lorsque acheté)</label><select name="category" id="f-purchaseCategory">${window.NexusBudget?.categoryOptions?.(obj.category||'Shopping',!!obj.id)||txCategories.map(c=>`<option value="${escapeHtml(c)}" ${(obj.category||'Shopping')===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select></div>
   <div class="field"><label for="f-status">État</label><select name="status" id="f-status">${Object.entries(purchaseStatus).map(([key,label])=>`<option value="${key}" ${obj.status===key?'selected':''}>${label}</option>`).join('')}</select></div>
-  <div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details">${escapeHtml(obj.details||'')}</textarea></div>`;
+  <div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details">${escapeHtml(obj.details||'')}</textarea></div><p class="muted-note">Passer à « Acheté » crée une dépense liée au prix. Une dépense existante reste dans l’historique si tu modifies l’achat.</p>`;
  }
  if(kind==='transaction'){
   title=existing?'Modifier l’opération':'Nouvelle opération';
@@ -502,6 +512,7 @@ function extraCaptureForm(kind,obj={},context={}){
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const v=Object.fromEntries(new FormData(form).entries());
+  let linkedExpenseCreated=false;
   if(kind==='limit'){
    const cents=v.limitEuros.trim()?toCents(v.limitEuros):0;
    if(cents===null){toast('Montant invalide : utilise 25,50 par exemple.');return;}
@@ -523,6 +534,7 @@ function extraCaptureForm(kind,obj={},context={}){
     const cents=v.priceEuros.trim()?toCents(v.priceEuros):null;
     if(cents===null&&v.priceEuros.trim()){toast('Prix invalide');return;}
     base.priceCents=cents;
+    if(base.status==='purchased'&&!data.transactions.some(t=>t.purchaseId===base.id)&&(!Number.isSafeInteger(cents)||cents<=0)){toast('Un achat effectué doit avoir un prix positif pour créer sa dépense.');return;}
     base.noteId=obj.noteId||context.noteId||null;
     base.priority=Number(v.priority)||1;
     if(base.status==='purchased'&&!base.purchasedAt)base.purchasedAt=dateKey(new Date());
@@ -552,9 +564,10 @@ function extraCaptureForm(kind,obj={},context={}){
    const key={project:'projects',purchase:'purchases',transaction:'transactions'}[kind];
    const ix=data[key].findIndex(x=>x.id===base.id);
    if(ix>=0)data[key][ix]=base;else data[key].push(base);
+   if(kind==='purchase'&&base.status==='purchased')linkedExpenseCreated=registerPurchaseExpense(base);
   }
   await persist();closeModal();render();
-  toast(existing?'Modifications enregistrées':'Enregistré dans NEXUS');
+  toast(linkedExpenseCreated?'Achat enregistré : dépense ajoutée au budget.':existing?'Modifications enregistrées':'Enregistré dans NEXUS');
   if(context.noteId&&['purchase','project','transaction'].includes(kind))noteDetail(context.noteId);
   if(kind==='limit')navTo('budget');
  });
@@ -912,7 +925,16 @@ document.addEventListener('click',async event=>{
   if(kind==='purchase-from-note'){const n=data.notes.find(x=>x.id===id);if(n)extraCaptureForm('purchase',{}, {noteId:id,projectId:n.projectId||''});}
  if(kind==='mark-purchased'){
   const p=data.purchases.find(x=>x.id===id);
-  if(p){p.status='purchased';p.purchasedAt=dateKey(new Date());p.updatedAt=new Date().toISOString();await persist();render();purchaseDetail(id);toast('Achat marqué comme effectué');}
+  if(p){
+   if(!Number.isSafeInteger(p.priceCents)||p.priceCents<=0){
+    toast('Renseigne un prix pour ajouter cet achat aux dépenses.');
+    extraCaptureForm('purchase',{...p,status:'purchased'});return;
+   }
+   p.status='purchased';p.purchasedAt=p.purchasedAt||dateKey(new Date());p.updatedAt=new Date().toISOString();
+   const added=registerPurchaseExpense(p);
+   await persist();render();purchaseDetail(id);
+   toast(added?'Achat effectué : dépense enregistrée dans le budget.':'Achat marqué comme effectué.');
+  }
  }
  if(kind==='expense-from-purchase'){
   const p=data.purchases.find(x=>x.id===id);
