@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.21.0 Vestiaire contextuel** (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+> Version du code : **V0.21.1 Vestiaire contextuel** (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -30,7 +30,7 @@
 
 **Pulse V0.18.0** : nouveau `pulse-v018.js` et `pulse-v018.css`, priorités du jour, météo Open-Meteo, budget du mois, projet, propositions inter-app et activité récente. Widgets contrôlés par `UI.widgets` dans `app.js`. Voir [PULSE-V018.md](PULSE-V018.md).
 
-**Vestiaire V0.6 / NEXUS V0.21** : connexion dédiée `vestiaire → nexus` utilisant le scope LINK `outfit_catalog`, transfert chiffré **uniquement de résumés de tenues** (nom, ID, occasion, style, disponibilité, chaleur), sans photos, vêtements détaillés, mannequin ou agenda. Jumelage et envoi **explicitement autorisés**, auto-envoi désactivé par défaut. NEXUS affiche jusqu'à trois propositions dans Pulse selon le prochain RDV éligible (72 h), la météo Pulse en cache et les tenues disponibles ; choix local associé à l'événement, **sans changement du planning VESTIAIRE**. Nouveau `vestiaire-v021.js/css`, `vestiaireCatalogs[]`, `vestiaireSelections[]`, widget `outfit`. Backend NEXUS et LINK + Worker d'hébergement Vestiaire mis à jour en conservant les bindings. Consulter [VESTIAIRE-V021.md](VESTIAIRE-V021.md). Tests automatisés réussis, mais recette iPhone inter-PWA toujours nécessaire.
+**Vestiaire V0.6 / NEXUS V0.21.1** : connexion dédiée `vestiaire → nexus` utilisant le scope LINK `outfit_catalog`, transfert chiffré **uniquement de résumés de tenues** (nom, ID, occasion, style, disponibilité, chaleur), sans photos, vêtements détaillés, mannequin ou agenda. Jumelage et envoi **explicitement autorisés**, auto-envoi désactivé par défaut. NEXUS affiche jusqu'à trois propositions dans Pulse selon le prochain RDV éligible (72 h), la météo Pulse en cache et les tenues disponibles ; choix local associé à l'événement, **sans changement du planning VESTIAIRE**. Nouveau `vestiaire-v021.js/css`, `vestiaireCatalogs[]`, `vestiaireSelections[]`, widget `outfit`. Backend NEXUS et LINK + Worker d'hébergement Vestiaire mis à jour en conservant les bindings. Consulter [VESTIAIRE-V021.md](VESTIAIRE-V021.md). Tests automatisés réussis, mais recette iPhone inter-PWA toujours nécessaire.
 
 **Rituel/Gaming** : dépôts séparés, ne pas inventer de flux au-delà de leurs contrats Connect 2.0 existants.
 
@@ -120,3 +120,9 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - 0.21 ne prétend pas synchroniser en temps réel lorsque les PWA sont fermées. Aucun Web Push supplémentaire.
 - À la première reprise : récupérer `main` à jour, lire [VESTIAIRE-V021.md](VESTIAIRE-V021.md), vérifier CI des deux dépôts, version servie sur les PWA, puis faire recette iPhone. Ne pas supprimer les PWA ou leur IndexedDB.
 - Sécurité : l'invitation LINK et les préférences Vestiaire contenant la graine de jumelage sont incluses dans des sauvegardes `.vestiaire` en clair ; conserver ces exports hors de portée de tiers. Les données IndexedDB NEXUS restent non chiffrées au repos.
+
+### Hotfix V0.21.1
+
+- Lorsqu'une tenue est retirée depuis la fiche Agenda ouverte, la fiche est immédiatement rafraîchie pour ne plus afficher l'ancienne sélection.
+- Numéro affiché et assets JS de NEXUS versionnés `0211`, Service Worker `nexus-v0.21.1` ; ne jamais désinstaller la PWA pour actualiser.
+- [Issue recette réelle #5](https://github.com/Leomgl/nexus-app/issues/5) et [future V0.22 Command Center #6](https://github.com/Leomgl/nexus-app/issues/6).
