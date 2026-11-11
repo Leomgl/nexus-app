@@ -1,8 +1,14 @@
-# NEXUS — Second cerveau personnel (V0.21.3 · Notifications contextuelles)
+# NEXUS — Second cerveau personnel (V0.21.4 · Réglages réorganisés)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
 > La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.21.2 et le dossier de reprise font foi pour l'état actuel.
+
+## V0.21.4 — Centre Réglages simplifié
+
+**Six rubriques** remplacent l'empilement historique des préférences : interface et widgets, notifications, applications connectées, sécurité, données/sauvegardes et À propos. Recherche instantanée locale insensible aux accents ; sous-pages compactes compatibles iPhone. Gaming, Rituel, Vestiaire et Connect 2.0 sont regroupés sans modifier leurs jumelages ni leurs autorisations. Santé reste indiquée comme intégration future, sans connexion active. Version affichée fournie par une seule constante de l'interface ; cache PWA v0.21.4. Aucun changement d'IndexedDB, du coffre, des Workers ou des objets métier.
+
+**Tests syntaxiques et vérifications de structure effectués ; recette finale sur iPhone requise.** [Documentation et checklist V0.21.4](docs/SETTINGS-V0214.md).
 
 ## V0.21.3 — FORGE #5 · Notifications adaptées au contexte
 
