@@ -52,7 +52,8 @@
       <label class="nx-contact-select nx-contact-sort"><span class="sr-only">Trier par</span><select id="nx-contact-sort" aria-label="Trier les contacts">${[['az','A → Z'],['za','Z → A'],['favorites','Favoris d’abord'],['recent','Ajouts récents']].map(([v,l])=>`<option value="${v}" ${state.sort===v?'selected':''}>${l}</option>`).join('')}</select></label>
      </div>
     </div>
-    <div class="nx-contact-count" id="nx-contact-count" aria-live="polite"></div>
+    <div class="nx-contact-count-row"><span class="nx-contact-count" id="nx-contact-count" aria-live="polite"></span>
+ <button type="button" class="nx-contact-manage" data-action="contacts-manage">${icon('sliders')} Gérer le carnet</button></div>
     <div class="nx-contact-browser">
       <div id="nx-contacts-results" class="nx-contact-results"></div>
       <nav id="nx-contact-index" class="nx-contacts-index" aria-label="Accès alphabétique"></nav>
@@ -156,6 +157,15 @@
    c.favorite=!c.favorite;c.updatedAt=new Date().toISOString();
    await adapter.persist();adapter.render();detail(c.id);return true;
   }
+  if(action==='contacts-manage'){showManage();return true;}
+  if(action==='contacts-replace'){openImport('replace');return true;}
+  if(action==='contacts-clear'){
+   if(!window.NexusRecycle?.resetModule){adapter.toast('Réinitialisation indisponible.');return true;}
+   adapter.closeModal();
+   await window.NexusRecycle.resetModule('contacts');
+   return true;
+  }
+  if(action==='contacts-backup'){adapter.exportJson?.();return true;}
   if(action==='contacts-set-photo'){openPhotoPicker(el.dataset.id);return true;}
   if(action==='contacts-remove-photo'){
    const c=contacts().find(x=>x.id===el.dataset.id);if(!c)return true;
@@ -283,7 +293,65 @@
   }
   photoPicker.click();
  }
- function openImport(){
+function showManage(){
+ const count=contacts().length;
+ adapter.modal('Gérer le carnet',`<div class="nx-contact-manage-panel">
+  <p class="muted-note">${count} contact(s) actuellement enregistrés. Pour récupérer les photos depuis l'iPhone, privilégie le réimport complet : tes rendez-vous et rappels conserveront leurs liens.</p>
+  <div class="nx-contact-manage-option">
+   <strong>${icon('upload')} Réimporter et remplacer</strong>
+   <p>Relit toutes les fiches du fichier .vcf, complète les photos, évite les doublons, conserve les favoris et les liens des contacts reconnus. Les contacts absents du fichier seront placés dans la corbeille.</p>
+   <button type="button" class="btn btn-small" data-action="contacts-replace">Choisir un fichier .vcf</button>
+  </div>
+  <div class="nx-contact-manage-option">
+   <strong>${icon('download')} Exporter ma sauvegarde</strong>
+   <p>Télécharge un JSON contenant ton carnet et les autres données NEXUS. Conserve ce fichier en lieu sûr : il n'est pas chiffré.</p>
+   <button type="button" class="btn btn-neutral btn-small" data-action="contacts-backup">Exporter NEXUS</button>
+  </div>
+  <div class="nx-contact-manage-option is-danger">
+   <strong>${icon('trash')} Vider tous les contacts</strong>
+   <p>Déplace les fiches dans la corbeille. Une nouvelle importation recréera des identifiants et pourra rompre les liens existants avec l'agenda et les rappels.</p>
+   <button type="button" class="btn btn-danger btn-small" data-action="contacts-clear" ${count?'':'disabled'}>Vider le carnet</button>
+  </div>
+ </div>`);
+}
+function planReimport(parsed){
+ const before=contacts(),seenOld=new Set(),newOnes=[],updates=[];
+ let duplicateCount=0;
+ for(const item of parsed){
+  const existing=findDuplicate(item,before.filter(c=>!seenOld.has(c.id)));
+  if(existing){seenOld.add(existing.id);updates.push({old:existing,from:item});continue;}
+  if(findDuplicate(item,newOnes)){duplicateCount++;continue;}
+  newOnes.push(item);
+ }
+ const removed=before.filter(c=>!seenOld.has(c.id));
+ return {mode:'replace',newOnes,updates,removed,duplicateCount};
+}
+async function buildReimportRecords(job,now){
+ let usage=0,photoCount=0,photos=0;
+ const records=[],included=new Set(),generated=[];
+ async function make(from,old){
+  const {photoRaw,...fields}=from;
+  const record=old?{...old}:{id:adapter.uid(),createdAt:now,favorite:false,tags:[]};
+  for(const key of ['name','phone','email','role','organization','address']){
+   if(typeof fields[key]==='string'&&fields[key].trim())record[key]=fields[key];
+  }
+  if(!old){record.notes=fields.notes||'';record.tags=Array.isArray(fields.tags)?fields.tags.slice(0,8):[];}
+  else{
+   if(!record.notes&&fields.notes)record.notes=fields.notes;
+   if(!Array.isArray(record.tags)||!record.tags.length)record.tags=Array.isArray(fields.tags)?fields.tags.slice(0,8):[];
+  }
+  let photo='';
+  if(photoRaw&&photoCount<MAX_PHOTO_IMPORT){photoCount++;photo=await resizePhoto(photoRaw);}
+  if(!photo&&old&&validatePhoto(old.photo))photo=old.photo;
+  if(photo&&usage+photo.length<=MAX_TOTAL_PHOTO_CHARS){record.photo=photo;usage+=photo.length;if(photoRaw&&photo!==old?.photo)photos++;}
+  else delete record.photo;
+  record.updatedAt=now;return record;
+ }
+ for(const entry of job.updates){const record=await make(entry.from,entry.old);records.push(record);included.add(record.id);}
+ for(const entry of job.newOnes){if(findDuplicate(entry,generated))continue;const record=await make(entry,null);records.push(record);generated.push(entry);}
+ return {records,photos,photoLimit:photoCount};
+}
+ function openImport(mode='merge'){
   if(!adapter)return;
   if(!picker){
    picker=document.createElement('input');picker.type='file';picker.accept='.vcf,text/vcard,text/x-vcard';
@@ -295,32 +363,71 @@
      if(f.size>MAX_BYTES)throw Error('Fichier trop volumineux : 20 Mo maximum.');
      const parsed=parseVcards(await f.text());
      if(!parsed.length)throw Error('Aucune fiche reconnue dans ce fichier.');
-     const newOnes=[],photoUpdates=[],seen=[];
-     let duplicates=0;
+     const photoAvailable=parsed.filter(x=>Boolean(x.photoRaw)).length;
+     if(picker.dataset.mode==='replace'){
+      const plan=planReimport(parsed);
+      pending=plan;
+      adapter.modal('Réimporter tout le carnet',`<div class="contacts-import-review">
+       <p><strong>${parsed.length} fiches dans le fichier</strong> · ${plan.updates.length} contacts reconnus · ${plan.newOnes.length} nouveaux · ${plan.removed.length} absents du fichier</p>
+       <div class="info-strip">${photoAvailable?photoAvailable+' photo(s) intégrée(s) détectée(s).':'Aucune photo intégrée détectée : ce fichier ne permettra pas de récupérer les photos.'}</div>
+       <p class="muted-note">Les contacts reconnus gardent leurs identifiants, leurs favoris et leurs catégories. Les fiches absentes du .vcf iront dans la corbeille ; les liens vers elles redeviendront actifs si tu les restaures. Un export JSON complet sera proposé au moment de confirmer.</p>
+       <div class="contacts-import-preview">${plan.updates.slice(0,5).map(x=>`<div><strong>${esc(x.old.name)}</strong><small>Fiche préservée et actualisée</small></div>`).join('')}
+       ${plan.newOnes.slice(0,3).map(x=>`<div><strong>${esc(x.name)}</strong><small>Nouvelle fiche</small></div>`).join('')}</div>
+       <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
+       <button type="button" class="btn" data-action="contacts-import-confirm">Exporter et remplacer</button></div>
+      </div>`);
+      return;
+     }
+     const newOnes=[],photoUpdates=[],seen=[];let duplicates=0;
      for(const c of parsed){
       const existing=findDuplicate(c,contacts()),batch=findDuplicate(c,seen);
       if(existing){
        if(c.photoRaw&&!validatePhoto(existing.photo))photoUpdates.push({id:existing.id,photoRaw:c.photoRaw,name:existing.name});
        else duplicates++;
       }else if(batch)duplicates++;
-      else {newOnes.push(c);seen.push(c);}
+      else{newOnes.push(c);seen.push(c);}
      }
-     pending={newOnes,photoUpdates};
+     pending={mode:'merge',newOnes,photoUpdates};
      adapter.modal('Importer les contacts',`<div class="contacts-import-review">
       <p><strong>${parsed.length} fiches détectées</strong> · ${newOnes.length} nouvelles · ${photoUpdates.length} photos à ajouter · ${duplicates} déjà présentes</p>
       <p class="muted-note">Les contacts existants sont conservés. Si le fichier contient leurs photos, NEXUS peut les ajouter sans écraser les autres champs. Les images sont compressées avant sauvegarde.</p>
       <div class="contacts-import-preview">${newOnes.slice(0,6).map(c=>`<div><strong>${esc(c.name)}</strong><small>${esc(c.phone||c.email||'Nouveau contact')}</small></div>`).join('')}${photoUpdates.slice(0,4).map(c=>`<div><strong>${esc(c.name)}</strong><small>Photo à récupérer</small></div>`).join('')}</div>
       <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
-       ${newOnes.length||photoUpdates.length?`<button type="button" class="btn" data-action="contacts-import-confirm">Confirmer l’import</button>`:''}
+       ${newOnes.length||photoUpdates.length?'<button type="button" class="btn" data-action="contacts-import-confirm">Confirmer l’import</button>':''}
       </div></div>`);
     }catch(e){adapter.toast(e.message||'Fichier vCard illisible.');}
    });
   }
+  picker.dataset.mode=mode;
   picker.click();
  }
  async function confirmImport(){
   if(!adapter||!pending)return;
-  const job=pending;pending=null;
+  const job=pending;
+  if(job.mode==='replace'){
+   const word=window.prompt('Le carnet va être remplacé. Les fiches absentes du fichier iront dans la corbeille. Tape REMPLACER pour continuer.');
+   if(word!=='REMPLACER'){adapter.toast('Remplacement annulé.');return;}
+   // Generate a full local backup before changing IDs or moving contacts to trash.
+   adapter.exportJson?.();
+   pending=null;
+   const button=document.querySelector('[data-action="contacts-import-confirm"]');
+   if(button){button.disabled=true;button.textContent='Préparation du carnet…';}
+   try{
+    const now=new Date().toISOString();
+    const result=await buildReimportRecords(job,now);
+    // Build all rows before mutating the canonical data; maintain original IDs for recognized contacts.
+    if(job.removed.length){
+     adapter.state().trash.push({id:adapter.uid(),items:job.removed.map(record=>({key:'contacts',record:JSON.parse(JSON.stringify(record))})),
+       label:'Contacts absents du réimport',deletedAt:now,reason:'contacts-reimport'});
+    }
+    adapter.state().contacts=result.records;
+    await adapter.persist();
+    adapter.closeModal();adapter.render();
+    adapter.toast(`${result.records.length} contacts actualisés · ${result.photos} photo(s) récupérée(s).`);
+   }catch(e){adapter.toast(e?.message||'Réimport impossible : vérifie le carnet.');}
+   return;
+  }
+  pending=null;
   const button=document.querySelector('[data-action="contacts-import-confirm"]');
   if(button){button.disabled=true;button.textContent='Import en cours…';}
   let usage=photoUsage(),photoCount=0,added=0,enriched=0;
