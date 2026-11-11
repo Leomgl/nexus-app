@@ -59,7 +59,7 @@ async function pair(req,env,o){
  }catch(err){
   // Distinguish an actual duplicate UUID from schema/DB errors; never mislabel failures.
   const detail=String(err?.message||'');
-  const alreadyExists=/UNIQUE constraint failed:\\s*connections\\.id/i.test(detail);
+  const alreadyExists=/UNIQUE constraint failed:\s*connections\.id/i.test(detail);
   if(!alreadyExists)console.error('NEXUS LINK: failed to save pair',/CHECK constraint failed/i.test(detail)?'SCHEMA_CHECK':'DB_WRITE');
   return response({ok:false,error:alreadyExists?'PAIR_ALREADY_EXISTS':'PAIR_SAVE_FAILED'},alreadyExists?409:503,o);
  }
