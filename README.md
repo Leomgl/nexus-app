@@ -304,7 +304,7 @@ Aucune nouvelle base Cloudflare, aucun abonnement ou accès payant. **La validat
 - **Historique** : une fois la dépense créée, changer la catégorie, le prix ou le statut de l'achat ne modifie ni ne supprime la transaction historique ; le Journal reste le lieu pour corriger l'écriture.
 - **Agenda / Rappels** : création d'une nouvelle personne pendant la saisie, enregistrée et liée en une seule validation. Un doublon évident doit être sélectionné dans les contacts existants.
 - **Personnes** : nouvelles informations (organisation, adresse, notes), actions `tel:`, `sms:` et `mailto:` pour ouvrir les apps système compatibles. `sms:` ouvre Messages sur iPhone ; le système détermine si iMessage est disponible. Une PWA ne peut pas composer un appel sans intervention/confirmation d'iOS.
-- **Import local de fichiers vCard (.vcf)** : aperçu avant confirmation, doublons simples ignorés, taille max. 8 Mo et 5 000 fiches traitées. Aucun contact importé automatiquement ni envoyé au Worker. iOS Safari ne donne pas un accès universel au carnet natif via les PWAs : utiliser l'export vCard depuis Contacts.
+- **Import local de fichiers vCard (.vcf)** : aperçu avant confirmation, doublons simples ignorés, taille max. 8 Mo et 5 000 fiches traitées. Aucun transfert du fichier vCard pour l'analyse ; les contacts enregistrés peuvent ensuite faire partie des sauvegardes chiffrées facultatives du coffre. iOS Safari ne donne pas un accès universel au carnet natif via les PWAs : utiliser l'export vCard depuis Contacts.
 
 Même stockage local, mêmes exports JSON/coffre chiffré (champs supplémentaires conservés), aucune migration D1, aucune fonction payante. Faire les essais manuels sur iPhone avant de considérer la version stabilisée.
 
