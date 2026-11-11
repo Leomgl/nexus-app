@@ -88,14 +88,14 @@
    Number(b.status==='pending')-Number(a.status==='pending')||String(b.updatedAt).localeCompare(String(a.updatedAt)));
   const totals=counters();
   api.modal('NEXUS LINK · Propositions RITUEL',`<div class="nx-gaming-import">
-   <div class="info-strip">RITUEL chiffre les propositions. Rien n’est ajouté aux modules NEXUS sans ta validation. Une modification provenant de Gaming sera examinée comme une nouvelle révision.</div>
+   <div class="info-strip">RITUEL chiffre les propositions. Rien n’est ajouté aux modules NEXUS sans ta validation. Une modification provenant de RITUEL sera examinée comme une nouvelle révision.</div>
    <div class="nx-gaming-stats"><div><strong>${totals.pending}</strong><small>À examiner</small></div>
     <div><strong>${totals.accepted}</strong><small>Acceptées</small></div><div><strong>${totals.rejected}</strong><small>Ignorées</small></div></div>
-   <div class="form-actions"><button class="btn" data-action="rituel-pull">Recevoir depuis Gaming</button>
+   <div class="form-actions"><button class="btn" data-action="rituel-pull">Recevoir depuis RITUEL</button>
     <button class="btn btn-neutral" data-action="rituel-show-code">Code de jumelage</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
     <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
-    <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Gaming')} · Révision ${x.revision}
+    <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Produit RITUEL')} · Révision ${x.revision}
     ${x.payload.date?' · '+esc(x.payload.date):''}
     ${x.payload.priceCents!=null?' · '+(x.payload.priceCents/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):''}</small>
     <div class="form-actions"><button class="btn btn-soft btn-small" data-action="rituel-review" data-id="${esc(x.id)}">${x.status==='pending'?'Examiner':'Voir / réexaminer'}</button></div>
@@ -109,6 +109,8 @@
   const date=kind==='transactions'?(p.date||api.today()):p.date||'';
   const price=p.priceCents!=null?(p.priceCents/100).toFixed(2):'';
   const projects=api.state().projects||[];
+  const chosenCategory=exists?(api.state().transactions.find(x=>x.id===item.targetId)?.category||'Shopping'):'Shopping';
+  const categories=[...new Set(['Shopping','Santé','Courses','Autres',...(api.state().budgetCategories||[]).filter(x=>!x.archived&&typeof x.name==='string').map(x=>x.name)])];
   const chooser=['events','tasks','purchases','transactions'].includes(kind)?
    `<label class="field"><span>Projet NEXUS (facultatif)</span><select name="projectId">
      <option value="">Aucun</option>${projects.map(x=>`<option value="${esc(x.id)}">${esc(x.title)}</option>`).join('')}</select></label>`:'';
@@ -122,6 +124,9 @@
     ${['purchases','transactions'].includes(kind)?`<label class="field"><span>Montant (€)${kind==='purchases'?' facultatif':''}</span>
      <input type="text" name="price" inputmode="decimal" ${kind==='transactions'?'required':''} value="${esc(price)}" placeholder="Ex. 6,99"></label>`:''}
     ${chooser}
+    ${kind==='transactions'?`<label class="field"><span>Catégorie du budget</span><select name="category">
+      ${categories.map(name=>`<option value="${esc(name)}" ${name===chosenCategory?'selected':''}>${esc(name)}</option>`).join('')}
+      </select></label>`:''}
     <label class="field"><span>Commentaire</span><textarea name="details" maxlength="1500">${esc(p.details)}</textarea></label>
     <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="rituel-reject" data-id="${esc(item.id)}">Ignorer</button>
      <button type="submit" class="btn">${exists?'Confirmer la mise à jour':'Ajouter à NEXUS'}</button></div></form></div>`);
@@ -143,6 +148,7 @@
   const kind=item.payload.destination,now=new Date().toISOString();
   const title=clean(form.title,140),date=String(form.date||'');
   const price=cents(form.price),projectId=String(form.projectId||'');
+  const category=clean(form.category,100);
   if(!title||kind!=='notes'&&kind!=='purchases'&&!validDate(date)||
    date&&!validDate(date)||Number.isNaN(price)||
    kind==='transactions'&&(price===null||price<=0)||
@@ -163,7 +169,7 @@
   if(kind==='purchases')Object.assign(data,{status:target?.status||'planned',priority:target?.priority||1,
     projectId:projectId||target?.projectId||'',shop:target?.shop||'',priceCents:price,
     details:clean(form.details,1500),plannedDate:date||null});
-  if(kind==='transactions')Object.assign(data,{type:'expense',amountCents:price,date,category:target?.category||'Loisirs',
+  if(kind==='transactions')Object.assign(data,{type:'expense',amountCents:price,date,category:category||target?.category||'Shopping',
     projectId:projectId||target?.projectId||'',notes:clean(form.details,1500)});
   if(kind==='notes')Object.assign(data,{body:clean(form.details,1500),projectId:target?.projectId||''});
   // Mutate atomically in app memory, verify local commit before confirming approval.
