@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.19.1 Connect 2.0**, sous réserve des vérifications de publication et des tests réels sur iPhone.
+> Version du code : **V0.20.1 Budget avancé**, publiée dans GitHub. Validation iPhone de cette version à demander. L'utilisateur a validé le bon fonctionnement de V0.18 et de Connect 2.0 V0.19.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -24,7 +24,9 @@
 
 **NEXUS LINK existant** : Gaming et Rituel envoient des propositions vers la boîte `data.linkInbox`. Revue humaine, rejet/acceptation, champs `originApp` et `originLink` conservés. Ne pas présenter l'interop comme entièrement automatique : c'est le prochain chantier.
 
-**Connect V0.19.0** : nouveau `connect-v019.js`, réception des messages LINK lors des ouvertures de NEXUS et du retour au premier plan (configurable), inscriptions budgétaires automatiques **désactivées par défaut** et autorisables séparément pour Gaming (`pass_paid`) et Rituel (`product_paid`), identifiant stable `originApp + originSourceId` et vérification IndexedDB avant confirmation. Gaming a un champ **date réelle d'achat** distinct de la fin de saison. Une révision d'une opération existante ne modifie jamais le Journal silencieusement. Voir [CONNECT-V019.md](CONNECT-V019.md).
+**Budget V0.20.1** : trois sections principales **Quotidien / Engagements / Objectifs**. Le module `budget-v08.js` conserve les calculs historiques du journal, des récurrences et des statistiques. `budget-v020.js` affiche abonnements, prêts et objectifs d'épargne ; `budget-v020.css` conserve un rendu compact iPhone. Les abonnements/prêts sont **des règles `data.recurrences[]` typées**, sans duplication de prévisions. Conversion possible d'une règle existante avec le même identifiant. Les objectifs sont dans `data.savingsGoals[]` (somme initiale, mouvements manuels, progression, projet), inclus dans sauvegardes et corbeille. Une contribution d'épargne ne modifie pas `transactions[]`. Restes de prêt = **mensualités théoriques non confirmées**, pas capital restant dû. Voir [BUDGET-V020.md](BUDGET-V020.md).
+
+**Connect V0.19.1** : nouveau `connect-v019.js`, réception des messages LINK lors des ouvertures de NEXUS et du retour au premier plan (configurable), inscriptions budgétaires automatiques **désactivées par défaut** et autorisables séparément pour Gaming (`pass_paid`) et Rituel (`product_paid`), identifiant stable `originApp + originSourceId` et vérification IndexedDB avant confirmation. Gaming a un champ **date réelle d'achat** distinct de la fin de saison. Une révision d'une opération existante ne modifie jamais le Journal silencieusement. Voir [CONNECT-V019.md](CONNECT-V019.md).
 
 **Pulse V0.18.0** : nouveau `pulse-v018.js` et `pulse-v018.css`, priorités du jour, météo Open-Meteo, budget du mois, projet, propositions inter-app et activité récente. Widgets contrôlés par `UI.widgets` dans `app.js`. Voir [PULSE-V018.md](PULSE-V018.md).
 
@@ -43,25 +45,28 @@
 
 ## Roadmap priorisée (validée avec utilisateur)
 
-### V0.18 — Pulse + météo : EN COURS DE RECETTE
+### V0.18 — Pulse + météo : VALIDÉ PAR L'UTILISATEUR
 - Accueil réorganisé pour ce qui compte **aujourd'hui**.
 - Widgets extensibles et réordonnables, météo locale avec ville/GPS facultatif.
 - Maintien de la capture éclair existante, comportement local et confirmation.
 - Tests GitHub/Pages, puis contrôle réel iPhone demandé.
 - **Prochain checkpoint** : retour utilisateur sur visuel, fonctionnement météo, navigation des cartes, dimensions et ordre des widgets.
 
-### V0.19 — Connect 2.0 : CODE LIVRÉ, RECETTE MULTI-APPS À FAIRE
+### V0.19 — Connect 2.0 : VALIDÉ PAR L'UTILISATEUR SUR IPHONE
 - Le protocole LINK, ses scopes et l'origine des données ont été relus. La réception de propositions Gaming/Rituel a été automatisée lorsque NEXUS est ouverte. Option d'inscription automatique des achats réels avec autorisation dédiée et stockage vérifié.
 - **Gaming → NEXUS** : un pass acheté avec prix et date réelle peut créer automatiquement **une seule** dépense si l'utilisateur autorise `autoGaming`. Correction de prix/date → **validation manuelle**. Restent à développer : signal d'annulation et audit de réconciliation.
 - **Rituel → NEXUS** : achat explicitement enregistré avec prix/date réelle peut rejoindre le budget avec permission `autoRituel`. Les réassorts estimés et rappels restent des propositions manuelles ; le stock conserve RITUEL comme source.
 - **Vestiaire → NEXUS** : contrat de contexte d'événement et suggestion de tenue sans répliquer l'inventaire ; confidentialité, accès révoquable, confirmation.
 - Propositions et transactions gardent leur `sourceId` et leur `originLink`; pas de transfert automatique de tout le stock ou de la bibliothèque. **Recette réelle** : source Cloudflare Gaming/Rituel, iPhone NEXUS, vérification absence de doublon et rejumelage.
 
-### V0.20 — Budget enrichi : À CONSTRUIRE
-- Vues claire **Quotidien / Engagements / Objectifs**.
-- Abonnements, prêts, mensualités, échéances, reste à payer et projection.
-- Réconcilier transactions importées d'autres apps avec `originLink` et achats NEXUS.
-- Ne jamais présenter la projection comme un solde bancaire réel.
+### V0.20 — Budget enrichi : CODE PUBLIÉ, RECETTE IPHONE À FAIRE
+- Vues **Quotidien / Engagements / Objectifs** intégrées, Journal et statistiques historiques conservés.
+- Abonnements mensuels et annuels, prêts à mensualités fixes avec début/durée/fin et calendrier ; conversion de récurrences existantes sans duplication.
+- Objectifs d'épargne manuels avec versements/retraits datés, cible, date, progression, projet associé, historique et corbeille.
+- `savingsGoals[]` ajouté au modèle et aux exports/restaurations NEXUS ; projet d'épargne séparé de `transactions[]` pour éviter les doubles dépenses.
+- **Attention** : une mensualité non confirmée n'est pas forcément impayée ; un capital restant dû ne peut pas être déduit de la simple mensualité sans intérêts et amortissement.
+- Recette attendue : 1 abonnement existant reclassé, 1 échéance confirmée, 1 objectif créé puis restauré, aucun impact sur les chiffres Journal et sauvegardes.
+- Prochain travail après validation : V0.21 Vestiaire contextuel.
 
 ### V0.21 — Suggestions contextualisées : À CONSTRUIRE
 - RDV « restaurant ce soir » + météo / contexte → suggestion(s) de tenue issues de Vestiaire, dans Pulse, avec permissions explicites et choix utilisateur.
@@ -80,7 +85,7 @@
 1. Lire ce fichier et le README du dépôt, puis les documents de version récents.
 2. Lire les **fichiers actuels de `main`**, ne pas partir d'un ancien extrait de chat.
 3. Vérifier Actions GitHub et version effectivement déployée sur GitHub Pages.
-4. Pour Nexus app : `app.js` = routeur, prefs, objets ; `pulse-v018.js/css` = accueil ; **`connect-v019.js`** = réception automatique et import d'achats réels ; `connections.js`, `link-import.js`, `rituel-import.js` = jumelage et propositions ; `budget-v08.js` = Journal enrichi.
+4. Pour Nexus app : `app.js` = routeur, prefs, objets ; `pulse-v018.js/css` = accueil ; `connect-v019.js` = réception et import des achats ; `connections.js`, `link-import.js`, `rituel-import.js` = liens ; `nexus-travel.js` = éventuel chantier parallèle Rituel-voyage, vérifier son statut ; `budget-v08.js` = Journal et récurrences historiques ; **`budget-v020.js/css`** = abonnements, prêts, objectifs.
 5. Modifier de manière additive et tester sans altérer IndexedDB, clef de coffre, passkeys ou notifs.
 6. Avant chaque release : tests, note de version, incrementation cache `sw.js` + assets `index.html`, puis vérifier sur iPhone.
 7. Maintenir ce fichier à jour avec versions, décisions et état exact **livré / en tests / futur**. **Jamais de secrets ou de données réelles de contacts.**
@@ -91,6 +96,10 @@
 - Open-Meteo reçoit une ville ou des coordonnées approximatives **seulement via la météo** ; l'utilisateur peut choisir une autre ville et son accès GPS n'est sollicité qu'après clic.
 - V0.19 peut créer automatiquement des transactions réelles inter-app **uniquement si l'option correspondante est activée**, si les deux apps ont transmis un message chiffré valide et si la date d'achat/prix sont présents ; cela reste à vérifier sur vrais iPhone/Workers déployés. Les anciennes propositions sans date réelle demandent une validation manuelle.
 - La synchronisation du coffre doit éviter les conflits entre appareils.
-- Prochain retour de l'utilisateur : V0.19 visible dans NEXUS, champs date d'achat et envoi Gaming/RITUEL disponibles sur leurs origines Cloudflare, puis essai d'un pass payé (sans doublon) et d'un produit acheté Rituel. Ensuite V0.20 Budget.
+- Prochain retour de l'utilisateur : V0.20.1 visible et validé sur iPhone, bon rendu des trois espaces Budget, transformation sans doublon d'une récurrence et restauration d'un objectif. Une fois confirmé, ouvrir le chantier V0.21 Vestiaire → NEXUS.
 
 **Hotfix V0.19.1 :** rollback intégral des écritures Connect après échec de vérification et mise à jour SW/cache ; la recette iPhone reste à faire. Les apps spécialisées ont des versions internes indépendantes.
+
+## Attention : modifications simultanées entre threads (11 novembre 2026)
+
+Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-travel.js`, `connections.js` et leurs scripts versionnés) en même temps que V0.20. Les mises à jour de Budget ont été isolées dans `budget-v020.js/css` et l'écran Budget historique. Toujours **relire la dernière branche `main`** avant d'écrire, pour préserver les modifications de l'autre thread et aligner l'index, le Service Worker et la version affichée. Les tests CI vérifient désormais que chaque script/style de `index.html` figure dans le cache offline.
