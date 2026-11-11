@@ -79,7 +79,10 @@
    return {accepted:true,created:Boolean(transaction),id:item.targetId};
   }catch(error){
    if(transaction)d.transactions=d.transactions.filter(x=>x.id!==transaction.id);
+   for(const key of Object.keys(item))if(!(key in previous))delete item[key];
    Object.assign(item,previous);
+   // A verification failure after a successful write must also undo the persisted snapshot.
+   try{await adapter.persist();}catch(rollbackError){console.warn('NEXUS Connect rollback write failed');}
    return {accepted:false,reason:'persist-failed'};
   }
  }
