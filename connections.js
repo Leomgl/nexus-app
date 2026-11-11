@@ -68,7 +68,7 @@
      '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+((linked?ownPairs(id)[0].scopes.includes(key):cfg.grants[id][key])?'checked':'')+'>'+
      '<span><strong>'+escape(label)+'</strong><small>Destination : '+escape(destination)+'</small></span></label>'
    ).join('')+'</div><div class="info-strip">'+svg('shield')+
-   ' Gaming → NEXUS : propositions à valider, aucun paiement créé automatiquement et aucune clé de coffre partagée.</div>'+
+   ' RITUEL / Gaming → NEXUS : propositions à valider, aucune dépense créée automatiquement et aucune clé de coffre partagée.</div>'+
    '<div class="form-actions"><button type="button" class="btn btn-neutral" data-action="link-draft-reset" data-app="'+id+
    '">Tout désélectionner</button><button type="button" class="btn" data-action="link-finish">Terminer</button></div></div>');
  }
@@ -98,7 +98,7 @@
   if(!core){toast('Module NEXUS LINK indisponible : actualise la PWA.');return;}
   if(ownPairs(appId).length){pairingPanel(ownPairs(appId)[0]);return;}
   const scopes=Object.entries(cfg.grants[appId]||{}).filter(([_,allowed])=>allowed).map(([scope])=>scope);
-  if(!scopes.length){toast('Configure Gaming et coche au moins une autorisation avant le jumelage.');return;}
+  if(!scopes.length){toast('Configure cette application et coche au moins une autorisation avant le jumelage.');return;}
   try{
    const pair=await core.createPair(appId,scopes);
    data.linkConnections.push(pair);
@@ -137,7 +137,7 @@
  async function copyPair(appId='gaming'){
   const pair=ownPairs(appId)[0];if(!pair)return;
   const code=window.NexusLinkCore.invitation(pair);
-  try{await navigator.clipboard.writeText(code);toast('Code copié. Colle-le dans Gaming.');}
+  try{await navigator.clipboard.writeText(code);toast('Code copié. Colle-le dans '+(appId==='rituel'?'RITUEL':'Gaming')+'.');}
   catch{const field=document.getElementById('nx-link-code');field?.focus();field?.select();toast('Sélectionne le code et copie-le manuellement.');}
  }
 
