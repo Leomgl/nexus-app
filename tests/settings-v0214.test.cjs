@@ -48,10 +48,25 @@ test('interface keeps original handlers and widget customization, without changi
  const snapshot=JSON.stringify(env.UI);
  open(api,'interface');
  const markup=api.view(env);
- for(const marker of ['data-pref-slot="1"','data-pref-slot="2"','data-pref-option="theme"','data-pref-option="density"','data-action="toggle-widget"','data-action="move-widget"','data-action="reset-ui"'])
+ for(const marker of ['data-pref-slot="1"','data-pref-slot="2"','data-action="settings-theme"','data-pref-option="density"','data-action="toggle-widget"','data-action="move-widget"','data-action="reset-ui"'])
   assert.ok(markup.includes(marker),marker);
  assert.equal(JSON.stringify(env.UI),snapshot);
  assert.match(markup,/data-page="home"/);
+});
+test('palette preview changes theme through the original saveUI pathway',()=>{
+ const {api,env}=setup();
+ let saved=0;
+ env.saveUI=()=>{saved++;};
+ open(api,'interface');
+ let html=api.view(env);
+ assert.match(html,/nx-set-theme-sage selected/);
+ assert.equal(api.act('settings-theme',{dataset:{theme:'slate'}}),true);
+ assert.equal(saved,1);
+ assert.equal(env.UI.theme,'slate');
+ html=api.view(env);
+ assert.match(html,/nx-set-theme-slate selected/);
+ assert.equal(api.act('settings-theme',{dataset:{theme:'invalid'}}),true);
+ assert.equal(saved,1);
 });
 test('application details are separate and only report actual pairing status',()=>{
  const {api,env,context}=setup();
