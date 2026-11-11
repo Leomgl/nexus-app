@@ -99,3 +99,12 @@
  .b20-goal{padding:16px}
 }
 @media(max-width:360px){.b20-item{flex-wrap:wrap}.b20-amount{margin-left:auto}.b20-goals-intro{flex-wrap:wrap}}
+
+
+.b20-classify{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#eef6e9;border:1px solid #dce9d9;border-radius:12px;padding:12px 14px}
+.b20-classify>span{display:flex;align-items:center;gap:8px;color:#64816b;font-size:11px;line-height:1.5;flex:1;min-width:190px}
+.b20-classify>span svg{width:16px;height:16px;flex:none}
+.b20-classify>.btn{white-space:nowrap}
+.b20-classify-modal .b20-history-row{flex-wrap:wrap}
+.b20-classify-modal .b20-history-row .btn{font-size:10px}
+@media(max-width:760px){.b20-classify{padding:11px}.b20-classify>.btn{font-size:10px}}
