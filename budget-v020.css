@@ -108,3 +108,14 @@
 .b20-classify-modal .b20-history-row{flex-wrap:wrap}
 .b20-classify-modal .b20-history-row .btn{font-size:10px}
 @media(max-width:760px){.b20-classify{padding:11px}.b20-classify>.btn{font-size:10px}}
+
+
+/* V0.21.2 — Recettes récurrentes automatiques, statut réel non vérifié */
+.b8-income-auto-field{padding:12px 14px;margin:10px 0 12px;border-radius:12px;background:#eef6ed;border:1px solid #d9e9d8}
+.b8-income-auto-field[hidden]{display:none!important}
+.b8-income-auto-field>.b8-checkbox{margin:0;color:#396b4c;font-weight:750;display:flex;align-items:center;gap:9px}
+.b8-income-auto-field .b8-form-note{margin:9px 0 0;font-size:11px;line-height:1.6;color:#658271}
+.b8-auto-income-marker{padding:8px 11px;margin:3px 0 8px 40px;background:#f4f8ec;border-radius:8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;color:#7b875b;font-size:10px;line-height:1.4}
+.b8-auto-income-marker button{font-size:10px;font-weight:760;background:#e1eeda;color:#4a744e;border-radius:8px;padding:6px 8px}
+.b20-status.manual{background:#f4f3ed;color:#918871}
+@media(max-width:760px){.b8-auto-income-marker{margin-left:0}.b8-income-auto-field{padding:11px}}
