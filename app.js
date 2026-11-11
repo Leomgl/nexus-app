@@ -46,7 +46,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[],travelOutbox:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -639,7 +639,7 @@ function captureForm(kind, obj={}, context={}){
   const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null, detected=note?analyzeNote(note.body):{};
   const chosenDate=obj.start?.slice(0,10)||detected.date||selectedDay,chosenTime=obj.start?.slice(11,16)||detected.time||'14:00';
   const personId=obj.personId||detected.personId||'';
-  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${eventRemindersField(obj)}${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||inheritedProjectId||'')}${inlineContactField(personId)}${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="event">${input('Intitulé','title',obj.title||detected.eventTitle||'Rendez-vous','text','required maxlength="140"')}<div class="field-grid">${input('Date','date',chosenDate,'date','required')}${input('Heure','time',chosenTime,'time','required')}</div>${eventRemindersField(obj)}${input('Lieu','location',obj.location||detected.location||'')}${projectField(obj.projectId||inheritedProjectId||'')}${inlineContactField(personId)}${input('Personne libre (optionnel)','personText',obj.personText||detected.personText||'')}<div class="field"><label for="f-details">Détails</label><textarea name="details" id="f-details" style="min-height:85px">${escapeHtml(obj.details||'')}</textarea></div><div class="field" style="margin-top:8px;padding:14px;border:1px solid #e1e1da;border-radius:12px"><label style="display:flex;align-items:center;gap:9px;font-weight:700"><input type="checkbox" name="rituelTrip" value="yes" ${obj.tripType==='travel'?'checked':''}> Voyage / week-end · préparer une trousse RITUEL</label><label style="display:block;margin-top:10px">Date de retour <input type="date" name="returnDate" value="${escapeHtml(obj.returnDate||'')}" style="width:100%;padding:10px;border:1px solid #e0ded9;border-radius:9px"></label><small class="muted-note">Envoi uniquement après ton accord dans Réglages → Voyages vers RITUEL.</small></div>${context.noteId?`<p class="muted-note">${svg('link')} Sera relié à la note d'origine.</p>`:''}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
@@ -662,6 +662,12 @@ function captureForm(kind, obj={}, context={}){
    if(!Number.isInteger(minutes)||minutes<1||minutes>10080){toast('Rappel personnalisé : utilise un entier de 1 à 10 080 minutes.');return;}
    reminders.push(minutes);
   }
+  if(kind==='event'&&values.rituelTrip==='yes'){
+   const start=String(values.date||''),end=String(values.returnDate||'');
+   const validDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&!Number.isNaN(new Date(d+'T12:00:00').getTime())&&new Date(d+'T12:00:00').toISOString().slice(0,10)===d;
+   const nights=(Date.parse(end+'T12:00:00Z')-Date.parse(start+'T12:00:00Z'))/86400000;
+   if(!validDate(start)||!validDate(end)||!Number.isInteger(nights)||nights<0||nights>45){toast('Pour ce séjour, indique une date de retour valide (0 à 45 nuits après le départ).');return;}
+  }
   delete values.reminderMinute;delete values.customReminderMinutes;
   let newProject=null;
   if(form.querySelector('[name="projectId"]')){
@@ -677,7 +683,7 @@ function captureForm(kind, obj={}, context={}){
   }
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
-  if(kind==='event'){base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
+  if(kind==='event'){base.tripType=values.rituelTrip==='yes'?'travel':null;base.returnDate=base.tripType==='travel'?values.returnDate:'';delete base.rituelTrip;base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
   if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
   if(newProject)data.projects.push(newProject);
   if(newContact)data.contacts.push(newContact);
@@ -902,6 +908,7 @@ function settingsView(){
     <button class="btn btn-soft btn-small" data-action="cloud-vault">Ouvrir</button></div>
   </section>
   ${window.NexusConnections?.settingsCard?.()||''}
+  ${window.NexusTravel?.settingsCard?.()||''}
   ${window.NexusConnect2?.settingsCard?.()||''}
   <section class="preferences-panel">
    <div class="pref-heading">${svg('download')} <div><h2>Données & sauvegardes</h2><p>Tes informations restent sous ton contrôle.</p></div></div>
@@ -1073,6 +1080,7 @@ document.addEventListener('click',async event=>{
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
  if(kind.startsWith('connect2-')){window.NexusConnect2?.act?.(kind,action);return;}
+ if(kind.startsWith('nexus-trip-')){window.NexusTravel?.act?.(kind,action);return;}
  if(kind.startsWith('link-')||kind.startsWith('rituel-')){window.NexusConnections?.act?.(kind,action);return;}
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
@@ -1129,6 +1137,7 @@ function attachGamingImport(){
  const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,safeRender:safeConnectionRender,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
+ window.NexusTravel?.attach?.(adapter);
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
  window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
  window.NexusConnect2?.attach?.({state:()=>data,persist,verifyLedger:verifyLinkedBudgetRecord,safeRender:safeConnectionRender,toast,escape:escapeHtml,svg,uid});
