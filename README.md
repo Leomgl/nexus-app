@@ -323,3 +323,9 @@ L'import vCard récupère les champs `PHOTO` intégrés quand ils existent, les 
 **Tests automatisés en place** (syntaxe JS, parsing vCard et traitements métier). La validation visuelle sur Safari/PWA iPhone et avec un vrai export de photos Contacts reste indispensable.
 
 Détails et tests de réception : [docs/CONTACTS-V017.md](docs/CONTACTS-V017.md).
+
+### Contacts V0.17.2 — réimport complet sécurisé contre les pertes accidentelles
+
+Depuis **Personnes → Gérer le carnet**, le réimport complet conserve les identifiants des contacts reconnus (liens Agenda/Rappels préservés), sauvegarde le contenu JSON avant remplacement et déplace les contacts absents dans la corbeille. Un bouton de vidage complet est aussi disponible via le système de corbeille existant, mais il peut casser les liens après création de nouveaux IDs. Le fichier `.vcf` affiche un compteur de photos intégrées avant confirmation.
+
+**Limite de confidentialité :** stockage local non chiffré par NEXUS et origine GitHub Pages partagée avec les autres PWAs. Le coffre distant chiffre les snapshots, sans garantir une sécurité absolue ni protéger contre du code malveillant exécuté sur l'origine. Voir [docs/CONTACTS-V017.md](docs/CONTACTS-V017.md).
