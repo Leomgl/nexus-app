@@ -56,7 +56,13 @@ async function pair(req,env,o){
  try{
   await env.DB.prepare('INSERT INTO connections(id,source_app,writer_hash,reader_hash,scopes_json,created_at,last_activity) VALUES(?,?,?,?,?,?,?)')
    .bind(id,sourceApp,writerVerifier.toLowerCase(),readerVerifier.toLowerCase(),JSON.stringify(scopes),now,now).run();
- }catch{return response({ok:false,error:'PAIR_ALREADY_EXISTS'},409,o)}
+ }catch(err){
+  // Distinguish an actual duplicate UUID from schema/DB errors; never mislabel failures.
+  const detail=String(err?.message||'');
+  const alreadyExists=/UNIQUE constraint failed:\\s*connections\\.id/i.test(detail);
+  if(!alreadyExists)console.error('NEXUS LINK: failed to save pair',/CHECK constraint failed/i.test(detail)?'SCHEMA_CHECK':'DB_WRITE');
+  return response({ok:false,error:alreadyExists?'PAIR_ALREADY_EXISTS':'PAIR_SAVE_FAILED'},alreadyExists?409:503,o);
+ }
  return response({ok:true,connectionId:id,sourceApp,scopes},201,o);
 }
 async function status(req,env,o){
