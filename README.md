@@ -309,3 +309,17 @@ Aucune nouvelle base Cloudflare, aucun abonnement ou accès payant. **La validat
 Même stockage local, mêmes exports JSON/coffre chiffré (champs supplémentaires conservés), aucune migration D1, aucune fonction payante. Faire les essais manuels sur iPhone avant de considérer la version stabilisée.
 
 Voir [docs/CONTACTS-BUDGET-V016.md](docs/CONTACTS-BUDGET-V016.md).
+
+## V0.17 — contacts compacts, recherche A–Z, favoris et photos
+
+Le module **Personnes** adopte une liste qui reste dans la largeur de l'écran : **une colonne sur iPhone**, deux sur grand écran, avec uniquement une photo/initiale et le nom de la personne. Les coordonnées restent dans la fiche au clic. L'ancienne grille dense est remplacée et ne touche pas les autres modules.
+
+En haut du répertoire : recherche directe (nom, téléphone, e-mail, entreprise), filtre **Favoris**, filtre **Catégorie** et tri A–Z / Z–A / Favoris / Ajouts récents. Un index alphabétique latéral permet d'atteindre la première fiche d'une lettre lorsque le tri est alphabétique.
+
+Les fiches enregistrent un favori `favorite`, plusieurs catégories `tags[]`, et une miniature `photo` facultative. Les catégories sont créées en saisissant des libellés séparés par des virgules lors de la modification de la fiche. Les anciennes personnes et leurs liaisons Agenda/Rappels restent inchangées.
+
+L'import vCard récupère les champs `PHOTO` intégrés quand ils existent, les compresse localement en 96×96 px et peut compléter **uniquement les photos manquantes des contacts déjà importés**, après confirmation. On peut aussi choisir manuellement une image depuis sa fiche. L'import ne lit pas directement le carnet système iOS et ne télécharge jamais une URL PHOTO externe. Les miniatures suivent l'export JSON et, si activé, le coffre chiffré NEXUS.
+
+**Tests automatisés en place** (syntaxe JS, parsing vCard et traitements métier). La validation visuelle sur Safari/PWA iPhone et avec un vrai export de photos Contacts reste indispensable.
+
+Détails et tests de réception : [docs/CONTACTS-V017.md](docs/CONTACTS-V017.md).
