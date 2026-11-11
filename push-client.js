@@ -80,6 +80,19 @@
       showDetails:!!form.elements.showDetails.checked,
       taskMins:[...form.querySelectorAll('input[name=task]:checked')].map(x=>+x.value),
     });
+    // Privacy revocation must work immediately, even if Cloudflare is offline.
+    // The Service Worker always checks the current local preference at display time.
+    form.elements.showDetails.addEventListener('change',async()=>{
+      if(form.elements.showDetails.checked||!state?.enabled)return;
+      try{
+        const current=await read();
+        if(!current?.enabled)return;
+        await write({...current,showDetails:false});
+        await write({},CONTEXT_KEY);
+        queueSchedule();
+        toast('Détails des notifications masqués sur cet iPhone.');
+      }catch(err){console.warn('Local privacy update failed',err);}
+    });
     document.getElementById('nx-push-enable').addEventListener('click',async()=>{
       // MUST be initiated directly from the click event to preserve iOS user gesture.
       let permission;
