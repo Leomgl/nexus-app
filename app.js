@@ -939,7 +939,7 @@ function legacySettingsView(){
   <footer class="settings-version">NEXUS · V${NEXUS_VERSION} · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function settingsView(){
- return window.NexusSettings?.view?.({UI,HOME_WIDGETS,MODULES,data,svg,escape:escapeHtml,render,version:NEXUS_VERSION})||legacySettingsView();
+ return window.NexusSettings?.view?.({UI,HOME_WIDGETS,MODULES,data,svg,escape:escapeHtml,render,saveUI,version:NEXUS_VERSION})||legacySettingsView();
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
