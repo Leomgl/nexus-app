@@ -97,3 +97,46 @@ test('V0.17 parses photo base64 and vCard tags without saving remote photo links
  assert.equal(a.photoRaw,'data:image/jpeg;base64,'+photo);
  assert.equal(b.photoRaw,'','A remote photo URL must never be fetched or stored');
 });
+
+
+test('safe replacement matches old IDs, preserves favorites and keeps missing contacts recoverable',async()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ const data={contacts:[
+  {id:'old-a',name:'Alice',phone:'+33601010101',favorite:true,tags:['Famille'],notes:'Rappel familial'},
+  {id:'old-b',name:'Bastien',email:'bastien@example.fr',favorite:false,tags:['Travail']},
+  {id:'old-c',name:'Chloé',phone:'+33602020202'}
+ ]};
+ let next=1;
+ window.NexusContacts.attach({state:()=>data,uid:()=> 'new-'+next++,svg:()=>'',escape:s=>String(s)});
+ const vcard=[
+  'BEGIN:VCARD','FN:Alice','TEL:+33601010101','END:VCARD',
+  'BEGIN:VCARD','FN:Bastien','EMAIL:bastien@example.fr','END:VCARD',
+  'BEGIN:VCARD','FN:Émilie','TEL:+33603030303','END:VCARD',
+  'BEGIN:VCARD','FN:Alice','TEL:+33601010101','END:VCARD'
+ ].join('\\r\\n');
+ const parsed=window.NexusContacts.parseVcards(vcard);
+ const plan=window.NexusContacts.planReimport(parsed);
+ assert.equal(plan.updates.length,2);
+ assert.equal(plan.newOnes.length,1);
+ assert.deepEqual(plan.removed.map(c=>c.id),['old-c']);
+ assert.equal(plan.duplicateCount,1);
+ const built=await window.NexusContacts.buildReimportRecords(plan,'2026-11-11T14:30:00.000Z');
+ assert.equal(built.records.length,3);
+ assert.deepEqual(built.records.map(c=>c.id),['old-a','old-b','new-1']);
+ assert.equal(built.records[0].favorite,true);
+ assert.deepEqual(built.records[0].tags,['Famille']);
+ assert.equal(built.records[0].notes,'Rappel familial');
+ assert.equal(built.records[2].name,'Émilie');
+});
+
+test('contact management exposes separate safe replacement and confirmed reset actions',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ window.NexusContacts.attach({state:()=>({contacts:[{id:'a',name:'Alice'}]}),svg:()=>'',escape:s=>String(s)});
+ const html=window.NexusContacts.view();
+ assert.match(html,/contacts-manage/);
+ assert.match(html,/nx-contact-count-row/);
+});
