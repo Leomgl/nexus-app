@@ -858,3 +858,9 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .nx-contact-select select{font-size:10px;padding-left:6px}
  .nx-contact-filter{padding:0 7px;font-size:10px}
 }
+
+/* Prevent Safari iOS from zooming the page when search or contact filters gain focus. */
+@media(max-width:760px){
+ .nx-contacts-search input,.nx-contact-select select{font-size:16px}
+ .nx-contact-controls{grid-template-columns:auto minmax(0,1fr) minmax(85px,115px)}
+}
