@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.18.0 · Pulse)
+# NEXUS — Second cerveau personnel (V0.19.0 · Connect 2.0)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
@@ -6,6 +6,18 @@
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
+
+## Version V0.19.0 — Connect 2.0 (11 novembre 2026)
+
+**NEXUS reste le centre**. Gaming et RITUEL lui transmettent des propositions par NEXUS LINK ; les apps restent autonomes. La réception des nouveautés est désormais déclenchée automatiquement quand NEXUS est ouverte et connectée (désactivable). Aucun calendrier, achat ni budget n'est modifié sans une validation ou une autorisation explicite.
+
+**Nouveau :** dans **Réglages → NEXUS Connect 2.0**, possibilité d'autoriser indépendamment l'enregistrement automatique d'un **pass Gaming réellement acheté** et d'un **produit RITUEL réellement payé**. Par défaut, les deux sont désactivés. Les achats doivent fournir une **date réelle**, un **prix positif** et la **devise EUR** et appartenir à une connexion dont le scope financier a été approuvé.
+
+Gaming comporte désormais une **date d'achat du pass**, distincte de la date de fin de saison. Les doublons liés au même achat sont bloqués, y compris après rejumelage si la provenance est conservée. Une révision après enregistrement demande toujours une vérification manuelle : aucune correction silencieuse du Journal. Les réassorts supposés et les passes suivis sans achat ne créent jamais de dépense.
+
+**Recette multi-apps iPhone / Cloudflare requise** après les tests automatiques. Le code NEXUS/Gaming/Rituel est dans leurs dépôts GitHub ; les PWA des apps sources doivent réellement servir leurs nouveaux fichiers pour que l'envoi de métadonnées soit opérationnel.
+
+[Contrat complet et tests Connect 2.0](docs/CONNECT-V019.md) · [Dossier de reprise](docs/PROJECT-HANDOFF.md)
 
 ## Version V0.18.0 — NEXUS Pulse (11 novembre 2026)
 
