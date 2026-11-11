@@ -1,8 +1,20 @@
-# NEXUS — Second cerveau personnel (V0.21.4 · Réglages réorganisés)
+# NEXUS — Second cerveau personnel (V0.21.5 · Santé Connect)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
 > La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.21.2 et le dossier de reprise font foi pour l'état actuel.
+
+## V0.21.5 — Santé × Nexus : Pulse & Agenda
+
+**Décision utilisateur : Santé garde les traitements et leurs push ; Nexus gère les notifications des rendez-vous et rappels de vaccins.** Une carte configurable dans Pulse affiche les prises du jour (ex. 2/3), horaires, confirmations ; les noms des traitements restent masqués par défaut, opt-in facultatif depuis Santé.
+
+**Jumelage privé** : Nexus → Réglages → Applications connectées → Santé → Créer la connexion privée → copier le code NXS1. Santé → ⚙ → Nexus LINK → coller code et relier → Envoyer. Nexus → Recevoir. Canal E2EE séparé : https://sante-nexus-link.q9pfwtztsc.workers.dev/ (Worker et D1 EU distincts des autres apps).
+
+**Rendez-vous & vaccinations :** importés avec consentement depuis Santé dans l'Agenda Nexus, rappel Nexus J−1 et H−1 pour un rendez-vous (vaccinations J−7 et J−1). Auto-import désactivé par défaut. La synchronisation requiert que Santé publie et Nexus reçoive, pas de temps réel lorsque les deux apps sont fermées.
+
+**Limites et confidentialité :** données reçues, et secrets de jumelage, stockés localement dans Nexus **sans chiffrement au repos**. Le transport est chiffré. Aucun document, analyse, journal ni antécédent ne transite. Le fonctionnement actuel est **Santé → Nexus uniquement** ; l'édition Nexus→Santé reste à développer. Préserver les préférences de widgets, la base existante et les autres jumelages.
+
+**Code** : sante-link-core.js, nexus-sante.js/css, app.js, pulse-v018.js, settings-v0214.js, index.html, sw.js ; cache PWA nexus-v0.21.5. Tests CI passés ; recette réelle iPhone toujours nécessaire. **Ne pas réinstaller la PWA pour actualiser.**
 
 ## V0.21.4 — Centre Réglages simplifié
 
