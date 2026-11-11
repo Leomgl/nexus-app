@@ -40,7 +40,7 @@ test('Agenda import creates one event with Nexus reminders and preserves local e
  await api.act('sante-import');
  assert.equal(data.events.length,1);
  assert.equal(data.events[0].originApp,'sante');
- assert.deepEqual(data.events[0].reminderMinutes,[1440,60]);
+ assert.deepEqual(Array.from(data.events[0].reminderMinutes),[1440,60]);
  await api.act('sante-import');
  assert.equal(data.events.length,1,'idempotency');
  data.events[0].title='Édité localement dans Nexus';
