@@ -8,11 +8,11 @@
   {id:'contacts',name:'Personnes',keys:['contacts'],icon:'users'},
   {id:'projects',name:'Projets',keys:['projects'],icon:'briefcase'},
   {id:'purchases',name:'Achats',keys:['purchases'],icon:'cart'},
-  {id:'budget',name:'Budget',keys:['transactions','limits','recurrences','quickExpenses','budgetCategories'],icon:'wallet'}
+  {id:'budget',name:'Budget',keys:['transactions','limits','recurrences','quickExpenses','budgetCategories','savingsGoals'],icon:'wallet'}
  ];
  const TITLES={notes:'Note',events:'Rendez-vous',tasks:'Rappel',contacts:'Personne',
   projects:'Projet',purchases:'Achat',transactions:'Opération',
-  limits:'Plafond',recurrences:'Récurrence',quickExpenses:'Raccourci',budgetCategories:'Catégorie'};
+  limits:'Plafond',recurrences:'Récurrence',quickExpenses:'Raccourci',budgetCategories:'Catégorie',savingsGoals:'Objectif d’épargne'};
  const KEY_SET=new Set(CONFIG.flatMap(module=>module.keys));
  const clone=obj=>JSON.parse(JSON.stringify(obj));
  const formatTitle=(key,obj)=>String(obj?.title||obj?.name||obj?.month||TITLES[key]||'Élément').slice(0,140);
