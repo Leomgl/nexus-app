@@ -864,3 +864,18 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
  .nx-contacts-search input,.nx-contact-select select{font-size:16px}
  .nx-contact-controls{grid-template-columns:auto minmax(0,1fr) minmax(85px,115px)}
 }
+
+
+/* Contact carnet maintenance — compact controls and reversible bulk replacement */
+.nx-contact-count-row{display:flex;align-items:center;justify-content:space-between;min-width:0;gap:10px;margin:10px 0}
+.nx-contact-count-row .nx-contact-count{margin:0}
+.nx-contact-manage{display:inline-flex;align-items:center;gap:5px;background:transparent;color:#567767;padding:6px 2px;font-size:11px;font-weight:750;white-space:nowrap}
+.nx-contact-manage svg{width:14px;height:14px}
+.nx-contact-manage-panel{display:grid;gap:12px}
+.nx-contact-manage-panel .info-strip{margin:0;line-height:1.65}
+.nx-contact-manage-option{border:1px solid var(--border,#dbe7dc);border-radius:13px;padding:13px;background:#f8faf6}
+.nx-contact-manage-option strong{display:flex;align-items:center;gap:9px;font-size:13px}
+.nx-contact-manage-option strong svg{height:17px;width:17px}
+.nx-contact-manage-option p{font-size:11px;line-height:1.6;margin:9px 0 12px;color:#657f6e}
+.nx-contact-manage-option.is-danger{background:#fff9f5}
+.nx-contact-manage-option.is-danger strong{color:#a54a3c}
