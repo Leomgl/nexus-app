@@ -1,11 +1,19 @@
-# NEXUS — Second cerveau personnel (V0.21.1 · Vestiaire contextuel)
+# NEXUS — Second cerveau personnel (V0.21.2 · Revenus automatiques)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
-> La suite ci-dessous contient aussi des notes d'anciennes versions ; la section V0.21 et le dossier de reprise font foi pour l'état actuel.
+> La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.21.2 et le dossier de reprise font foi pour l'état actuel.
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
+
+## Correctif V0.21.2 — Revenus réguliers inscrits automatiquement (11 novembre 2026)
+
+La section **Budget → Engagements → Revenus réguliers** permet désormais de suivre salaire, prime régulière, rente ou autre entrée d'argent. Sur chaque récurrence de type Recette, **Inscrire automatiquement ce revenu au Journal** est une option **désactivée par défaut** : après activation, les échéances dues deviennent des recettes programmées dans le Journal au prochain lancement/retour de NEXUS, sans doubler une recette déjà liée.
+
+La date d'activation empêche de recréer automatiquement des salaires des mois précédents. Les revenus sont ajoutés **selon le calendrier déclaré**, sans accès bancaire : le Journal précise **« réception non vérifiée »**, puis propose un bouton **« Confirmer reçu »**. Une écriture supprimée n'est pas recréée immédiatement, les saisies manuelles ambiguës sont signalées plutôt que dupliquées, et aucun paiement de dépense n'est automatisé.
+
+[Documentation complète et recette iPhone V0.21.2](docs/BUDGET-AUTO-INCOME-V0212.md). Les tests automatisés portent sur le rattrapage, les jours de paie particuliers, les permissions, les doublons et les échecs de sauvegarde. Le test final sur iPhone reste à confirmer.
 
 ## Version V0.21.1 — Vestiaire contextuel (11 novembre 2026)
 
