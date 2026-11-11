@@ -72,7 +72,7 @@
     }
     if(!toAck.length||messages.length<50)break;
    }
-   api.render();
+   if(received>0)(api.safeRender||api.render)?.();
    return {received,invalid,acked};
   }finally{working=false}
  }
@@ -108,7 +108,7 @@
  function review(id){
   const item=list().find(x=>x.id===id);if(!item)return;
   const p=item.payload,kind=p.destination,exists=item.targetId&&api.state()[kind].some(x=>x.id===item.targetId);
-  const date=kind==='transactions'?api.today():p.date||'';
+  const date=kind==='transactions'?(p.paymentDate||api.today()):p.date||'';
   const price=p.priceCents!=null?(p.priceCents/100).toFixed(2):'';
   const projects=api.state().projects||[];
   const chooser=['events','tasks','purchases','transactions'].includes(kind)?
