@@ -201,7 +201,8 @@ test('UI and offline cache agree on version 0.20.0',()=>{
  assert.match(html,/connect-v019\.js\?v=0191/);
  assert.match(sw,/connect-v019\.js\?v=0191/);
  assert.match(html,/link-import\.js\?v=0190/);
- assert.match(html,/rituel-import\.js\?v=0190/);
+ const assets=[...html.matchAll(/(?:src|href)="(\.\/[^"]+\.(?:js|css)(?:\?v=[^"]+)?)"/g)].map(x=>x[1]);
+ for(const asset of assets)assert.ok(sw.includes("'"+asset+"'"),'offline cache does not include '+asset);
  assert.match(html,/budget-v08\.js\?v=0200/);
  assert.match(html,/budget-v020\.js\?v=0200/);
  assert.match(html,/budget-v020\.css\?v=0200/);
