@@ -183,14 +183,62 @@ test('rendered directory alphabet sections always display A before M even with e
  }finally{global.document=priorDocument;}
 });
 
-test('UI and offline cache agree on version 0.17.4',()=>{
+test('UI and offline cache agree on version 0.18.0',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(html,/Version 0\.17\.4/);
- assert.match(app,/V0\.17\.4/);
+ assert.match(html,/Version 0\.18\.0/);
+ assert.match(app,/V0\.18\.0/);
  assert.match(html,/contacts-v017\.js\?v=0174/);
- assert.match(html,/app\.js\?v=0174/);
- assert.match(sw,/nexus-v0\.17\.4/);
+ assert.match(html,/pulse-v018\.js\?v=0180/);
+ assert.match(html,/pulse-v018\.css\?v=0180/);
+ assert.match(sw,/pulse-v018\.js\?v=0180/);
+ assert.match(html,/https:\/\/api\.open-meteo\.com/);
+ assert.match(html,/https:\/\/geocoding-api\.open-meteo\.com/);
+ assert.match(html,/app\.js\?v=0180/);
+ assert.match(sw,/nexus-v0\.18\.0/);
  assert.match(sw,/contacts-v017\.js\?v=0174/);
+});
+
+test('Pulse prioritizes overdue tasks and upcoming appointments without changing source records',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../pulse-v018.js')];
+ require('../pulse-v018.js');
+ const data={
+  tasks:[{id:'a',title:'Ancien',dueDate:'2026-11-10',done:false,priority:3},
+   {id:'b',title:'Aujourd’hui',dueDate:'2026-11-11',done:false},
+   {id:'c',title:'Fait',dueDate:'2026-11-10',done:true}],
+  events:[{id:'e',title:'Restaurant',start:'2026-11-11T20:00:00'},
+   {id:'p',title:'Passé',start:'2026-11-10T14:00:00'}],linkInbox:[{status:'pending'}]
+ };
+ window.NexusPulse.attach({state:()=>data,dateKey:d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')});
+ const result=window.NexusPulse.pulsePriorities(data,new Date('2026-11-11T14:00:00'));
+ assert.deepEqual(result.urgent.map(t=>t.id),['a','b']);
+ assert.deepEqual(result.todays.map(e=>e.id),['e']);
+ assert.equal(result.overdue.length,1);
+ assert.equal(result.pending.length,1);
+ assert.equal(data.tasks.length,3);
+});
+
+test('Pulse renders a personalizable compact cockpit and preserves quick capture',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../pulse-v018.js')];
+ require('../pulse-v018.js');
+ const data={events:[],tasks:[],notes:[],projects:[],purchases:[],transactions:[],limits:[],linkInbox:[],linkConnections:[]};
+ window.NexusPulse.attach({
+  state:()=>data,svg:()=>'',escape:x=>String(x).replace(/</g,'&lt;'),
+  formatDate:()=> '11 novembre',dateKey:()=> '2026-11-11',
+  money:v=>v+' €',monthTotals:()=>({income:0,expense:0}),forecast:()=>({pending:[]})
+ });
+ const html=window.NexusPulse.view(['today','weather','budget','focus','links','recent']);
+ assert.match(html,/NEXUS PULSE/);
+ assert.match(html,/quick-capture/);
+ assert.match(html,/data-action="quick-save"/);
+ assert.match(html,/nxp-widget-today/);
+ assert.match(html,/nxp-weather-data/);
+ assert.match(html,/nxp-widget-budget/);
+ assert.match(html,/nxp-widget-links/);
+ assert.equal(window.NexusPulse.getLocation().label,'Lille');
+ assert.deepEqual(window.NexusPulse.weatherLabel(61),['Pluie','rain']);
+ assert.doesNotMatch(window.NexusPulse.view(['recent']),/nxp-widget-today/);
 });
