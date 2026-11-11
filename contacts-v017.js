@@ -13,7 +13,8 @@
  const getTags=c=>Array.isArray(c.tags)?c.tags.filter(t=>typeof t==='string'&&t.trim()):[];
  const validatePhoto=s=>typeof s==='string'&&s.length<MAX_PHOTO_CHARS&&/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(s);
  const letter=c=>{const found=normalize(c.name||'').match(/[a-z]/);const l=found?.[0]?.toUpperCase()||'#';return LETTERS.includes(l)?l:'#';};
- const sortNames=(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'});
+ const sortKey=c=>normalize(c.name||'').replace(/^[^a-z0-9]+/g,'');
+ const sortNames=(a,b)=>sortKey(a).localeCompare(sortKey(b),'fr',{sensitivity:'base',numeric:true});
  function matches(item){
   const haystack=normalize([item.name,item.phone,item.email,item.organization,item.role,...getTags(item)].filter(Boolean).join(' '));
   return (!state.query||haystack.includes(normalize(state.query)))&&
@@ -70,7 +71,12 @@
   let html='';
   if(!all.length)html=`<div class="nx-contact-empty"><strong>Aucun contact trouvé</strong><p>Essaie une autre recherche ou modifie tes filtres.</p></div>`;
   else if(state.sort==='az'||state.sort==='za'){
-   for(const [l,items] of buckets){
+   const orderedLetters=[...buckets.keys()].sort((a,b)=>{
+    if(a==='#')return 1;if(b==='#')return -1;
+    return (state.sort==='za'?-1:1)*a.localeCompare(b,'fr');
+   });
+   for(const l of orderedLetters){
+    const items=buckets.get(l);
     html+=`<section id="nx-letter-${l==='#'?'other':l}" class="nx-contact-group" aria-label="Lettre ${esc(l)}">
     <h2>${esc(l)}</h2><div class="nx-contacts-grid">${items.map(contactCard).join('')}</div></section>`;
    }
