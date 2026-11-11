@@ -1150,6 +1150,20 @@ async function verifyVestiaire(kind,id,revision){
   return false;
  }catch{return false}
 }
+async function verifyAutoIncomeEntries(entries){
+ if(!Array.isArray(entries)||entries.length===0)return false;
+ try{
+  let saved;
+  if(dbHandle)saved=await new Promise((resolve,reject)=>{
+   const req=dbHandle.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('main');
+   req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });else saved=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');
+  return entries.every(expected=>Array.isArray(saved?.transactions)&&
+   saved.transactions.some(tx=>tx.id===expected.id&&tx.type==='income'&&tx.autoRecorded===true&&
+    tx.recurrenceId===expected.recurrenceId&&tx.occurrenceKey===expected.occurrenceKey&&
+    tx.date===expected.date&&tx.amountCents===expected.amountCents));
+ }catch{return false}
+}
 function safeConnectionRender(){
  const t=document.activeElement?.tagName;
  if(['INPUT','TEXTAREA','SELECT'].includes(t)||document.querySelector('.modal-overlay'))return;
@@ -1163,7 +1177,8 @@ function attachGamingImport(){
  window.NexusVestiaire?.attach?.({...adapter,verify:verifyVestiaire,navTo,svg,showEvent:eventDetail});
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
  window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
+ window.NexusBudget?.attachAutoIncome?.({verify:verifyAutoIncomeEntries});
  window.NexusConnect2?.attach?.({state:()=>data,persist,verifyLedger:verifyLinkedBudgetRecord,safeRender:safeConnectionRender,toast,escape:escapeHtml,svg,uid});
 }
 
-(async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusConnect2?.init?.();window.NexusVestiaire?.init?.();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
+(async()=>{await loadData();applyUI();attachGamingImport();await window.NexusBudget?.startAutoIncome?.();render();window.NexusConnect2?.init?.();window.NexusVestiaire?.init?.();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
