@@ -7,7 +7,7 @@ const FRONTENDS=new Set([
 ]);
 const SCOPES={
  gaming:new Set(['installed_summary','future_spending','pass_deadline','pass_paid','dlc_release','game_release','gaming_event']),
- rituel:new Set(['restock_purchase','restock_task','product_paid','routine_schedule','routine_summary'])
+ rituel:new Set(['restock_purchase','restock_task','product_paid','routine_schedule','routine_summary','trip_context'])
 };
 const HEX64=/^[a-f0-9]{64}$/i, UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const BASE64=/^[A-Za-z0-9_-]+$/;
