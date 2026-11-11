@@ -146,7 +146,15 @@ async function act(kind){
  if(kind==="sante-copy"){const input=document.getElementById("nxsh-code");if(!input)return true;try{await navigator.clipboard.writeText(input.value);api.toast("Code copié.");}catch{input.select();api.toast("Sélectionne le code pour le copier.");}return true;}
  if(kind==="sante-receive")return receive();
  if(kind==="sante-import")return importCalendar();
- if(kind==="sante-toggle-auto"){const prefs=opt();if(!prefs.autoEvents&&!confirm("Autoriser les prochains rendez-vous Santé à rejoindre automatiquement l’Agenda Nexus, avec notifications iPhone selon ses réglages ?"))return true;setOpt({...prefs,autoEvents:!prefs.autoEvents});if(!prefs.autoEvents)await importCalendar();api.render();return true;}
+ if(kind==="sante-toggle-auto"){
+  const prefs=opt();
+  if(!prefs.autoEvents){
+    if(!confirm("Autoriser les prochains rendez-vous Santé à rejoindre automatiquement l’Agenda Nexus, avec notifications iPhone selon ses réglages ?"))return true;
+    const cal=state().santeCalendars?.[0];
+    if(cal){const result=reconcile();await api.persist();api.toast(result.conflicts?result.conflicts+" divergence(s) conservée(s).":result.changed+" événement(s) synchronisé(s).");}
+  }
+  setOpt({...prefs,autoEvents:!prefs.autoEvents});api.render();return true;
+ }
  if(kind==="sante-revoke")return revoke();
  return false;
 }
