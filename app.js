@@ -1100,6 +1100,7 @@ function attachGamingImport(){
  const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
+ window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid});
 }
 
 (async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
