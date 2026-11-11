@@ -12,7 +12,7 @@
  const contacts=()=>adapter?.state?.().contacts||[];
  const getTags=c=>Array.isArray(c.tags)?c.tags.filter(t=>typeof t==='string'&&t.trim()):[];
  const validatePhoto=s=>typeof s==='string'&&s.length<MAX_PHOTO_CHARS&&/^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(s);
- const letter=c=>{const l=normalize(c.name||'').charAt(0).toUpperCase();return LETTERS.includes(l)?l:'#';};
+ const letter=c=>{const found=normalize(c.name||'').match(/[a-z]/);const l=found?.[0]?.toUpperCase()||'#';return LETTERS.includes(l)?l:'#';};
  const sortNames=(a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base'});
  function matches(item){
   const haystack=normalize([item.name,item.phone,item.email,item.organization,item.role,...getTags(item)].filter(Boolean).join(' '));
@@ -28,7 +28,7 @@
   else all.sort(sortNames);
   return all;
  }
- const avatar=(c,cls='')=>`<span class="nx-contact-avatar ${cls}">${validatePhoto(c.photo)?`<img src="${esc(c.photo)}" alt="" loading="lazy">`:esc((c.name||'?').trim().charAt(0).toUpperCase())}</span>`;
+ const avatar=(c,cls='')=>`<span class="nx-contact-avatar ${cls}">${validatePhoto(c.photo)?`<img src="${esc(c.photo)}" alt="" loading="lazy">`:esc(letter(c))}</span>`;
  function tagCatalog(){
   const tags=[...new Set(contacts().flatMap(getTags).map(t=>t.trim()).filter(Boolean))];
   return tags.sort((a,b)=>a.localeCompare(b,'fr'));
