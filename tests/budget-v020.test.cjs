@@ -27,6 +27,9 @@ test('loan term end preserves last-month day and leap years',()=>{
  assert.equal(b.periodEndDate('2026-12-31',1),'2026-12-31');
  assert.equal(b.periodEndDate('2026-11-31',12),'');
  assert.equal(b.periodEndDate('2026-11-11',601),'');
+ assert.equal(b.firstScheduledDate({frequency:'monthly',day:20,startDate:'2026-01-01'}),'2026-01-20');
+ assert.equal(b.firstScheduledDate({frequency:'monthly',day:20,startDate:'2026-01-25'}),'2026-02-20');
+ assert.equal(b.firstScheduledDate({frequency:'yearly',day:10,month:11,startDate:'2026-04-01'}),'2026-11-10');
 });
 
 test('loan progress only counts uniquely confirmed recurring installments; not bank balance',()=>{
@@ -78,6 +81,10 @@ test('commitment cards share the legacy recurrence ledger rather than creating d
  assert.match(markup,/Prêt auto/);
  assert.match(markup,/1\/10/);
  assert.match(markup,/legacy-schedule/);
+ global.data.recurrences.push({id:'old',title:'Ancien abonnement',type:'expense',frequency:'monthly',day:2,amountCents:499,active:true,startDate:'2026-01-01'});
+ const classified=b.commitmentsView('<div>Récurrences historiques</div>');
+ assert.match(classified,/Classer une récurrence/);
+ assert.match(classified,/data-action="b20-classify"/);
  assert.match(markup,/Reste à confirmer/);
  assert.equal(JSON.stringify(global.data),before);
 });
