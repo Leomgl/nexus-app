@@ -27,14 +27,15 @@
   const cards=[];let block=null;
   const finish=()=>{
    if(!block)return;
-   const first=key=>block[key]?.find(x=>x.trim())||'';
-   const n=splitVcard(first('N'));
+   const raw=key=>block[key]?.find(x=>x.trim())||'';
+   const first=key=>unescapeVcard(raw(key));
+   const n=splitVcard(raw('N'));
    const name=(first('FN')||[n[1],n[0],n[2]].filter(Boolean).join(' ')).trim().slice(0,130);
    if(name){
-    const address=splitVcard(first('ADR')).filter(Boolean).join(', ').slice(0,300);
-    cards.push({name,phone:first('TEL').slice(0,45),email:first('EMAIL').slice(0,160),
+    const address=splitVcard(raw('ADR')).filter(Boolean).join(', ').slice(0,300);
+    cards.push({name,phone:first('TEL').replace(/^tel:/i,'').slice(0,45),email:first('EMAIL').replace(/^mailto:/i,'').slice(0,160),
      role:(first('TITLE')||first('ROLE')).slice(0,120),
-     organization:splitVcard(first('ORG'))[0].slice(0,160),
+     organization:splitVcard(raw('ORG'))[0].slice(0,160),
      address,notes:first('NOTE').slice(0,2000)});
    }
    block=null;
@@ -47,7 +48,7 @@
    const at=line.indexOf(':');if(at<1)continue;
    const key=line.slice(0,at).split(';')[0].split('.').pop().toUpperCase();
    if(!['FN','N','TEL','EMAIL','TITLE','ROLE','ORG','ADR','NOTE'].includes(key))continue;
-   const value=unescapeVcard(line.slice(at+1));
+   const value=line.slice(at+1);
    (block[key]??=[]).push(value);
   }
   if(!/BEGIN:VCARD/i.test(clean))throw Error('Ce fichier ne contient aucune vCard.');
@@ -88,7 +89,7 @@
      const html=adapter.escape;
      adapter.modal('Importer les contacts',`<div class="contacts-import-review">
       <p><strong>${parsed.length} contacts reconnus</strong> · ${accepted.length} à importer · ${duplicates} doublon(s) ignoré(s)</p>
-      <p class="muted-note">Aucune information n'est envoyée à un service externe. Les contacts importés rejoindront les sauvegardes NEXUS comme les autres données.</p>
+      <p class="muted-note">Lecture locale du fichier : aucun téléversement pour l'import. Après confirmation, les fiches suivent les mêmes sauvegardes et synchronisations chiffrées facultatives que tes autres données NEXUS.</p>
       <div class="contacts-import-preview">${accepted.slice(0,10).map(c=>`<div><strong>${html(c.name)}</strong><small>${html(c.phone||c.email||c.organization||'Sans coordonnées')}</small></div>`).join('')||'<p>Aucun nouveau contact à ajouter.</p>'}</div>
       <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
       ${accepted.length?`<button type="button" class="btn" data-action="contacts-import-confirm">Importer ${accepted.length} contact(s)</button>`:''}</div></div>`);
