@@ -535,6 +535,7 @@
   const existing=!!rule.id;
   const defaultDate=budgetMonth+'-01';
   const freq=rule.frequency||'monthly';
+  const notifyDays=Array.isArray(rule.notifyDays)?rule.notifyDays:[2,0];
   const content=`<form id="b8-rule-form" class="b8-form">
    ${textField('Libellé','title',rule.title||'','required maxlength="130" placeholder="Ex. Salaire, mensualité de prêt..."')}
    <div class="b8-form-grid">${selectType(rule.type)}${textField('Montant prévu (€)','amountEuros',euroInput(rule.amountCents),'required inputmode="decimal" placeholder="Ex. 750,00"')}</div>
@@ -552,6 +553,12 @@
    <label class="b8-field">Catégorie<select name="category">${categoryOptions(rule.category||(rule.type==='income'?'Salaire':'Autres'),!!rule.id)}</select></label>
    ${projectSelect(rule.projectId||'')}
    <label class="b8-checkbox"><input type="checkbox" name="active" ${rule.active!==false?'checked':''}> Récurrence active</label>
+   <div class="b8-income-auto-field">
+    <strong>Notifications de cette récurrence</strong>
+    <p class="b8-form-note">Une alerte à 9 h, selon le calendrier prévu. Aucune opération n'est marquée comme payée ou reçue.</p>
+    ${[[7,'7 jours avant'],[2,'2 jours avant'],[0,'Le jour même']].map(([days,label])=>`<label class="b8-checkbox"><input type="checkbox" name="notifyDays" value="${days}" ${notifyDays.includes(days)?'checked':''}> ${label}</label>`).join('')}
+    <p class="b8-form-note">Décoche tout pour supprimer les alertes de cette récurrence. L'envoi nécessite les notifications iPhone activées dans Réglages.</p>
+   </div>
    <div class="b8-income-auto-field" id="b8-income-auto-field" ${rule.type==='income'?'':'hidden'}>
     <label class="b8-checkbox"><input type="checkbox" name="autoBook" ${rule.autoBook===true?'checked':''}> Inscrire automatiquement ce revenu au Journal</label>
     <p class="b8-form-note">À partir de l'activation, les échéances dues seront ajoutées lors de l'ouverture ou de la reprise de NEXUS. Aucune période antérieure n'est ajoutée rétroactivement. Montant prévu, réception bancaire non vérifiée. Vérifie les recettes déjà saisies avant d'activer.</p>
@@ -575,7 +582,9 @@
   form.elements.frequency.addEventListener('change',toggle);form.elements.type.addEventListener('change',toggle);toggle();
   form.addEventListener('submit',async e=>{
    e.preventDefault();if(!form.reportValidity())return;
-   const v=Object.fromEntries(new FormData(form).entries());
+   const formData=new FormData(form);
+   const v=Object.fromEntries(formData.entries());
+   const notifyDays=[...new Set(formData.getAll('notifyDays').map(Number).filter(n=>[0,2,7].includes(n)))];
    const amount=toCents(v.amountEuros);
    if(!safeNumber(amount)){toast('Montant invalide.');return;}
    if(v.endDate&&v.endDate<v.startDate){toast('La fin doit suivre le début.');return;}
@@ -590,6 +599,7 @@
     month:v.frequency==='yearly'?Number(v.month):Number(rule.month||1),
     startDate:v.startDate,endDate:v.endDate||'',
     category:v.category,projectId:v.projectId||'',active:!!v.active,
+    notifyDays,
     skips:Array.isArray(rule.skips)?rule.skips:[],
     createdAt:rule.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
    const index=data.recurrences.findIndex(r=>r.id===next.id);

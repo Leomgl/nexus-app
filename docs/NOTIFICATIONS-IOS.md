@@ -53,3 +53,10 @@ Le champ `event.reminderMinutes` est un tableau de minutes avant `event.start`, 
 La génération des `push_jobs` utilise désormais cette liste par événement, sans envoyer de titres ni de lieux au Worker. Les rappels enregistrés sont annulés/reprogrammés après sauvegarde d'un événement, y compris modification ou suppression, à condition que l'iPhone soit connecté et que les notifications soient activées.
 
 **Test local du calcul :** médecin à 1 jour + 2 heures + 15 minutes, train à 45 minutes, aucun rappel pour un événement désactivé et conservation d'un ancien rappel de 1 heure : 5 jobs générés, aux délais attendus.
+
+
+## V0.21.3 — Messages contextualisés et Budget (FORGE #5)
+
+La planification reste `{id,kind,fireAt}`, sans texte privé transmis à Cloudflare. Les messages personnalisés résident dans l'IndexedDB local, sous `nexus_push_context_v1`, et le Service Worker les lit à la réception via le tag opaque existant. Les notifications de récurrences Budget sont transportées avec `kind:task` pour respecter le schéma D1 actuel (pas de migration).
+
+Dans Réglages → Notifications iPhone : activer/désactiver les échéances de Budget ; cocher facultativement **Afficher les détails** pour les noms, lieux, contacts et montants sur écran verrouillé. Désactivé par défaut. Dans chaque règle Budget → Engagements : J-7, J-2, jour J (défaut J-2 et jour J), ou aucune alerte. Heure 09:00 locale. Le calendrier sert aux prévisions, pas de confirmation de débit ou de virement. Voir [PUSH-V0213.md](PUSH-V0213.md) pour limites, confidentialité et recette.

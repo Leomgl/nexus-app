@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.21.2 Revenus automatiques** (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+> Version du code : **V0.21.3 Notifications contextuelles** (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -147,3 +147,11 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Tests à effectuer sur vrai iPhone : activer sur une échéance aujourd'hui, vérifier Journal, redémarrer sans doublon, confirmer reçu, supprimer/restaurer, tester une recette à venir et un revenu manuel existant.
 - Le service worker et les URLs `index.html` passent à `0212` pour les assets modifiés ; **ne pas désinstaller** la PWA pour mettre à jour.
 - Une autre conversation peut faire évoluer Vestiaire/Rituel parallèlement : toujours lire `main` avant toute modification d'`app.js`, `index.html`, `sw.js`.
+
+
+### V0.21.3 — Ticket FORGE #5, notifications contextuelles / budget
+
+- Nouveau `push-context-v0213.js` : `NexusBudget.occurrences()` utilisé pour préparer J-7/J-2/J0 (défaut J-2/J0, 9h), règles en pause/skips et mouvements déjà confirmés exclus. Les revenus auto non confirmés restent à vérifier, pas de débit réel déclenché.
+- `push-client.js` transmet à Cloudflare **uniquement** `id,kind,fireAt`, et écrit localement une table `nexus_push_context_v1` dans la même IndexedDB. `sw.js` résout les détails sur l'iPhone via `tag=nexus-<prefix>`. Une nouvelle option `showDetails` OFF par défaut contrôle l'exposition sur écran verrouillé ; `budgetEnabled` autorise les échéances récurrentes. Pas de nouveaux secrets ni de migration D1 : budget utilise `kind:'task'` pour compatibilité de transport avec le CHECK SQL existant.
+- Nouveau champ additif `recurrence.notifyDays`, optionnel. Édition de chaque règle Budget sans migration. Les anciennes règles utilisent virtuellement `[2,0]`, sans écriture préalable.
+- `index.html`, `app.js`, `sw.js` et tests incrémentés à 0.21.3. **Vérifier l'arrivée effective des notifications PWA iOS et le rendu des détails en essai réel** ; l'app peut recevoir un ancien job si la modification a été faite hors ligne. Documentation [PUSH-V0213.md](PUSH-V0213.md).

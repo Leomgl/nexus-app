@@ -1,12 +1,13 @@
-/* NEXUS V0.4 — private Web Push, only generic messages leave Cloudflare. */
+/* NEXUS V0.21.3 — private Web Push with contextual details resolved on this iPhone. */
 'use strict';
 (() => {
   const API='https://nexus-app-api.q9pfwtztsc.workers.dev';
   const STORE_KEY='nexus_push_v1';
+  const CONTEXT_KEY='nexus_push_context_v1';
   const taskTimeouts=[{min:1440,text:'24 heures avant'},{min:120,text:'2 heures avant'},{min:60,text:'1 heure avant'},{min:45,text:'45 minutes avant'},{min:30,text:'30 minutes avant'},{min:15,text:'15 minutes avant'}];
   const db=()=>{if(!dbHandle)throw new Error('Stockage IndexedDB indisponible.');return dbHandle;};
-  const read=()=>new Promise((resolve,reject)=>{const r=db().transaction(DB_STORE,'readonly').objectStore(DB_STORE).get(STORE_KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});
-  const write=value=>new Promise((resolve,reject)=>{const t=db().transaction(DB_STORE,'readwrite');if(value===null)t.objectStore(DB_STORE).delete(STORE_KEY);else t.objectStore(DB_STORE).put(value,STORE_KEY);t.oncomplete=resolve;t.onerror=()=>reject(t.error);});
+  const read=(key=STORE_KEY)=>new Promise((resolve,reject)=>{const r=db().transaction(DB_STORE,'readonly').objectStore(DB_STORE).get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});
+  const write=(value,key=STORE_KEY)=>new Promise((resolve,reject)=>{const t=db().transaction(DB_STORE,'readwrite');if(value===null)t.objectStore(DB_STORE).delete(key);else t.objectStore(DB_STORE).put(value,key);t.oncomplete=resolve;t.onerror=()=>reject(t.error);});
   const hash=async raw=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw)))].map(b=>b.toString(16).padStart(2,'0')).join('');
   const b64bytes=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-s.length%4)%4)),c=>c.charCodeAt(0));
   function checks(){
@@ -24,43 +25,18 @@
     return obj;
   }
   const stateError=async fn=>{try{return await fn();}catch(err){alert(err.message||'Notifications indisponibles.');}};
-  function scheduleDate(raw){
-    if(typeof raw!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw))return null;
-    const dt=new Date(raw);return Number.isNaN(dt.getTime())?null:dt;
-  }
   async function scheduledJobs(settings){
-    const now=Date.now(),jobs=[];
-    // Keep legacy global event preferences ONLY for appointments saved before V0.6.
-    // Fresh and edited events always own their reminderMinutes array (including []).
-    const legacyEventMins=Array.isArray(settings.eventMins)?settings.eventMins:[60];
-    const taskOpts=Array.isArray(settings.taskMins)?settings.taskMins:[60];
-    const rows=[
-      ...data.events.map(e=>({
-        item:e,kind:'event',at:scheduleDate(e.start),
-        mins:Array.isArray(e.reminderMinutes)?e.reminderMinutes:legacyEventMins
-      })),
-      ...data.tasks.filter(t=>!t.done&&t.dueDate).map(t=>({
-        item:t,kind:'task',
-        at:scheduleDate(t.dueDate+'T'+(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t.dueTime||'')?t.dueTime:'09:00')+':00'),
-        mins:taskOpts
-      }))
-    ];
-    for(const row of rows){
-      if(!row.at||!row.item.id)continue;
-      for(const delta of row.mins){
-        const fireAt=Math.floor((row.at.getTime()-delta*60_000)/1000);
-        if(!Number.isInteger(delta)||delta<1||delta>10080||fireAt<now/1000-60||fireAt>now/1000+366*86400)continue;
-        const id=await hash(row.kind+':'+row.item.id+':'+row.at.toISOString()+':'+delta);
-        jobs.push({id,kind:row.kind,fireAt});
-      }
-    }
-    return jobs.sort((a,b)=>a.fireAt-b.fireAt).slice(0,600);
+    if(!window.NexusPushContext?.build)throw new Error('Le module de notifications contextuelles est indisponible.');
+    return window.NexusPushContext.build(data,settings,hash);
   }
   let scheduleTimer=null,active=false;
   async function scheduleNow(){
     const state=await read();
     if(!state?.enabled||!state.deviceId)return;
-    const jobs=await scheduledJobs(state);
+    const {jobs,contexts}=await scheduledJobs(state);
+    // This mapping stays in the local NEXUS IndexedDB. Never upload labels or amounts.
+    // Write before scheduling: a push arriving immediately can already resolve its context.
+    await write(contexts,CONTEXT_KEY);
     await call('/api/v1/push/schedule','POST',{deviceId:state.deviceId,jobs});
     await write({...state,lastSyncedAt:new Date().toISOString(),count:jobs.length});
   }
@@ -74,8 +50,8 @@
     const supported='Notification' in window&&'PushManager' in window&&'serviceWorker' in navigator;
     const allowed=supported?Notification.permission:'unsupported';
     const taskMins=state?.taskMins||[60];
-    modal('Notifications · V0.6',`
-      <div class="info-strip">${svg('shield')} Ton serveur reçoit seulement les horaires et le type de rappel. Aucun titre, motif ou nom de contact. Les notifications affichées restent génériques.</div>
+    modal('Notifications · V0.21.3',`
+      <div class="info-strip">${svg('shield')} Cloudflare reçoit seulement les horaires, le type et un identifiant opaque. Les titres, lieux, participants et montants sont lus directement sur ton iPhone si tu actives les détails.</div>
       <p class="muted-note">Installation écran d’accueil : ${installed?'OK':'Nécessaire'} · Autorisation iOS : ${escapeHtml(allowed)} · Push : ${state?.enabled?'activé':'désactivé'}</p>
       <form id="nx-push-form" class="vault-form">
         <h3>Rendez-vous : réglage individuel</h3>
@@ -83,6 +59,12 @@
         <h3>Délais par défaut pour les tâches</h3>
         <p>Si aucune heure n’est indiquée, l’échéance est fixée à 9 h.</p>
         ${taskTimeouts.map(x=>`<label class="nx-check"><input type="checkbox" name="task" value="${x.min}" ${taskMins.includes(x.min)?'checked':''}> ${x.text}</label>`).join('')}
+        <h3>Budget · échéances récurrentes</h3>
+        <label class="nx-check"><input type="checkbox" name="budgetEnabled" ${state?.budgetEnabled!==false?'checked':''}> Prévenir des revenus et dépenses récurrents</label>
+        <p>Par défaut : à J-2 et le jour J à 9 h. Chaque récurrence peut personnaliser ou désactiver ses alertes dans Budget → Engagements.</p>
+        <h3>Confidentialité sur l'écran verrouillé</h3>
+        <label class="nx-check"><input type="checkbox" name="showDetails" ${state?.showDetails===true?'checked':''}> Afficher intitulés, lieux, personnes et montants dans les notifications</label>
+        <p class="muted-note">Désactivé par défaut. Si tu coches cette option, les personnes pouvant voir ton écran verrouillé verront aussi ces détails. Cloudflare n'y a pas accès.</p>
         <div class="vault-actions">
           <button class="btn" id="nx-push-enable" type="button">${svg('check')} ${state?.enabled?'Mettre à jour mes rappels':'Activer les notifications'}</button>
           ${state?.enabled?'<button class="btn btn-soft" id="nx-push-test" type="button">Envoyer une notification test</button><button class="btn btn-neutral" id="nx-push-disable" type="button">Désactiver les notifications</button>':''}
@@ -94,7 +76,22 @@
     const prefs=()=>({
       // Keep this for legacy appointments that do not yet have their own reminders.
       eventMins:Array.isArray(state?.eventMins)?state.eventMins:[1440,60],
+      budgetEnabled:!!form.elements.budgetEnabled.checked,
+      showDetails:!!form.elements.showDetails.checked,
       taskMins:[...form.querySelectorAll('input[name=task]:checked')].map(x=>+x.value),
+    });
+    // Privacy revocation must work immediately, even if Cloudflare is offline.
+    // The Service Worker always checks the current local preference at display time.
+    form.elements.showDetails.addEventListener('change',async()=>{
+      if(form.elements.showDetails.checked||!state?.enabled)return;
+      try{
+        const current=await read();
+        if(!current?.enabled)return;
+        await write({...current,showDetails:false});
+        await write({},CONTEXT_KEY);
+        queueSchedule();
+        toast('Détails des notifications masqués sur cet iPhone.');
+      }catch(err){console.warn('Local privacy update failed',err);}
     });
     document.getElementById('nx-push-enable').addEventListener('click',async()=>{
       // MUST be initiated directly from the click event to preserve iOS user gesture.
@@ -124,7 +121,7 @@
         const reg=await navigator.serviceWorker.ready;
         const sub=await reg.pushManager.getSubscription();
         if(sub)await sub.unsubscribe();
-        await write(null);toast('Notifications désactivées.');panel();
+        await write(null);await write(null,CONTEXT_KEY);toast('Notifications désactivées.');panel();
       }));
     }
   }
@@ -132,7 +129,9 @@
     openPanel:()=>stateError(panel),
     onLocalChange:queueSchedule,
     refresh:()=>stateError(scheduleNow),
+    syncQuietly:()=>scheduleNow().catch(e=>console.warn('Push sync retry',e.message)),
     status:read
   };
   window.addEventListener('online',()=>{scheduleNow().catch(()=>{});});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)queueSchedule();});
 })();
