@@ -4,7 +4,7 @@
  let api=null,busy=false;
  const esc=s=>api?.escape?.(s)??String(s??''),short=(s,n=110)=>String(s??'').trim().slice(0,n);
  const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
- const valid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&new Date(d+'T12:00:00').toISOString().slice(0,10)===d;
+ const valid=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!Number.isNaN(new Date(d+'T12:00:00').getTime())&&new Date(d+'T12:00:00').toISOString().slice(0,10)===d;
  const range=e=>{
   const start=String(e?.start||'').slice(0,10),end=String(e?.returnDate||'');
   if(e?.tripType!=='travel'||!valid(start)||!valid(end)||end<start)return null;
