@@ -117,11 +117,11 @@ test('settings assets and iOS offline cache stay in sync',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(html,/settings-v0214\.js\?v=0214/);
+ assert.match(html,/settings-v0214\.js\?v=0215/);
  assert.match(html,/settings-v0214\.css\?v=0214/);
- assert.match(sw,/settings-v0214\.js\?v=0214/);
+ assert.match(sw,/settings-v0214\.js\?v=0215/);
  assert.match(sw,/settings-v0214\.css\?v=0214/);
- assert.match(app,/NEXUS_VERSION='0\.21\.4'/);
+ assert.match(app,/NEXUS_VERSION='0\.21\.5'/);
  assert.match(app,/NexusSettings\?\.onInput/);
  assert.match(app,/NexusSettings\?\.act/);
  assert.match(app,/legacySettingsView/);
