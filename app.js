@@ -902,6 +902,7 @@ function settingsView(){
     <button class="btn btn-soft btn-small" data-action="cloud-vault">Ouvrir</button></div>
   </section>
   ${window.NexusConnections?.settingsCard?.()||''}
+  ${window.NexusConnect2?.settingsCard?.()||''}
   <section class="preferences-panel">
    <div class="pref-heading">${svg('download')} <div><h2>Données & sauvegardes</h2><p>Tes informations restent sous ton contrôle.</p></div></div>
    <div class="settings-option"><div><strong>Exporter les données</strong><p>Une sauvegarde JSON complète des sept modules.</p></div>
@@ -915,11 +916,11 @@ function settingsView(){
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.18.0 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.19.0 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
     <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.18.0 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.19.0 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -1070,10 +1071,12 @@ document.addEventListener('click',async event=>{
  if(kind==='event-ics'){const e=data.events.find(x=>x.id===id);if(e)eventToIcs(e);}
  if(kind==='export')exportJson();
  if(kind==='restore')document.getElementById('restore-file').click();
+ if(kind.startsWith('connect2-')){window.NexusConnect2?.act?.(kind,action);return;}
  if(kind.startsWith('link-')||kind.startsWith('rituel-')){window.NexusConnections?.act?.(kind,action);return;}
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
+ if(window.NexusConnect2?.onChange?.(event.target))return;
  if(window.NexusContacts?.onChange?.(event.target))return;
  if(window.NexusConnections?.onChange?.(event.target))return;
  if(event.target?.id?.startsWith('b8-journal-')){window.NexusBudget?.change?.(event.target);return;}
@@ -1103,12 +1106,31 @@ async function verifyNexusInbox(){
   return Array.isArray(saved?.linkInbox)&&JSON.stringify(saved.linkInbox)===JSON.stringify(data.linkInbox);
  }catch{return false}
 }
+async function verifyLinkedBudgetRecord(transactionId,pairId,sourceKey){
+ try{
+  let saved;
+  if(dbHandle)saved=await new Promise((resolve,reject)=>{
+   const r=dbHandle.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('main');
+   r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+  });else saved=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');
+  return Array.isArray(saved?.transactions)&&saved.transactions.some(x=>x.id===transactionId&&
+    x.type==='expense'&&Number.isSafeInteger(x.amountCents)&&x.amountCents>0)&&
+    Array.isArray(saved.linkInbox)&&saved.linkInbox.some(x=>x.pairId===pairId&&x.sourceKey===sourceKey&&
+    x.status==='accepted'&&x.targetId===transactionId&&x.targetKind==='transactions');
+ }catch{return false}
+}
+function safeConnectionRender(){
+ const t=document.activeElement?.tagName;
+ if(['INPUT','TEXTAREA','SELECT'].includes(t)||document.querySelector('.modal-overlay'))return;
+ render();
+}
 function attachGamingImport(){
- const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
+ const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,safeRender:safeConnectionRender,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
  window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
+ window.NexusConnect2?.attach?.({state:()=>data,persist,verifyLedger:verifyLinkedBudgetRecord,safeRender:safeConnectionRender,toast,escape:escapeHtml,svg,uid});
 }
 
-(async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
+(async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusConnect2?.init?.();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
