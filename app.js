@@ -596,10 +596,10 @@ function inlineContactField(selected=''){
   <button type="button" class="btn btn-neutral btn-small inline-contact-toggle" data-action="inline-new-contact" aria-expanded="false">${svg('plus')} Créer un contact</button>
   <div class="inline-contact-create" hidden>
    <p class="muted-note">Le contact sera enregistré avec le rendez-vous ou le rappel, puis automatiquement associé.</p>
-   ${input('Nom du nouveau contact','newContactName','','text','maxlength="130"')}
-   <div class="field-grid">${input('Téléphone','newContactPhone','','tel','maxlength="45"')}
-    ${input('E-mail','newContactEmail','','email','maxlength="160"')}</div>
-   ${input('Rôle / contexte','newContactRole','','text','maxlength="120"')}
+   ${input('Nom du nouveau contact','newContactName','','text','maxlength="130" disabled')}
+   <div class="field-grid">${input('Téléphone','newContactPhone','','tel','maxlength="45" disabled')}
+    ${input('E-mail','newContactEmail','','email','maxlength="160" disabled')}</div>
+   ${input('Rôle / contexte','newContactRole','','text','maxlength="120" disabled')}
   </div>
  </div>`;
 }
@@ -931,7 +931,7 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.14 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.16 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -986,7 +986,7 @@ document.addEventListener('click',async event=>{
  if(kind==='inline-new-contact'){
   const panel=action.closest('.contact-field')?.querySelector('.inline-contact-create');
   if(panel){panel.hidden=!panel.hidden;action.setAttribute('aria-expanded',String(!panel.hidden));
-   const name=panel.querySelector('[name="newContactName"]');if(name)name.required=!panel.hidden;
+   const name=panel.querySelector('[name="newContactName"]');panel.querySelectorAll('input').forEach(field=>{field.disabled=panel.hidden;});if(name)name.required=!panel.hidden;
    if(!panel.hidden){const sel=action.closest('.contact-field').querySelector('[name="personId"]');if(sel)sel.value='';name?.focus();}
   }
  }
@@ -1015,7 +1015,7 @@ document.addEventListener('click',async event=>{
  if(kind==='mark-purchased'){
   const p=data.purchases.find(x=>x.id===id);
   if(p){
-   if(!Number.isSafeInteger(p.priceCents)||p.priceCents<=0){
+   if((!Number.isSafeInteger(p.priceCents)||p.priceCents<=0)&&!data.transactions.some(t=>t.purchaseId===p.id)){
     toast('Renseigne un prix pour ajouter cet achat aux dépenses.');
     extraCaptureForm('purchase',{...p,status:'purchased'});return;
    }
