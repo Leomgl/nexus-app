@@ -195,7 +195,8 @@
   }
   return due.sort((a,b)=>a.date.localeCompare(b.date)||String(a.rule.id).localeCompare(String(b.rule.id))).slice(0,160);
  }
- let autoIncomeBusy=false,autoIncomeReady=false;
+ let autoIncomeBusy=false,autoIncomeReady=false,autoIncomeVerify=null;
+ function attachAutoIncome(adapter){autoIncomeVerify=adapter?.verify||null;}
  async function autoPostIncome({redraw=true,at=new Date()}={}){
   if(autoIncomeBusy||!autoIncomeReady)return {created:0,busy:autoIncomeBusy};
   autoIncomeBusy=true;
@@ -216,7 +217,7 @@
    }
    if(!created.length)return {created:0};
    await persist();
-   const verified=await window.NexusBudget?.verifyAutoIncomeEntries?.(created);
+   const verified=await autoIncomeVerify?.(created);
    if(verified!==true){
     // A storage failure may be swallowed by legacy persist(): never display a false success.
     data.transactions=data.transactions.filter(tx=>!created.some(x=>x.id===tx.id));
@@ -239,7 +240,7 @@
  }
  function startAutoIncome(){
   autoIncomeReady=true;
-  return autoPostIncome();
+  return autoPostIncome({redraw:false});
  }
  async function verifyIncome(id){
   const tx=data.transactions.find(x=>x.id===id&&x.type==='income'&&x.autoRecorded===true);
@@ -751,5 +752,5 @@
  function updateJournal(){
    const mount=document.getElementById('b8-journal-results');if(mount)mount.innerHTML=journalList();
  }
- window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm,autoIncomeCandidates,autoPostIncome,startAutoIncome,verifyIncome,categoryOptions:categoryOptionList,categoriesCatalog,categoryHue};
+ window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm,autoIncomeCandidates,autoPostIncome,startAutoIncome,attachAutoIncome,verifyIncome,categoryOptions:categoryOptionList,categoriesCatalog,categoryHue};
 })();
