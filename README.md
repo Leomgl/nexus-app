@@ -1,4 +1,4 @@
-# NEXUS — Second cerveau personnel (V0.19.0 · Connect 2.0)
+# NEXUS — Second cerveau personnel (V0.19.1 · Connect 2.0)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
@@ -7,7 +7,7 @@
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
 
-## Version V0.19.0 — Connect 2.0 (11 novembre 2026)
+## Version V0.19.1 — Connect 2.0 (11 novembre 2026)
 
 **NEXUS reste le centre**. Gaming et RITUEL lui transmettent des propositions par NEXUS LINK ; les apps restent autonomes. La réception des nouveautés est désormais déclenchée automatiquement quand NEXUS est ouverte et connectée (désactivable). Aucun calendrier, achat ni budget n'est modifié sans une validation ou une autorisation explicite.
 
