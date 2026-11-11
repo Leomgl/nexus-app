@@ -141,6 +141,7 @@ function render(){
  document.getElementById('view-root').innerHTML=breadcrumb+(views[currentView]||homeView)();
  document.getElementById('today-small').textContent=formatDate(dateKey(new Date()),{weekday:'short',day:'numeric',month:'short'});
  applyUI();iconsInDom();navActive();
+ if(currentView==='contacts')window.NexusContacts?.redrawResults?.();
 }
 
 const section=(title,view)=>`<div class="section-title"><h2>${title}</h2><button data-view="${view}">Tout voir ${svg('arrow')}</button></div>`;
@@ -231,19 +232,7 @@ function notesView(){return `<div class="page-header"><div><div class="eyebrow">
 function calendarView(){const yy=calendarMonth.getFullYear(),mm=calendarMonth.getMonth(),first=new Date(yy,mm,1),offset=(first.getDay()+6)%7,daysInMonth=new Date(yy,mm+1,0).getDate();const dayCells=[];for(let i=0;i<offset;i++)dayCells.push('<span></span>');for(let d=1;d<=daysInMonth;d++){const date=dateKey(new Date(yy,mm,d)),ev=data.events.filter(e=>e.start?.startsWith(date)).length,ta=data.tasks.filter(t=>!t.done&&t.dueDate===date).length;dayCells.push(`<button class="day-cell ${date===selectedDay?'selected':''} ${date===dateKey(new Date())?'today':''}" data-action="calendar-day" data-day="${date}"><span>${d}</span><span class="dot-row">${ev?'<i></i>':''}${ta?'<i class="task-dot"></i>':''}</span></button>`);}const chosen=sortEvents(data.events.filter(e=>e.start?.slice(0,10)===selectedDay)),due=data.tasks.filter(t=>!t.done&&t.dueDate===selectedDay);return `<div class="page-header"><div><div class="eyebrow">LE TEMPS, AU BON ENDROIT</div><h1 class="page-title">Calendrier</h1><p class="subtitle">Une vue claire de tes rendez-vous et rappels.</p></div><button class="btn" data-action="new-event">${svg('plus')} RDV</button></div><div class="agenda-layout"><div class="card calendar-panel"><div class="calendar-header"><h2>${formatDate(dateKey(first),{month:'long',year:'numeric'})}</h2><div class="calendar-arrows"><button data-action="calendar-prev" aria-label="Mois précédent">${svg('chevleft')}</button><button data-action="calendar-next" aria-label="Mois suivant">${svg('chevright')}</button></div></div><div class="calendar-week">${['L','M','M','J','V','S','D'].map(s=>`<span>${s}</span>`).join('')}</div><div class="calendar-days">${dayCells.join('')}</div><div class="muted-note" style="margin-top:13px">Point vert = rendez-vous · Point orange = rappel</div></div><div class="card agenda-detail"><h3>${formatDate(selectedDay,{weekday:'long',day:'numeric',month:'long'})}</h3>${chosen.length||due.length?chosen.map(e=>`<div class="due-item"><span class="time-chip">${escapeHtml(e.start.slice(11,16))}</span><button data-action="event-detail" data-id="${e.id}">${escapeHtml(e.title)}<small>${escapeHtml(e.location||'Sans lieu')}</small></button></div>`).join('')+due.map(t=>`<div class="due-item"><span class="time-chip" style="background:#fff0e6;color:#ab7753">À faire</span><button data-action="task-detail" data-id="${t.id}">${escapeHtml(t.title)}</button></div>`).join(''):empty('Journée libre','Aucun événement sur cette date.','calendar')}<button class="btn btn-soft btn-small" style="margin-top:16px" data-action="new-event">${svg('plus')} Ajouter un RDV</button></div></div><div class="section-title"><h2>À venir</h2></div><div class="list-stack">${sortEvents(data.events.filter(e=>e.start>=dateKey(new Date()))).slice(0,7).map(eventRow).join('')||empty('Agenda vide','Ajoute ton premier rendez-vous.','calendar')}</div>`;}
 function tasksView(){const filtered=data.tasks.filter(t=>taskFilter==='all'||(taskFilter==='done'?t.done:!t.done)).sort((a,b)=>(a.done-b.done)||String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999')));return `<div class="page-header"><div><div class="eyebrow">GARDER LE CAP</div><h1 class="page-title">Rappels</h1><p class="subtitle">Ce qu'il faut faire, sans y penser deux fois.</p></div><button class="btn" data-action="new-task">${svg('plus')} Ajouter</button></div><div class="toolbar"><div class="segmented">${[['open','À faire'],['done','Terminés'],['all','Tous']].map(([key,label])=>`<button data-action="task-filter" data-filter="${key}" class="${taskFilter===key?'active':''}">${label}</button>`).join('')}</div></div><div class="list-stack">${filtered.length?filtered.map(taskRow).join(''):empty('Rien à afficher','Crée un rappel ou transforme une note en tâche.','check')}</div>`;}
 function contactsView(){
- const contacts=[...data.contacts].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
- return `<div class="page-header"><div><div class="eyebrow">LES BONNES PERSONNES</div>
-  <h1 class="page-title">Personnes</h1>
-  <p class="subtitle">Ton carnet de contacts, relié à tes rappels et rendez-vous.</p></div>
-  <div class="contacts-header-actions">
-   <button class="btn btn-neutral" data-action="contacts-import">${svg('upload')} Importer .vcf</button>
-   <button class="btn" data-action="new-contact">${svg('plus')} Ajouter</button>
-  </div></div>
-  <div class="info-strip contacts-import-hint">${svg('info')} Pour importer tes contacts iPhone : exporte-les au format vCard (.vcf) depuis Contacts, puis sélectionne le fichier ici. Aucun accès automatique à ton carnet d’adresses.</div>
-  <div class="cards-grid">${contacts.length?contacts.map(c=>`<button class="person-card" data-action="contact-detail" data-id="${escapeHtml(c.id)}">
-   <span class="person-initial">${escapeHtml(c.name?.[0]?.toUpperCase()||'?')}</span>
-   <span><strong>${escapeHtml(c.name)}</strong><small>${escapeHtml(c.role||c.organization||c.email||c.phone||'Contact')}</small></span>
-   <span class="row-arrow">${svg('chevright')}</span></button>`).join(''):empty('Ton réseau commence ici','Ajoute un contact ou importe un fichier vCard depuis ton iPhone.','users')}</div>`;
+ return window.NexusContacts?.view?.()||'<p>Chargement des contacts…</p>';
 }
 const fmtEuro = new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'});
 function money(cents){return fmtEuro.format((Number(cents)||0)/100);}
@@ -641,7 +630,7 @@ function captureForm(kind, obj={}, context={}){
   content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}${inlineContactField(obj.personId||detected.personId||'')}${projectField(obj.projectId||inheritedProjectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
-  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email','maxlength="160"')}${input('Entreprise / organisation','organization',obj.organization||'','text','maxlength="160"')}${input('Adresse','address',obj.address||'','text','maxlength="300"')}<div class="field"><label for="f-contactNotes">Notes / contexte</label><textarea name="notes" id="f-contactNotes" maxlength="2000">${escapeHtml(obj.notes||'')}</textarea></div><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email','maxlength="160"')}${input('Entreprise / organisation','organization',obj.organization||'','text','maxlength="160"')}${input('Adresse','address',obj.address||'','text','maxlength="300"')}<div class="field"><label for="f-contactNotes">Notes / contexte</label><textarea name="notes" id="f-contactNotes" maxlength="2000">${escapeHtml(obj.notes||'')}</textarea></div>${input('Catégories (séparées par des virgules)','contactTags',Array.isArray(obj.tags)?obj.tags.join(', '):'','text','maxlength="240" placeholder="Famille, Travail, Amis…"')}<label class="nx-contact-favorite-field"><input type="checkbox" name="favorite" value="yes" ${obj.favorite?'checked':''}> ${svg('star')} Ajouter aux favoris</label><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  modal(title,content);
  const form=document.getElementById('entity-form');wireProjectField(form);form.addEventListener('submit',async event=>{
@@ -664,6 +653,12 @@ function captureForm(kind, obj={}, context={}){
   }
   const base={...obj,...values,id:obj.id||uid(),createdAt:obj.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
   if(newContact){base.personId=newContact.id;if(kind==='event')base.personText='';}
+  if(kind==='contact'){
+   const tags=String(values.contactTags||'').split(',').map(x=>x.trim().slice(0,35)).filter(Boolean);
+   base.tags=[...new Map(tags.map(t=>[t.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),t])).values()].slice(0,8);
+   base.favorite=Boolean(form.elements.favorite?.checked);
+   delete base.contactTags;
+  }
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
   if(kind==='event'){base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
@@ -807,36 +802,8 @@ function eventDetail(id){
 }
 
 function taskDetail(id){const t=data.tasks.find(x=>x.id===id);if(!t)return;const note=data.notes.find(n=>n.id===t.noteId),person=data.contacts.find(p=>p.id===t.personId);modal('Rappel',`<div class="eyebrow">À FAIRE</div><h2 style="font-size:24px;letter-spacing:-1px">${escapeHtml(t.title)}</h2><p class="muted-note">${t.done?'Terminé':'À faire'} · ${t.dueDate?formatDate(t.dueDate,{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Sans date limite'}${person?' · '+escapeHtml(person.name):''}</p><div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="toggle-task" data-id="${id}">${svg('check')} ${t.done?'Réactiver':'Marquer terminé'}</button><button class="btn btn-neutral btn-small" data-action="edit-task" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-task" data-id="${id}">${svg('trash')} Supprimer</button></div>${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);}
-function safePhone(value){
- const phone=String(value||'').trim().replace(/[^\d+]/g,'');
- return /^\+?\d{3,15}$/.test(phone)?phone:'';
-}
 function contactDetail(id){
- const c=data.contacts.find(x=>x.id===id);if(!c)return;
- const events=sortEvents(data.events.filter(e=>e.personId===id)),tasks=data.tasks.filter(t=>t.personId===id);
- const phone=safePhone(c.phone),email=String(c.email||'').trim();
- const validEmail=/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
- const address=c.address?escapeHtml(c.address):'',notes=c.notes?escapeHtml(c.notes):'';
- modal('Personne',`<div class="detail-head"><div><div class="eyebrow">PERSONNE</div><h2>${escapeHtml(c.name)}</h2>
-  <p class="subtitle">${escapeHtml(c.role||c.organization||'Contact')}</p></div>
-  <span class="person-initial">${escapeHtml(c.name?.[0]?.toUpperCase()||'?')}</span></div>
-  <div class="form-actions contacts-quick-actions" style="justify-content:flex-start">
-   ${phone?`<a class="btn btn-soft btn-small" href="tel:${phone}">${svg('phone')} Appeler</a>
-    <a class="btn btn-soft btn-small" href="sms:${phone}">${svg('mail')} Message</a>`:''}
-   ${validEmail?`<a class="btn btn-soft btn-small" href="mailto:${escapeHtml(email)}">${svg('mail')} E-mail</a>`:''}
-   <button class="btn btn-neutral btn-small" data-action="edit-contact" data-id="${escapeHtml(id)}">${svg('edit')} Modifier</button>
-   <button class="btn btn-danger btn-small" data-action="delete-contact" data-id="${escapeHtml(id)}">${svg('trash')} Supprimer</button>
-  </div>
-  ${c.phone||c.email||c.organization||address||notes?`<div class="linked-section"><h3>${svg('users')} Coordonnées</h3>
-   ${c.phone?`<p>${svg('phone')} ${escapeHtml(c.phone)}</p>`:''}
-   ${c.email?`<p>${svg('mail')} ${escapeHtml(c.email)}</p>`:''}
-   ${c.organization?`<p>${escapeHtml(c.organization)}</p>`:''}
-   ${address?`<p>${svg('pin')} ${address}</p>`:''}
-   ${notes?`<p class="muted-note">${notes}</p>`:''}</div>`:''}
-  <div class="linked-section"><h3>${svg('link')} Dans ton espace (${events.length+tasks.length})</h3>
-  ${events.map(e=>`<div class="due-item"><span class="item-ico blue">${svg('calendar')}</span><button data-action="event-detail" data-id="${escapeHtml(e.id)}">${escapeHtml(e.title)}<small>${formatDate(e.start)}</small></button></div>`).join('')}
-  ${tasks.map(t=>`<div class="due-item"><span class="item-ico peach">${svg('check')}</span><button data-action="task-detail" data-id="${escapeHtml(t.id)}">${escapeHtml(t.title)}</button></div>`).join('')}
-  ${!(events.length||tasks.length)?'<p class="muted-note">Aucun rendez-vous ou rappel associé.</p>':''}</div>`);
+ return window.NexusContacts?.detail?.(id);
 }
 function showSearch(){modal('Rechercher partout',`<div class="search-box">${svg('search')}<input id="global-search" type="search" placeholder="Note, achat, projet, personne..." autocomplete="off" aria-label="Rechercher dans NEXUS"></div><div class="search-results" id="search-results"></div>`);const field=document.getElementById('global-search');field.addEventListener('input',()=>renderSearch(field.value));renderSearch('');setTimeout(()=>field.focus(),80);}
 function renderSearch(query){
@@ -931,7 +898,7 @@ function settingsView(){
     <button class="btn btn-neutral btn-small" data-action="trash-reset-center">${svg('sliders')} Configurer</button></div>
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.16 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.17 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -983,6 +950,9 @@ document.addEventListener('click',async event=>{
  if(kind==='new-contact')captureForm('contact');
  if(kind==='contacts-import')window.NexusContacts?.openImport?.();
  if(kind==='contacts-import-confirm')await window.NexusContacts?.confirmImport?.();
+ if(kind.startsWith('contacts-')&&!['contacts-import','contacts-import-confirm'].includes(kind)){
+  await window.NexusContacts?.act?.(kind,action);return;
+ }
  if(kind==='inline-new-contact'){
   const panel=action.closest('.contact-field')?.querySelector('.inline-contact-create');
   if(panel){panel.hidden=!panel.hidden;action.setAttribute('aria-expanded',String(!panel.hidden));
@@ -1069,6 +1039,7 @@ document.addEventListener('click',async event=>{
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
+ if(window.NexusContacts?.onChange?.(event.target))return;
  if(window.NexusConnections?.onChange?.(event.target))return;
  if(event.target?.id?.startsWith('b8-journal-')){window.NexusBudget?.change?.(event.target);return;}
  const shortcut=event.target.closest('[data-pref-slot]');
@@ -1081,6 +1052,7 @@ document.addEventListener('change',event=>{
  }
 });
 document.addEventListener('input',event=>{
+ if(window.NexusContacts?.onInput?.(event.target))return;
  if(event.target?.id==='b8-journal-search')window.NexusBudget?.inputSearch?.(event.target);
 });
 document.getElementById('restore-file').addEventListener('change',async event=>{const f=event.target.files?.[0];if(!f)return;try{if(f.size>20_000_000)throw new Error('Fichier trop volumineux');const parsed=JSON.parse(await f.text());if(parsed.app!=='NEXUS'||![1,2].includes(parsed.schemaVersion)||!parsed.data||!['notes','events','tasks','contacts'].every(key=>Array.isArray(parsed.data[key]))||Object.entries(parsed.data).some(([k,v])=>k in data&&!Array.isArray(v)))throw new Error('Ce fichier n’est pas une sauvegarde NEXUS valide.');if(confirm('La restauration remplacera les données actuelles. Continuer ?')){assignData(parsed.data);await persist();closeModal();render();toast('Sauvegarde restaurée');}}catch(err){alert(err.message||'Restauration impossible');}finally{event.target.value='';}});
@@ -1100,7 +1072,7 @@ function attachGamingImport(){
  const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
- window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid});
+ window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg});
 }
 
 (async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
