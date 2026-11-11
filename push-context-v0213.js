@@ -34,7 +34,8 @@
    return {title:'✅ '+truncate(item.title||'Rappel',70),body:dateText+' · '+hourLabel(date)};
   }
   const incoming=item.type==='income';
-  const lead=delta===2?'Dans 2 jours':delta===7?'Dans 7 jours':'Aujourd’hui';
+  const noticeDays=Number(item._noticeDays??delta);
+  const lead=noticeDays===2?'Dans 2 jours':noticeDays===7?'Dans 7 jours':'Aujourd’hui';
   return {
    title:(incoming?'💰 Revenu prévu':'💸 Paiement prévu')+' · '+lead,
    body:truncate(item.title||'Échéance',85)+' · '+(Number.isSafeInteger(item.amountCents)&&item.amountCents>0?euro(item.amountCents):'Montant à vérifier')+
@@ -93,7 +94,7 @@
        if(firing)firing.setDate(firing.getDate()-delta);
        // For budget notices, subtraction is calendar-day based (09:00 local)
        // rather than 48h UTC, surviving summer/winter timezone transitions.
-       await add('budget',rule,firing,0,occurrence.identity+':'+delta);
+       await add('budget',{...rule,_noticeDays:delta},firing,0,occurrence.identity+':'+delta);
       }
      }
     }
