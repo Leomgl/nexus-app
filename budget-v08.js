@@ -165,6 +165,95 @@
      income:pending.filter(x=>x.rule.type==='income').reduce((s,x)=>s+x.rule.amountCents,0),
      expense:pending.filter(x=>x.rule.type==='expense').reduce((s,x)=>s+x.rule.amountCents,0)};
  }
+ // Recettes automatiquement reportées dans le Journal, mais jamais certifiées par une banque.
+ // Toutes les clés de récurrence existantes restent les identifiants de dédoublonnage.
+ const isoDate=value=>{
+  if(typeof value!=='string'||!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+  const d=new Date(value+'T12:00:00Z');
+  return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;
+ };
+ function autoIncomeCandidates(state,at=new Date()){
+  const today=dateKey(at),dateCutoff=dateKey(new Date(at.getFullYear(),at.getMonth()-35,1,12));
+  const done=new Set(state.transactions.filter(x=>x.recurrenceId&&x.occurrenceKey)
+    .map(x=>x.recurrenceId+'|'+x.occurrenceKey));
+  const due=[];
+  for(const rule of state.recurrences){
+   if(!rule||rule.type!=='income'||rule.active!==true||rule.autoBook!==true||
+     !isoDate(rule.autoBookFrom)||!safeNumber(rule.amountCents)||!['monthly','weekly','yearly'].includes(rule.frequency))continue;
+   const since=rule.autoBookFrom>dateCutoff?rule.autoBookFrom:dateCutoff;
+   if(since>today)continue;
+   const from=new Date(since+'T12:00:00'),to=new Date(today+'T12:00:00');
+   const count=(to.getFullYear()-from.getFullYear())*12+to.getMonth()-from.getMonth();
+   for(let i=0;i<=count;i++){
+    const month=monthKey(new Date(from.getFullYear(),from.getMonth()+i,1,12));
+    for(const occurrence of occurrences(rule,month)){
+     const identity=rule.id+'|'+occurrence.identity;
+     if(occurrence.skipped||occurrence.date<since||occurrence.date>today||done.has(identity))continue;
+     done.add(identity);due.push(occurrence);
+    }
+   }
+  }
+  return due.sort((a,b)=>a.date.localeCompare(b.date)||String(a.rule.id).localeCompare(String(b.rule.id))).slice(0,160);
+ }
+ let autoIncomeBusy=false,autoIncomeReady=false;
+ async function autoPostIncome({redraw=true,at=new Date()}={}){
+  if(autoIncomeBusy||!autoIncomeReady)return {created:0,busy:autoIncomeBusy};
+  autoIncomeBusy=true;
+  let created=[];
+  try{
+   for(const occurrence of autoIncomeCandidates(data,at)){
+    if(data.transactions.some(tx=>tx.recurrenceId===occurrence.rule.id&&tx.occurrenceKey===occurrence.identity))continue;
+    const now=new Date().toISOString();
+    const r=occurrence.rule;
+    const entry={id:uid(),title:r.title,type:'income',amountCents:r.amountCents,
+     category:r.category||'Salaire',date:occurrence.date,projectId:r.projectId||'',
+     recurrenceId:r.id,occurrenceKey:occurrence.identity,
+     autoRecorded:true,incomeVerified:false,
+     notes:'Revenu inscrit automatiquement selon le calendrier NEXUS. Réception bancaire à vérifier.',
+     createdAt:now,updatedAt:now};
+    data.transactions.push(entry);
+    created.push(entry);
+   }
+   if(!created.length)return {created:0};
+   await persist();
+   const verified=await window.NexusBudget?.verifyAutoIncomeEntries?.(created);
+   if(verified!==true){
+    // A storage failure may be swallowed by legacy persist(): never display a false success.
+    data.transactions=data.transactions.filter(tx=>!created.some(x=>x.id===tx.id));
+    await persist();
+    toast('Revenus automatiques non enregistrés : vérifie le stockage de NEXUS.');
+    return {created:0,error:'storage'};
+   }
+   if(redraw){
+    const focused=document.activeElement?.tagName;
+    if(!['INPUT','TEXTAREA','SELECT'].includes(focused)&&!document.querySelector('.modal-overlay'))render();
+   }
+   toast(created.length+' revenu(s) planifié(s) ajouté(s) au Journal · réception à vérifier.');
+   return {created:created.length};
+  }catch(error){
+   data.transactions=data.transactions.filter(tx=>!created.some(x=>x.id===tx.id));
+   try{await persist()}catch{}
+   console.warn('NEXUS recurring income posting',error);
+   return {created:0,error:'exception'};
+  }finally{autoIncomeBusy=false;}
+ }
+ function startAutoIncome(){
+  autoIncomeReady=true;
+  return autoPostIncome();
+ }
+ async function verifyIncome(id){
+  const tx=data.transactions.find(x=>x.id===id&&x.type==='income'&&x.autoRecorded===true);
+  if(!tx||tx.incomeVerified===true)return;
+  tx.incomeVerified=true;tx.verifiedAt=new Date().toISOString();tx.updatedAt=tx.verifiedAt;
+  await persist();render();toast('Revenu marqué comme reçu.');
+ }
+ if(typeof window!=='undefined'&&typeof document!=='undefined'){
+  const wake=()=>{if(autoIncomeReady&&document.visibilityState!=='hidden')void autoPostIncome();};
+  document.addEventListener('visibilitychange',wake);
+  window.addEventListener('focus',wake);
+  window.addEventListener('online',wake);
+  if(typeof window.setInterval==='function')window.setInterval(wake,15*60*1000);
+ }
  function rulePeriodDescription(rule){
    if(rule.frequency==='weekly')return ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'][Number(rule.weekday)]||'jour à définir';
    if(rule.frequency==='yearly')return 'le '+rule.day+'/'+String(rule.month).padStart(2,'0')+' chaque année';
@@ -210,17 +299,18 @@
  }
  function overview(){
    const total=monthTotals(budgetMonth),remaining=forecast(budgetMonth),actualNet=total.income-total.expense;
+   const waitingVerification=budgetEntries().filter(t=>t.autoRecorded===true&&t.incomeVerified!==true).length;
    const forecastNet=actualNet+remaining.income-remaining.expense;
    const upcoming=remaining.pending.filter(o=>o.date>=dateKey(new Date())).slice(0,5);
    const past=remaining.pending.filter(o=>o.date<dateKey(new Date())).slice(-3).reverse();
    const limit=data.limits.find(x=>x.month===budgetMonth)?.limitCents||0;
    const expenses=budgetEntries().filter(t=>t.type==='expense').slice(0,5);
    return `<div class="b8-metrics">
-    <div><span>Recettes enregistrées</span><strong class="positive">${currencies(total.income)}</strong><small>Confirmées dans le journal</small></div>
+    <div><span>Recettes enregistrées</span><strong class="positive">${currencies(total.income)}</strong><small>${waitingVerification?waitingVerification+' revenu(s) programmé(s) à vérifier':'Saisies ou confirmées dans le Journal'}</small></div>
     <div><span>Dépenses enregistrées</span><strong>${currencies(total.expense)}</strong><small>Confirmées dans le journal</small></div>
     <div><span>Flux net du mois</span><strong class="${actualNet<0?'negative':'positive'}">${actualNet<0?'−':''}${currencies(Math.abs(actualNet))}</strong><small>Recettes − dépenses</small></div>
    </div>
-   ${quickPanel()}
+    ${quickPanel()}
    <section class="b8-panel">
     ${panelTitle('Prévisions du mois','À confirmer, jamais ajoutées automatiquement au journal.',
       `<button class="btn btn-soft btn-small" data-action="b8-switch-tab" data-tab="recurring">Gérer ${svg('arrow')}</button>`)}
@@ -231,7 +321,7 @@
     </div>
     <div class="b8-reminder-list">${[...past,...upcoming].length?[...past,...upcoming].map(o=>occurrenceRow(o)).join(''):
       `<p class="muted-note">Aucun mouvement récurrent en attente pour ce mois.</p>`}</div>
-    <p class="b8-disclaimer">* Projection des mouvements enregistrés et des récurrences restant à confirmer. Ce n'est pas un solde bancaire.</p>
+    <p class="b8-disclaimer">* Projection indicative, pas un solde bancaire. Les revenus enregistrés automatiquement comptent dans les recettes du Journal, mais doivent être vérifiés sur ton compte.</p>
    </section>
    ${nextMonthsForecast()}
    <div class="b8-two-col">
@@ -250,20 +340,20 @@
    </div>`;
  }
  function occurrenceRow(o){
-   const tx=linkedTx(o),isPast=o.date<dateKey(new Date()),flag=tx?'Enregistré':o.skipped?'Ignoré':isPast?'À vérifier':'Prévu';
+   const tx=linkedTx(o),isPast=o.date<dateKey(new Date()),flag=tx?.autoRecorded&&!tx.incomeVerified?'Programmé · à vérifier':tx?'Enregistré':o.skipped?'Ignoré':isPast?'À vérifier':'Prévu';
    return `<div class="b8-occurrence ${o.skipped?'is-skipped':''}">
     <span class="b8-occ-date"><strong>${o.date.slice(8,10)}</strong><small>${formatDate(o.date,{month:'short'})}</small></span>
     <span class="b8-occ-info"><strong>${safe(o.rule.title)}</strong><small>${pill(flag,tx?'done':o.skipped?'muted':isPast?'warning':'')}</small></span>
     <strong class="b8-occ-amount ${o.rule.type==='income'?'positive':'negative'}">${o.rule.type==='income'?'+':'−'}${currencies(o.rule.amountCents)}</strong>
     <div class="b8-occ-actions">${tx?
-      `<button class="b8-mini-btn" data-action="transaction-detail" data-id="${safe(tx.id)}" aria-label="Voir l'opération">${svg('chevright')}</button>`:
+      `${tx.autoRecorded&&!tx.incomeVerified?`<button class="b8-mini-btn b8-mini-primary" data-action="b8-income-verify" data-id="${safe(tx.id)}">Reçu ✓</button>`:''}<button class="b8-mini-btn" data-action="transaction-detail" data-id="${safe(tx.id)}" aria-label="Voir l'opération">${svg('chevright')}</button>`:
       o.skipped?`<button class="b8-mini-btn" data-action="b8-unskip" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Réactiver</button>`:
       `<button class="b8-mini-btn" data-action="b8-skip" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Ignorer</button>
        <button class="b8-mini-btn b8-mini-primary" data-action="b8-book" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Confirmer</button>`}
     </div></div>`;
  }
  function recurring(){
-   const list=recurrenceOccurrences(budgetMonth),rules=[...data.recurrences].filter(r=>!r.commitmentKind).sort((a,b)=>(b.active===true)-(a.active===true)?(a.active?-1:1):(a.title||'').localeCompare(b.title||'','fr'));
+   const list=recurrenceOccurrences(budgetMonth),rules=[...data.recurrences].filter(r=>!r.commitmentKind&&r.type!=='income').sort((a,b)=>(b.active===true)-(a.active===true)?(a.active?-1:1):(a.title||'').localeCompare(b.title||'','fr'));
    const active=rules.filter(x=>x.active).length;
    return `<section class="b8-panel">${panelTitle('Échéancier · '+formatDate(budgetMonth+'-01',{month:'long',year:'numeric'}),
        'Les dates prévues et leur validation indépendante du journal.',
@@ -297,6 +387,7 @@
  function journalRow(tx){
   return `<div class="b10-journal-entry">
    ${transactionRow(tx)}
+   ${tx.autoRecorded?`<div class="b8-auto-income-marker">${tx.incomeVerified?'Revenu reçu · vérifié':'Revenu programmé automatiquement · réception non vérifiée'}${!tx.incomeVerified?` <button type="button" data-action="b8-income-verify" data-id="${safe(tx.id)}">Confirmer reçu</button>`:''}</div>`:''}
    <div class="b10-journal-entry-actions">
     <button data-action="b10-fast-edit" data-id="${safe(tx.id)}" aria-label="Modifier rapidement ${safe(tx.title)}">${svg('edit')} Modifier</button>
     <button data-action="b10-delete" data-id="${safe(tx.id)}" aria-label="Mettre ${safe(tx.title)} dans la corbeille">${svg('trash')} Supprimer</button>
@@ -427,7 +518,7 @@
     ${section==='commitments'?(window.NexusBudget20?.commitmentsView?.(recurring())||recurring()):
       section==='goals'?(window.NexusBudget20?.goalsView?.()||'<p class="muted-note">Chargement des objectifs…</p>'):
       tab==='journal'?journal():tab==='stats'?stats():overview()}
-    <div class="info-strip">${svg('shield')} Suivi local indicatif : sans connexion bancaire. Les prévisions ne sont jamais considérées comme payées sans ta confirmation.</div>
+    <div class="info-strip">${svg('shield')} Suivi local, sans connexion bancaire : les revenus récurrents peuvent être inscrits automatiquement si tu l'autorises, sans certifier leur réception. Les dépenses et autres échéances ne sont enregistrées qu'après confirmation.</div>
    </div>`;
  }
  function refresh(){render();}
@@ -452,6 +543,10 @@
    <label class="b8-field">Catégorie<select name="category">${categoryOptions(rule.category||(rule.type==='income'?'Salaire':'Autres'),!!rule.id)}</select></label>
    ${projectSelect(rule.projectId||'')}
    <label class="b8-checkbox"><input type="checkbox" name="active" ${rule.active!==false?'checked':''}> Récurrence active</label>
+   <div class="b8-income-auto-field" id="b8-income-auto-field" ${rule.type==='income'?'':'hidden'}>
+    <label class="b8-checkbox"><input type="checkbox" name="autoBook" ${rule.autoBook===true?'checked':''}> Inscrire automatiquement ce revenu au Journal</label>
+    <p class="b8-form-note">À partir de l'activation, les échéances dues seront ajoutées lors de l'ouverture ou de la reprise de NEXUS. Aucune période antérieure n'est ajoutée rétroactivement. Montant prévu, réception bancaire non vérifiée. Vérifie les recettes déjà saisies avant d'activer.</p>
+   </div>
    <p class="b8-form-note">Le jour 29, 30 ou 31 est ramené au dernier jour des mois plus courts. Les écritures déjà validées ne seront jamais modifiées.</p>
    <div class="form-actions">${existing?`<button type="button" class="btn btn-danger btn-small" data-action="b8-rule-delete" data-id="${safe(rule.id)}">Supprimer</button>`:''}
    <button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
@@ -459,20 +554,27 @@
   modal(existing?'Modifier la récurrence':'Nouvelle récurrence',content);
   const form=document.getElementById('b8-rule-form');
   const toggle=()=>{
+    const income=form.elements.type.value==='income';
+    const autoField=document.getElementById('b8-income-auto-field');
+    if(autoField){autoField.hidden=!income;autoField.querySelectorAll('input').forEach(el=>el.disabled=!income);}
     const selected=form.elements.frequency.value;
     for(const [id,show] of [['b8-monthday',selected!=='weekly'],['b8-weekday',selected==='weekly'],['b8-yearmonth',selected==='yearly']]){
      const group=document.getElementById(id);group.hidden=!show;
      for(const input of group.querySelectorAll('input,select'))input.disabled=!show;
     }
   };
-  form.elements.frequency.addEventListener('change',toggle);toggle();
+  form.elements.frequency.addEventListener('change',toggle);form.elements.type.addEventListener('change',toggle);toggle();
   form.addEventListener('submit',async e=>{
    e.preventDefault();if(!form.reportValidity())return;
    const v=Object.fromEntries(new FormData(form).entries());
    const amount=toCents(v.amountEuros);
    if(!safeNumber(amount)){toast('Montant invalide.');return;}
    if(v.endDate&&v.endDate<v.startDate){toast('La fin doit suivre le début.');return;}
+   const enabled=v.type==='income'&&v.autoBook==='on';
+   const activation=enabled&&rule.autoBook===true&&rule.active!==false&&
+     isoDate(rule.autoBookFrom)?rule.autoBookFrom:dateKey(new Date());
    const next={...rule,id:rule.id||uid(),title:v.title.trim().slice(0,130),type:v.type,
+    autoBook:enabled,autoBookFrom:enabled?activation:'',
     amountCents:amount,frequency:v.frequency,
     day:v.frequency==='weekly'?Number(rule.day||1):Number(v.day),
     weekday:v.frequency==='weekly'?Number(v.weekday):Number(rule.weekday??1),
@@ -483,7 +585,7 @@
     createdAt:rule.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
    const index=data.recurrences.findIndex(r=>r.id===next.id);
    if(index>=0)data.recurrences[index]=next;else data.recurrences.push(next);
-   await persist();closeModal();refresh();toast('Récurrence enregistrée.');
+   await persist();closeModal();await autoPostIncome({redraw:false});refresh();toast('Récurrence enregistrée.');
   });
  }
  function quickForm(template={}){
@@ -582,7 +684,7 @@
  }
  async function toggleRule(id){
    const rule=data.recurrences.find(x=>x.id===id);if(!rule)return;
-   rule.active=!rule.active;rule.updatedAt=new Date().toISOString();
+   rule.active=!rule.active;if(rule.active&&rule.autoBook===true)rule.autoBookFrom=dateKey(new Date());rule.updatedAt=new Date().toISOString();
    await persist();refresh();toast(rule.active?'Récurrence activée.':'Récurrence en pause.');
  }
  async function deleteRule(id){
@@ -597,6 +699,7 @@
  await persist();refresh();toast(q.pinned?'Raccourci épinglé.':'Raccourci désépinglé.');
  }
  function act(action,el){
+   if(action==='b8-income-verify')return verifyIncome(el.dataset.id);
    if(action==='b10-fast-edit')return fastEdit(el.dataset.id);
    if(action==='b10-full-edit'){
     const tx=data.transactions.find(item=>item.id===el.dataset.id);
@@ -648,5 +751,5 @@
  function updateJournal(){
    const mount=document.getElementById('b8-journal-results');if(mount)mount.innerHTML=journalList();
  }
- window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm,categoryOptions:categoryOptionList,categoriesCatalog,categoryHue};
+ window.NexusBudget={view,act,change,inputSearch,forecast,occurrences,trendMonths,openRule:ruleForm,autoIncomeCandidates,autoPostIncome,startAutoIncome,verifyIncome,categoryOptions:categoryOptionList,categoriesCatalog,categoryHue};
 })();
