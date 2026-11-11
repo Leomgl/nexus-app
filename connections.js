@@ -39,11 +39,11 @@
   catch{toast('Impossible de sauvegarder ces préférences locales.');}
  }
  function numberEnabled(id){return ownPairs(id).length?ownPairs(id)[0].scopes.length:Object.values(cfg.grants[id]||{}).filter(Boolean).length;}
- function settingsCard(){
+ function settingsCard(appId=null){
   return '<section class="preferences-panel nx-connections-panel">'+
    '<div class="pref-heading">'+svg('link')+'<div><h2>Applications & connexions</h2>'+
    '<p>RITUEL et Gaming, connectées à NEXUS avec autorisations indépendantes.</p></div></div>'+
-   '<div class="nx-connection-apps">'+APPS.map(app=>
+   '<div class="nx-connection-apps">'+APPS.filter(app=>!appId||app.id===appId).map(app=>
      '<div class="nx-connection-app"><div><strong>'+escape(app.name)+'</strong>'+
      '<small>'+escape(app.detail)+'</small>'+
      '<span class="nx-connection-status">'+escape(ownPairs(app.id).length?'Jumelage configuré · propositions disponibles':app.state)+' · '+numberEnabled(app.id)+' autorisation(s)</span></div>'+
