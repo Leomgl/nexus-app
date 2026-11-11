@@ -73,7 +73,7 @@
  async function revoke(){
   const p=pair();if(!p||!confirm('Révoquer seulement la liaison voyage ? Le lien RITUEL → NEXUS reste inchangé.'))return;
   try{
-   await window.NexusLinkCore.revoke(p);
+   try{await window.NexusLinkCore.revoke(p);}catch(error){if(error.message!=='UNAUTHORIZED')throw error;}
    data().linkConnections=data().linkConnections.filter(x=>x.id!==p.id);
    data().travelOutbox=[];await api.persist();api.render();show();api.toast('Liaison voyage révoquée.');
   }catch(e){api.toast('Révocation impossible : '+short(e.message,80))}
