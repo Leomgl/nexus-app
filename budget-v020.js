@@ -85,7 +85,20 @@
    <small class="b20-muted">${next?'Prochaine échéance : '+dateLabel(next):'Pas de prochaine échéance active'} · ${p.remaining} mensualité(s) non confirmée(s)</small>
   </article>`;
  }
+ function incomeRow(rule){
+  const next=rule.active?nextDue(rule):'';
+  return `<article class="b20-item">
+   <span class="b20-item-icon">${svg('arrow')}</span>
+   <div class="b20-item-main"><div class="b20-item-title"><strong>${safe(rule.title)}</strong>
+    <span class="b20-status ${!rule.active?'paused':rule.autoBook===true?'':'manual'}">${!rule.active?'En pause':rule.autoBook===true?'Automatique':'Manuel'}</span></div>
+    <small>${rule.frequency==='yearly'?'Annuel':rule.frequency==='weekly'?'Hebdomadaire':'Mensuel'} · ${next?'Prochaine échéance : '+dateLabel(next):'Aucune échéance à venir'}</small>
+   </div>
+   <div class="b20-amount"><strong>+${fmt(rule.amountCents)}</strong><small>par échéance</small></div>
+   <button type="button" class="b20-edit" data-action="b20-income-edit" data-id="${safe(rule.id)}" aria-label="Modifier ${safe(rule.title)}">${svg('edit')}</button>
+  </article>`;
+ }
  function commitmentsView(recurrencesHtml=''){
+  const incomes=data.recurrences.filter(r=>r.type==='income'&&!r.commitmentKind).sort(byTitle);
   const subs=pendingRules('subscription').sort(byTitle);
   const loans=pendingRules('loan').sort(byTitle);
   const existingRules=data.recurrences.filter(r=>!r.commitmentKind&&r.type==='expense'&&['monthly','yearly'].includes(r.frequency));
@@ -94,6 +107,12 @@
   return `<div class="b20-wrap">
     <div class="b20-summary"><div><span>Abonnements actifs, équivalent mensuel</span><strong>${fmt(active)}</strong></div>
     <div><span>Mensualités de prêts actives</span><strong>${fmt(totalLoan)}</strong></div></div>
+    <section class="b8-panel b20-panel">
+     ${panelTitle('Revenus réguliers','Salaire, rente, revenus locatifs ou autres recettes prévues.',
+       `<button class="btn btn-small" data-action="b20-income-new">${svg('plus')} Revenu</button>`)}
+     <div class="b20-list">${incomes.length?incomes.map(incomeRow).join(''):`<div class="b20-blank">${svg('wallet')}<strong>Aucun revenu récurrent</strong><p>Ajoute ton salaire ou une autre entrée d’argent pour préparer ton budget.</p></div>`}</div>
+     <p class="b8-disclaimer">L’inscription automatique est facultative pour chaque revenu. Les sommes ajoutées sont des recettes programmées, pas des virements bancaires vérifiés.</p>
+    </section>
     ${existingRules.length?`<div class="b20-classify"><span>${svg('info')} Tu as déjà des prélèvements dans Récurrences ? Classe-les sans créer de doublons.</span>
     <button type="button" class="btn btn-neutral btn-small" data-action="b20-classify">${svg('layers')} Classer une récurrence</button></div>`:''}
     <section class="b8-panel b20-panel">
@@ -362,6 +381,8 @@
  }
  function act(kind,button){
   const id=button?.dataset?.id;
+  if(kind==='b20-income-new'){window.NexusBudget?.openRule?.({type:'income',category:'Salaire',frequency:'monthly',active:true});return true;}
+  if(kind==='b20-income-edit'){const r=data.recurrences.find(x=>x.id===id&&x.type==='income');if(r)window.NexusBudget?.openRule?.(r);return true;}
   if(kind==='b20-classify'){classifyPicker();return true;}
   if(kind==='b20-classify-sub'){
    const r=data.recurrences.find(x=>x.id===id&&!x.commitmentKind&&x.type==='expense'&&['monthly','yearly'].includes(x.frequency));
