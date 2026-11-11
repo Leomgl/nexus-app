@@ -1160,7 +1160,7 @@ function attachGamingImport(){
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
  window.NexusTravel?.attach?.(adapter);
- window.NexusVestiaire?.attach?.({...adapter,verify:verifyVestiaire,navTo,svg});
+ window.NexusVestiaire?.attach?.({...adapter,verify:verifyVestiaire,navTo,svg,showEvent:eventDetail});
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
  window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
  window.NexusConnect2?.attach?.({state:()=>data,persist,verifyLedger:verifyLinkedBudgetRecord,safeRender:safeConnectionRender,toast,escape:escapeHtml,svg,uid});
