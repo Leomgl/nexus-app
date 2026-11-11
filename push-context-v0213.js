@@ -54,7 +54,7 @@
    // Existing D1 push_jobs CHECK accepts only event/task. Budget jobs use the
    // existing task transport, but retain their budget context solely on device.
    const transportKind=kind==='budget'?'task':kind;
-   rows.push({job:{id,kind:transportKind,fireAt},display:message(kind,item,at,delta,settings,contacts)});
+   rows.push({job:{id,kind:transportKind,fireAt},kind,display:message(kind,item,at,delta,settings,contacts)});
   }
   const events=Array.isArray(state.events)?state.events:[];
   for(const e of events){
@@ -102,7 +102,7 @@
   }
   rows.sort((a,b)=>a.job.fireAt-b.job.fireAt||a.job.id.localeCompare(b.job.id));
   const selected=rows.slice(0,600),contexts={};
-  for(const row of selected)contexts['nexus-'+row.job.id.slice(0,16)]=row.display;
+  for(const row of selected)contexts['nexus-'+row.job.id.slice(0,16)]={...row.display,kind:row.kind};
   return {jobs:selected.map(row=>row.job),contexts};
  }
  window.NexusPushContext={build};
