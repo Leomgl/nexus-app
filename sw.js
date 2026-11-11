@@ -1,5 +1,5 @@
-const CACHE_NAME = 'nexus-v0.17.4';
-const CORE = ['./', './index.html', './styles.css?v=0174', './app.js?v=0174', './contacts-v017.js?v=0174', './recycle.js', './connections.js','./link-import.js','./rituel-import.js', './link-core.js', './budget-v08.js', './cloud.js', './push-client.js', './passkey-client.js', './lock-boot.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
+const CACHE_NAME = 'nexus-v0.18.0';
+const CORE = ['./', './index.html', './styles.css?v=0180', './pulse-v018.css?v=0180', './app.js?v=0180', './pulse-v018.js?v=0180', './contacts-v017.js?v=0174', './recycle.js', './connections.js','./link-import.js','./rituel-import.js', './link-core.js', './budget-v08.js', './cloud.js', './push-client.js', './passkey-client.js', './lock-boot.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('nexus-v') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {
