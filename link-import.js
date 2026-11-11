@@ -30,6 +30,7 @@
   if(p.date&&!validDate(p.date))return false;
   if(typeof p.time!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(p.time))return false;
   if(p.priceCents!==null&&(!Number.isSafeInteger(p.priceCents)||p.priceCents<0||p.priceCents>1e10))return false;
+  if(p.currency!=null&&p.currency!=='EUR')return false;
   if((p.destination==='events'||p.destination==='tasks')&&!validDate(p.date))return false;
   return true;
  }
@@ -152,12 +153,15 @@
    api.toast('Vérifie le titre, la date, le montant et le projet.');return;
   }
   const collection=api.state()[kind];
-  const target=item.targetId?collection.find(x=>x.id===item.targetId):null;
+  const target=item.targetId?collection.find(x=>x.id===item.targetId):
+   kind==='transactions'?collection.find(x=>x.originApp==='gaming'&&x.originSourceId===item.payload.sourceId)||
+    collection.find(x=>(api.state().linkInbox||[]).some(y=>y!==item&&y.status==='accepted'&&
+      y.payload?.sourceApp==='gaming'&&y.payload?.sourceId===item.payload.sourceId&&y.targetId===x.id)):null;
   if(item.targetId&&!target){
    api.toast('L’élément NEXUS lié a été supprimé. Restaure-le depuis la corbeille avant de réexaminer.');return;
   }
   const data={...target,id:target?.id||api.uid(),createdAt:target?.createdAt||now,updatedAt:now,
-    title,originApp:'gaming',originLink:{pairId:item.pairId,sourceKey:item.sourceKey,revision:item.revision}};
+    title,originApp:'gaming',originSourceId:item.payload.sourceId,originLink:{pairId:item.pairId,sourceKey:item.sourceKey,revision:item.revision}};
   if(kind==='events')Object.assign(data,{start:date+'T'+item.payload.time+':00',details:clean(form.details,1500),
     location:target?.location||'',reminderMinutes:target?.reminderMinutes||[],projectId:projectId||target?.projectId||''});
   if(kind==='tasks')Object.assign(data,{dueDate:date,dueTime:item.payload.time,done:target?.done||false,
