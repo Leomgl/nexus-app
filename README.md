@@ -297,3 +297,15 @@ Réception sécurisée : jusqu'à 50 messages par lot, sauvegarde IndexedDB/back
 La synchronisation est **unidirectionnelle** : Gaming transmet à NEXUS, jamais l'inverse. Pas de synchronisation des mouvements de fichiers PS5, des clés ou des coffres. L'option d'envoi automatique dans Gaming est désactivée par défaut. La réception et la validation dans NEXUS restent manuelles. Si une fiche Gaming est supprimée, aucune fiche NEXUS n'est supprimée en cascade.
 
 Aucune nouvelle base Cloudflare, aucun abonnement ou accès payant. **La validation sur Safari/iOS avec des propositions personnelles reste à faire** ; les tests techniques utilisent des données synthétiques et n'ont pas traité les données du compte de l'utilisateur.
+
+## V0.16 — achats comptabilisés et carnet de contacts enrichi
+
+- **Achats → Acheté** : une dépense du montant renseigné est ajoutée automatiquement au Journal Budget, liée à l'achat, sa note et son projet. Une deuxième écriture portant le même `purchaseId` n'est jamais créée. Le passage à « Acheté » via modification du formulaire suit la même règle. Un prix manquant ou nul bloque le changement jusqu'à saisie d'un montant positif. Pour les achats déjà marqués « Acheté » avant cette mise à jour sans transaction, la régularisation reste manuelle via « Ajouter au budget ».
+- **Historique** : une fois la dépense créée, changer la catégorie, le prix ou le statut de l'achat ne modifie ni ne supprime la transaction historique ; le Journal reste le lieu pour corriger l'écriture.
+- **Agenda / Rappels** : création d'une nouvelle personne pendant la saisie, enregistrée et liée en une seule validation. Un doublon évident doit être sélectionné dans les contacts existants.
+- **Personnes** : nouvelles informations (organisation, adresse, notes), actions `tel:`, `sms:` et `mailto:` pour ouvrir les apps système compatibles. `sms:` ouvre Messages sur iPhone ; le système détermine si iMessage est disponible. Une PWA ne peut pas composer un appel sans intervention/confirmation d'iOS.
+- **Import local de fichiers vCard (.vcf)** : aperçu avant confirmation, doublons simples ignorés, taille max. 8 Mo et 5 000 fiches traitées. Aucun contact importé automatiquement ni envoyé au Worker. iOS Safari ne donne pas un accès universel au carnet natif via les PWAs : utiliser l'export vCard depuis Contacts.
+
+Même stockage local, mêmes exports JSON/coffre chiffré (champs supplémentaires conservés), aucune migration D1, aucune fonction payante. Faire les essais manuels sur iPhone avant de considérer la version stabilisée.
+
+Voir [docs/CONTACTS-BUDGET-V016.md](docs/CONTACTS-BUDGET-V016.md).
