@@ -126,3 +126,13 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Lorsqu'une tenue est retirée depuis la fiche Agenda ouverte, la fiche est immédiatement rafraîchie pour ne plus afficher l'ancienne sélection.
 - Numéro affiché et assets JS de NEXUS versionnés `0211`, Service Worker `nexus-v0.21.1` ; ne jamais désinstaller la PWA pour actualiser.
 - [Issue recette réelle #5](https://github.com/Leomgl/nexus-app/issues/5) et [future V0.22 Command Center #6](https://github.com/Leomgl/nexus-app/issues/6).
+
+
+### Incident de jumelage V0.21 — corrigé côté D1 le 11/11/2026
+
+- Symptôme sur iPhone : bouton **Créer la connexion Vestiaire** → toast `Connexion impossible : PAIR_ALREADY_EXISTS` sans code généré.
+- Cause **confirmée** : table SQL `connections` du relais LINK limitée aux sources `gaming` et `rituel` par `CHECK`. L'acceptation Vestiaire était uniquement dans le Worker ; le `catch` masquait toutes les erreurs D1 derrière `PAIR_ALREADY_EXISTS`.
+- **Correction appliquée directement en production** : `bridge/migrations/0002_vestiaire.sql` migre le parent et ses événements enfants. Résultats : **3 connexions conservées, 40 événements chiffrés conservés, 0 anomalie FK**.
+- Worker LINK redéployé en héritant `DB` et `LINK_PEPPER`, avec messages d'erreur justes : `PAIR_ALREADY_EXISTS` seulement pour conflit UUID, `PAIR_SAVE_FAILED` sinon.
+- Les données et connexions Gaming/Rituel ont été préservées, aucun reset utilisateur. **Le test manuel de création du code sur iPhone doit encore être confirmé par l'utilisateur.**
+- En cas de nouvelle erreur, vérifier en priorité `bridge/migrations`, CHECK SQL, `pairing_rate` (limite 10 tentatives/jour/IP), `nexus-link-api` et ses bindings. Ne jamais afficher/partager le code privé de jumelage dans un ticket GitHub ou ici.
