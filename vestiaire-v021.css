@@ -1,0 +1,21 @@
+/* V0.21 · Vestiaire suggestions scoped to Pulse and settings */
+.nxv-widget{display:grid;gap:9px}
+.nxv-widget .nxp-widget-heading{margin-bottom:3px}
+.nxv-context{display:grid;gap:5px;margin:0 0 5px;padding:10px 11px;border-radius:11px;background:#eff6e9;color:#42694f;font-size:12px;font-weight:680}
+.nxv-context>svg{width:15px;height:15px;display:inline-block}
+.nxv-context span{font-size:10px;color:#7b9881;font-weight:500}
+.nxv-suggestion{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #edf2e9;min-width:0}
+.nxv-suggestion:last-of-type{border:0}
+.nxv-rank{width:23px;height:23px;display:grid;place-items:center;flex:none;border-radius:7px;background:#edf4e8;color:#4d805d;font-size:11px;font-weight:800}
+.nxv-look{min-width:0;flex:1}
+.nxv-look strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#355843}
+.nxv-look small{display:block;font-size:10px;margin-top:4px;color:#91a197}
+.nxv-suggestion button,.nxv-suggestion a{width:30px;height:30px;display:grid;place-items:center;flex:none;border-radius:9px;background:#f1f6ef;color:#5d8a67}
+.nxv-suggestion svg{width:15px;height:15px}
+.nxv-picked{font-size:10px;color:#436d50;background:#edf5e8;padding:9px 10px;border-radius:10px;line-height:1.6}
+.nxv-picked svg{height:14px;width:14px;vertical-align:middle}
+.nxv-picked button{font-size:10px;margin-left:10px;color:#946c54;text-decoration:underline;background:transparent}
+.nxv-disclaimer{font-size:10px;line-height:1.6}
+.nxv-settings textarea{width:100%;box-sizing:border-box;max-width:100%;border:1px solid #dbe4d9;border-radius:10px;background:#f6f9f3;padding:10px;overflow-wrap:anywhere;font-size:12px;color:#365845}
+.nxv-settings .form-actions{flex-wrap:wrap;gap:7px;margin-top:12px}
+@media(max-width:760px){.nxv-settings textarea{font-size:16px}.nxv-suggestion{gap:7px}}
