@@ -70,7 +70,7 @@
     }
     if(!toAck.length||messages.length<50)break;
    }
-   api.render();
+   if(received>0)(api.safeRender||api.render)?.();
    return {received,invalid,acked};
   }finally{working=false}
  }
