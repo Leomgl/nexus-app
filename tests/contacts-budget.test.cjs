@@ -33,7 +33,7 @@ test('completed purchase creates exactly one linked budget expense',()=>{
 
 test('Apple-style vCard is read locally, including folded and escaped fields',()=>{
  global.window={};
- require('../contacts-v016.js');
+ require('../contacts-v017.js');
  assert.equal(typeof window.NexusContacts.parseVcards,'function');
  const input=[
   'BEGIN:VCARD','VERSION:3.0','N:Durand;Émilie;;;',
@@ -54,4 +54,46 @@ test('Apple-style vCard is read locally, including folded and escaped fields',()
  assert.equal(contacts[1].name,'Alexandre Martin');
  assert.equal(contacts[1].phone,'+33700000000');
  assert.throws(()=>window.NexusContacts.parseVcards('not a vcard'),/vCard/);
+});
+
+test('V0.17 contacts: compact cards, alphabetical jump, tag filters and favorites',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ const data={contacts:[
+  {id:'c1',name:'Émilie Durand',favorite:true,tags:['Famille'],phone:'+33600000001'},
+  {id:'c2',name:'Zoé',favorite:false,tags:['Travail'],phone:'+33600000002'},
+  {id:'c3',name:'Arthur',favorite:false,tags:['Famille','Amis'],phone:'+33600000003'}
+ ]};
+ window.NexusContacts.attach({state:()=>data,escape:s=>String(s).replace(/</g,'&lt;'),svg:()=>''});
+ const html=window.NexusContacts.view();
+ assert.match(html,/nx-contact-query/);
+ assert.match(html,/nx-contact-sort/);
+ assert.match(html,/nx-contact-tag/);
+ assert.match(html,/nx-contact-index/);
+ const visible=window.NexusContacts.visibleContacts();
+ assert.deepEqual(visible.map(x=>x.name),['Arthur','Émilie Durand','Zoé']);
+ assert.deepEqual(window.NexusContacts.tagCatalog(),['Amis','Famille','Travail']);
+ assert.match(html,/Ajouter/);
+ assert.doesNotMatch(html,/nx-contact-card/,'Cards are rendered in a separate compact result slot');
+});
+
+test('V0.17 parses photo base64 and vCard tags without saving remote photo links',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ const photo='AQIDBAUG';
+ const text=[
+  'BEGIN:VCARD','VERSION:3.0','FN:Chloé',
+  'TEL:+33611111111','CATEGORIES:Famille,Amis',
+  'PHOTO;ENCODING=b;TYPE=JPEG:'+photo,
+  'END:VCARD','BEGIN:VCARD','FN:Jean',
+  'PHOTO;VALUE=URI:https://example.com/img.jpg',
+  'END:VCARD'
+ ].join('\r\n');
+ const [a,b]=window.NexusContacts.parseVcards(text);
+ assert.equal(a.name,'Chloé');
+ assert.deepEqual(a.tags,['Famille','Amis']);
+ assert.equal(a.photoRaw,'data:image/jpeg;base64,'+photo);
+ assert.equal(b.photoRaw,'','A remote photo URL must never be fetched or stored');
 });
