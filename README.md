@@ -1,11 +1,25 @@
-# NEXUS — Second cerveau personnel (V0.19.1 · Connect 2.0)
+# NEXUS — Second cerveau personnel (V0.20.1 · Budget avancé)
 
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
-> La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.18 et le dossier de reprise font foi pour l'état actuel.
+> La suite ci-dessous contient aussi des notes d'anciennes versions ; la section V0.20 et le dossier de reprise font foi pour l'état actuel.
 
 NEXUS est une **PWA iPhone installable gratuitement sans App Store**, développée avec HTML, CSS, JavaScript, IndexedDB et Cloudflare Workers/D1. **NEXUS est le cœur** ; Gaming, Rituel, Vestiaire et les futures apps en sont des spécialisations reliées par permissions. [Ouvrir l’application](https://leomgl.github.io/nexus-app/). Le code est public, mais les données personnelles ne sont jamais placées dans GitHub.
 
+
+## Version V0.20.1 — Budget avancé (11 novembre 2026)
+
+**Quotidien / Engagements / Objectifs** : le module Budget dispose désormais de trois espaces clairs. Toutes les anciennes pages et calculs du Journal, des statistiques et du prévisionnel sont conservés.
+
+- **Quotidien** : Vue d'ensemble, Journal et Statistiques, avec les opérations NEXUS / Gaming / RITUEL déjà réconciliées.
+- **Engagements** : abonnements mensuels ou annuels, prêts avec mensualités et échéances de contrat, prévision d'occurrences sans écriture automatique. Possibilité de **classer une récurrence existante** en abonnement ou en prêt sans recréer ni dupliquer la règle.
+- **Objectifs** : suivi manuel d'épargne par montant cible, date et projet associé, versements/retraits datés, historique et progression. **Ces mouvements ne sont pas des dépenses du Journal.**
+- Les nouveaux objectifs se trouvent dans `data.savingsGoals[]`, inclus dans les sauvegardes et la corbeille ; les abonnements et prêts restent dans `data.recurrences[]` avec des métadonnées spécifiques.
+- Le « reste » d'un prêt indique **les échéances non confirmées**, jamais un capital restant dû exact. Aucun calcul bancaire d'amortissement ou paiement réel n'est lancé.
+
+[Documentation V0.20 et recette iPhone](docs/BUDGET-V020.md) · [Reprise de projet](docs/PROJECT-HANDOFF.md).
+
+**Le code est publié dans GitHub ; la recette sur iPhone avec des données personnelles doit être effectuée avant de déclarer l'interface définitivement validée.**
 
 ## Version V0.19.1 — Connect 2.0 (11 novembre 2026)
 
