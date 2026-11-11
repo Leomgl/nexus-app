@@ -88,11 +88,14 @@
  function commitmentsView(recurrencesHtml=''){
   const subs=pendingRules('subscription').sort(byTitle);
   const loans=pendingRules('loan').sort(byTitle);
+  const existingRules=data.recurrences.filter(r=>!r.commitmentKind&&r.type==='expense'&&['monthly','yearly'].includes(r.frequency));
   const active=subs.filter(r=>r.active).reduce((sum,r)=>sum+commitmentMonthlyEquivalent(r),0);
   const totalLoan=loans.filter(r=>r.active).reduce((sum,r)=>sum+r.amountCents,0);
   return `<div class="b20-wrap">
     <div class="b20-summary"><div><span>Abonnements actifs, équivalent mensuel</span><strong>${fmt(active)}</strong></div>
     <div><span>Mensualités de prêts actives</span><strong>${fmt(totalLoan)}</strong></div></div>
+    ${existingRules.length?`<div class="b20-classify"><span>${svg('info')} Tu as déjà des prélèvements dans Récurrences ? Classe-les sans créer de doublons.</span>
+    <button type="button" class="btn btn-neutral btn-small" data-action="b20-classify">${svg('layers')} Classer une récurrence</button></div>`:''}
     <section class="b8-panel b20-panel">
       ${panelTitle('Mes abonnements','Échéances prévues, regroupées sans double comptabilisation.',
        `<button class="btn btn-small" data-action="b20-sub-new">${svg('plus')} Abonnement</button>`)}
@@ -158,6 +161,37 @@
   return `<label class="b8-field">Projet lié (facultatif)<select name="projectId"><option value="">Aucun</option>
    ${items.map(p=>`<option value="${safe(p.id)}" ${p.id===projectId?'selected':''}>${safe(p.title)}</option>`).join('')}
    </select></label>`;
+ }
+ function firstScheduledDate(rule){
+  const anchor=validDate(rule.startDate)?rule.startDate:today();
+  const [year,month]=anchor.split('-').map(Number);
+  if(rule.frequency==='monthly'){
+   let date=dateKey(new Date(year,month-1,Math.min(Number(rule.day)||1,new Date(year,month,0).getDate()),12));
+   if(date<anchor){
+    const next=new Date(year,month,1,12);
+    date=dateKey(new Date(next.getFullYear(),next.getMonth(),Math.min(Number(rule.day)||1,new Date(next.getFullYear(),next.getMonth()+1,0).getDate()),12));
+   }
+   return date;
+  }
+  if(rule.frequency==='yearly'){
+   const m=Number(rule.month)||month,day=Math.min(Number(rule.day)||1,new Date(year,m,0).getDate());
+   let date=dateKey(new Date(year,m-1,day,12));
+   if(date<anchor)date=dateKey(new Date(year+1,m-1,Math.min(Number(rule.day)||1,new Date(year+1,m,0).getDate()),12));
+   return date;
+  }
+  return anchor;
+ }
+ function classifyPicker(){
+  const rules=data.recurrences.filter(r=>!r.commitmentKind&&r.type==='expense'&&['monthly','yearly'].includes(r.frequency)).sort(byTitle);
+  modal('Classer une récurrence existante',`<div class="b20-classify-modal">
+   <p class="muted-note">Un abonnement ou un prêt utilise directement ta règle actuelle. Même identifiant, même historique, sans ajouter un deuxième prélèvement. Vérifie les dates proposées avant d’enregistrer.</p>
+   ${rules.length?rules.map(r=>`<div class="b20-history-row">
+   <span><strong>${safe(r.title)}</strong><small>${fmt(r.amountCents)} · ${r.frequency==='yearly'?'Annuel':'Mensuel'}</small></span>
+   <button class="btn btn-soft btn-small" data-action="b20-classify-sub" data-id="${safe(r.id)}">Abonnement</button>
+   ${r.frequency==='monthly'?`<button class="btn btn-neutral btn-small" data-action="b20-classify-loan" data-id="${safe(r.id)}">Prêt</button>`:''}
+   </div>`).join(''):'<p class="muted-note">Aucune récurrence disponible à classer.</p>'}
+   <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="close-modal">Fermer</button></div>
+   </div>`);
  }
  function subscriptionForm(rule={}){
   const editing=!!rule.id;
@@ -328,6 +362,15 @@
  }
  function act(kind,button){
   const id=button?.dataset?.id;
+  if(kind==='b20-classify'){classifyPicker();return true;}
+  if(kind==='b20-classify-sub'){
+   const r=data.recurrences.find(x=>x.id===id&&!x.commitmentKind&&x.type==='expense'&&['monthly','yearly'].includes(x.frequency));
+   if(r)subscriptionForm({...r,startDate:firstScheduledDate(r)});return true;
+  }
+  if(kind==='b20-classify-loan'){
+   const r=data.recurrences.find(x=>x.id===id&&!x.commitmentKind&&x.type==='expense'&&x.frequency==='monthly');
+   if(r)loanForm({...r,startDate:firstScheduledDate(r)});return true;
+  }
   if(kind==='b20-sub-new'){subscriptionForm();return true;}
   if(kind==='b20-sub-edit'){const r=data.recurrences.find(x=>x.id===id&&x.commitmentKind==='subscription');if(r)subscriptionForm(r);return true;}
   if(kind==='b20-loan-new'){loanForm();return true;}
@@ -342,6 +385,6 @@
   if(kind==='b20-goal-filter'){goalFilter=['all','active','completed','paused'].includes(button?.dataset?.filter)?button.dataset.filter:'all';render();return true;}
   return false;
  }
- window.NexusBudget20=Object.freeze({commitmentsView,goalsView,act,periodEndDate,loanProgress,goalBalance,goalProgress,commitmentMonthlyEquivalent,validDate});
+ window.NexusBudget20=Object.freeze({commitmentsView,goalsView,act,periodEndDate,loanProgress,goalBalance,goalProgress,commitmentMonthlyEquivalent,firstScheduledDate,validDate});
 })();
 })();
