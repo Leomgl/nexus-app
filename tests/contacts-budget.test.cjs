@@ -140,3 +140,19 @@ test('contact management exposes separate safe replacement and confirmed reset a
  assert.match(html,/contacts-manage/);
  assert.match(html,/nx-contact-count-row/);
 });
+
+
+test('contacts with leading emoji stay in proper A-Z order',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ const data={contacts:[
+  {id:'m',name:'🌹 maman'},
+  {id:'z',name:'Zoé'},
+  {id:'a',name:'Alexandre'},
+  {id:'b',name:'🐻 Bastien'},
+  {id:'e',name:'Émilie'}
+ ]};
+ window.NexusContacts.attach({state:()=>data,svg:()=>'',escape:s=>String(s)});
+ assert.deepEqual(window.NexusContacts.visibleContacts().map(c=>c.id),['a','b','e','m','z']);
+});
