@@ -156,3 +156,41 @@ test('contacts with leading emoji stay in proper A-Z order',()=>{
  window.NexusContacts.attach({state:()=>data,svg:()=>'',escape:s=>String(s)});
  assert.deepEqual(window.NexusContacts.visibleContacts().map(c=>c.id),['a','b','e','m','z']);
 });
+
+
+test('rendered directory alphabet sections always display A before M even with emoji names',()=>{
+ global.window={};
+ delete require.cache[require.resolve('../contacts-v017.js')];
+ require('../contacts-v017.js');
+ window.NexusContacts.attach({state:()=>({contacts:[
+  {id:'m',name:'🌹 maman'}, {id:'a',name:'Alexandre'}, {id:'ma',name:'Marie'},
+  {id:'c',name:'Charles'}
+ ]}),svg:()=>'',escape:s=>String(s)});
+ const nodes={
+  'nx-contacts-results':{innerHTML:''},
+  'nx-contact-index':{innerHTML:'',hidden:false},
+  'nx-contact-count':{textContent:''}
+ };
+ const priorDocument=global.document;
+ global.document={getElementById:id=>nodes[id]||null};
+ try{
+  window.NexusContacts.redrawResults();
+  const html=nodes['nx-contacts-results'].innerHTML;
+  assert.ok(html.indexOf('id="nx-letter-A"')>=0);
+  assert.ok(html.indexOf('id="nx-letter-M"')>html.indexOf('id="nx-letter-A"'));
+  assert.ok(html.indexOf('id="nx-letter-C"')<html.indexOf('id="nx-letter-M"'));
+  assert.equal(nodes['nx-contact-count'].textContent,'4 contacts affichés');
+ }finally{global.document=priorDocument;}
+});
+
+test('UI and offline cache agree on version 0.17.4',()=>{
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ assert.match(html,/Version 0\.17\.4/);
+ assert.match(app,/V0\.17\.4/);
+ assert.match(html,/contacts-v017\.js\?v=0174/);
+ assert.match(html,/app\.js\?v=0174/);
+ assert.match(sw,/nexus-v0\.17\.4/);
+ assert.match(sw,/contacts-v017\.js\?v=0174/);
+});
