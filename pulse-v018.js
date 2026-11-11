@@ -125,7 +125,7 @@
   return `<section class="nxp-widget nxp-widget-weather">${header('Météo','DEHORS', 'cloudsun')}
   <div class="nxp-weather-location">${svg('pin')} <strong>${esc(location.label)}</strong>
    <button type="button" data-action="pulse-weather-settings" title="Changer de ville" aria-label="Changer de ville">${svg('edit')}</button></div>
-  <div id="nxp-weather-data" aria-live="polite">${cache?formatWeather(cache,true):'<p class="nxp-weather-loading">Prévisions en chargement…</p>'}</div>
+  <div id="nxp-weather-data" aria-live="polite">${cache?formatWeather(cache,Date.now()-cache.time>=WEATHER_TTL):'<p class="nxp-weather-loading">Prévisions en chargement…</p>'}</div>
   <div class="nxp-weather-footer"><span>Source : <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></span>
    <button type="button" data-action="pulse-weather-refresh" title="Actualiser la météo">${svg('refresh')}</button></div>
   </section>`;
@@ -183,8 +183,8 @@
   const location=getLocation(),cache=cachedWeather(location);
   if(cache&&!force&&Date.now()-cache.time<WEATHER_TTL){container.innerHTML=formatWeather(cache);return;}
   if(cache)container.innerHTML=formatWeather(cache,true);
-  if(loading)return;
   const key=`${location.latitude},${location.longitude}`;
+  if(loading===key)return;
   loading=key;
   const abort=new AbortController();
   const timeout=setTimeout(()=>abort.abort(),12000);
@@ -206,7 +206,7 @@
   }catch(err){
    const current=document.getElementById('nxp-weather-data');
    if(current&&!cache)current.innerHTML='<p class="nxp-empty">Impossible de charger la météo. Réessaie avec Internet.</p>';
-  }finally{clearTimeout(timeout);loading=null;}
+  }finally{clearTimeout(timeout);if(loading===key)loading=null;}
  }
  function afterRender(){if(document.getElementById('nxp-weather-data'))void loadWeather();}
  function weatherSettings(){
