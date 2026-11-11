@@ -1,5 +1,6 @@
 /* NEXUS V0.20 — Pulse + Connect + Budget advanced, local-first data model. */
 'use strict';
+const NEXUS_VERSION='0.21.4';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   notes:'<path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/><path d="M8 12h7M8 16h8M15 3l6 6M14 9l6-6"/>',
@@ -158,6 +159,7 @@ function render(){
  </div>`:'';
  document.getElementById('view-root').innerHTML=breadcrumb+(views[currentView]||homeView)();
  document.getElementById('today-small').textContent=formatDate(dateKey(new Date()),{weekday:'short',day:'numeric',month:'short'});
+  document.querySelectorAll('[data-nexus-version]').forEach(el=>{el.textContent='Version '+NEXUS_VERSION+' · PWA';});
  applyUI();iconsInDom();navActive();
  if(currentView==='contacts')window.NexusContacts?.redrawResults?.();
  if(currentView==='home')window.NexusPulse?.afterRender?.();
@@ -855,7 +857,7 @@ function renderSearch(query){
  <button class="row-arrow" data-action="${x.kind}-detail" data-id="${x.id}">${svg('chevright')}</button></div>`).join(''):empty('Aucun résultat','Essaie un autre mot.','search');
 }
 
-function settingsView(){
+function legacySettingsView(){
  const chooseSlot=index=>`<label class="ui-select"><span>Raccourci ${index}</span>
   <select data-pref-slot="${index}" aria-label="Choisir le module du raccourci ${index}">
   ${MODULES.map(m=>`<option value="${m[0]}" ${UI['slot'+index]===m[0]?'selected':''}>${escapeHtml(m[2])}</option>`).join('')}
@@ -930,11 +932,14 @@ function settingsView(){
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.21.2 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V${NEXUS_VERSION} · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
     <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.21.3 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V${NEXUS_VERSION} · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+}
+function settingsView(){
+ return window.NexusSettings?.view?.({UI,HOME_WIDGETS,MODULES,data,svg,escape:escapeHtml,render,version:NEXUS_VERSION})||legacySettingsView();
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -948,11 +953,12 @@ async function deleteEntity(kind,id){
 }
 document.addEventListener('click',async event=>{
  const navigation=event.target.closest('[data-nav]');
- if(navigation){event.preventDefault();closeModal();navTo(navDestination(navigation.dataset.nav));return;}
+ if(navigation){event.preventDefault();closeModal();if(navigation.dataset.nav==='settings')window.NexusSettings?.reset?.();navTo(navDestination(navigation.dataset.nav));return;}
  const view=event.target.closest('[data-view]');if(view){event.preventDefault();closeModal();navTo(view.dataset.view);return;}
  const action=event.target.closest('[data-action]');if(!action)return;const kind=action.dataset.action,id=action.dataset.id;
  if(kind==='overlay'){if(event.target===action)closeModal();return;}
  if(kind==='close-modal'){closeModal();return;}
+ if(kind.startsWith('settings-')){window.NexusSettings?.act?.(kind,action);return;}
  if(kind.startsWith('pulse-')){await window.NexusPulse?.act?.(kind,action);return;}
  if(kind.startsWith('vestiaire-')){await window.NexusVestiaire?.act?.(kind,action);return;}
  if(kind==='toggle-widget'){
@@ -1048,7 +1054,7 @@ document.addEventListener('click',async event=>{
   budgetMonth=dateKey(d).slice(0,7);render();
  }
  if(kind==='search')showSearch();
- if(kind==='settings')navTo('settings');
+ if(kind==='settings'){window.NexusSettings?.reset?.();navTo('settings');}
  if(kind==='refresh-app'){
   if(!window.confirm('Vérifier les mises à jour et recharger NEXUS ? Enregistre d’abord tout formulaire ouvert. Tes contacts et tes sauvegardes ne seront pas supprimés.'))return;
   try{
@@ -1107,6 +1113,7 @@ document.addEventListener('change',event=>{
  }
 });
 document.addEventListener('input',event=>{
+ if(window.NexusSettings?.onInput?.(event.target))return;
  if(window.NexusContacts?.onInput?.(event.target))return;
  if(event.target?.id==='b8-journal-search')window.NexusBudget?.inputSearch?.(event.target);
 });
