@@ -879,3 +879,16 @@ html[data-theme="slate"] .desktop-navigation button.active{color:var(--nx-primar
 .nx-contact-manage-option p{font-size:11px;line-height:1.6;margin:9px 0 12px;color:#657f6e}
 .nx-contact-manage-option.is-danger{background:#fff9f5}
 .nx-contact-manage-option.is-danger strong{color:#a54a3c}
+
+
+/* V0.19 — NEXUS Connect 2.0 authorization controls */
+.nx-connect2-panel{min-width:0}
+.nx-connect2-setting{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid var(--border,#e5e9e3);min-width:0;cursor:pointer}
+.nx-connect2-setting>span{min-width:0;flex:1}
+.nx-connect2-setting strong{display:block;font-size:13px;font-weight:720;color:#345443;line-height:1.4}
+.nx-connect2-setting small{display:block;font-size:11px;color:#81958a;line-height:1.6;margin-top:5px}
+.nx-connect2-setting input{flex:none;width:20px;height:20px;accent-color:#377853;cursor:pointer}
+.nx-connect2-setting input:disabled{opacity:.35;cursor:not-allowed}
+.nx-connect2-panel .settings-option{margin-top:9px}
+.nx-connect2-panel .pref-hint{margin:12px 0 0}
+@media(max-width:760px){.nx-connect2-setting{gap:10px}.nx-connect2-panel .settings-option{align-items:flex-start;flex-wrap:wrap}}
