@@ -4,7 +4,7 @@
 > Dépôt : https://github.com/Leomgl/nexus-app
 > PWA : https://leomgl.github.io/nexus-app/
 > Branche de production : `main`
-> Version du code : **V0.21.1 Vestiaire contextuel** (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
+> Version du code : **V0.21.2 Revenus automatiques** (avec V0.21 Vestiaire contextuel) (NEXUS), accompagnée de **VESTIAIRE V0.6**. Code GitHub, tests automatisés et mises à jour Cloudflare réussis le 11/11/2026 ; **test de bout en bout et affichage réel sur iPhone à confirmer**. L'utilisateur a validé V0.18 à V0.20.
 
 ## Vision confirmée avec l'utilisateur
 
@@ -23,6 +23,8 @@
 **NEXUS (core)** : notes, agenda, rappels et push, contacts importés depuis vCard (fiches compactes, photos/tags/favoris, recherche A–Z, reimport contrôlé), projets, achats, Journal budget et prévisions, corbeille, capture locale, navigation et widgets personnalisables.
 
 **NEXUS LINK existant** : Gaming et Rituel envoient des propositions vers la boîte `data.linkInbox`. Revue humaine, rejet/acceptation, champs `originApp` et `originLink` conservés. Ne pas présenter l'interop comme entièrement automatique : c'est le prochain chantier.
+
+**Revenus récurrents V0.21.2** : `budget-v08.js` et `budget-v020.js` proposent un mode automatique **opt-in par règle `type:'income'`** pour salaires et autres recettes régulières. Chaque règle conserve son ID et son échéancier, avec `autoBook:true` et `autoBookFrom` (date locale de consentement). Le démarrage NEXUS lance `startAutoIncome()` **après `loadData()`**, puis au retour au premier plan ; pas de garantie de traitement PWA fermée. Écritures `autoRecorded:true`, `incomeVerified:false` ; elles **comptent dans les recettes du Journal** comme revenu programmé mais NE PROUVENT PAS que l'argent est viré. Confirmation manuelle « Reçu » sans nouvelle somme. Même `recurrenceId+occurrenceKey` => pas de doublon ; une saisie manuelle non liée strictement équivalente bloque l'auto et demande vérification. Les périodes avant activation sont ignorées ; suppression auto ajoute un skip à l'occurrence, restauration l'annule. `app.js` relit la persistance, `recycle.js` protège les suppressions. **Voir [BUDGET-AUTO-INCOME-V0212.md](BUDGET-AUTO-INCOME-V0212.md)** et les tests. Vérification iPhone réelle encore nécessaire.
 
 **Budget V0.20.1** : trois sections principales **Quotidien / Engagements / Objectifs**. Le module `budget-v08.js` conserve les calculs historiques du journal, des récurrences et des statistiques. `budget-v020.js` affiche abonnements, prêts et objectifs d'épargne ; `budget-v020.css` conserve un rendu compact iPhone. Les abonnements/prêts sont **des règles `data.recurrences[]` typées**, sans duplication de prévisions. Conversion possible d'une règle existante avec le même identifiant. Les objectifs sont dans `data.savingsGoals[]` (somme initiale, mouvements manuels, progression, projet), inclus dans sauvegardes et corbeille. Une contribution d'épargne ne modifie pas `transactions[]`. Restes de prêt = **mensualités théoriques non confirmées**, pas capital restant dû. Voir [BUDGET-V020.md](BUDGET-V020.md).
 
@@ -136,3 +138,12 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Worker LINK redéployé en héritant `DB` et `LINK_PEPPER`, avec messages d'erreur justes : `PAIR_ALREADY_EXISTS` seulement pour conflit UUID, `PAIR_SAVE_FAILED` sinon.
 - Les données et connexions Gaming/Rituel ont été préservées, aucun reset utilisateur. **Le test manuel de création du code sur iPhone doit encore être confirmé par l'utilisateur.**
 - En cas de nouvelle erreur, vérifier en priorité `bridge/migrations`, CHECK SQL, `pairing_rate` (limite 10 tentatives/jour/IP), `nexus-link-api` et ses bindings. Ne jamais afficher/partager le code privé de jumelage dans un ticket GitHub ou ici.
+
+### Correctif NEXUS V0.21.2 — salaires et revenus réguliers
+
+- Code `main` et tests unitaires : opt-in par revenu dans Budget → Engagements ; dates de paie mensuelles/hebdomadaires/annuelles ; rattrapage au redémarrage ; stockage vérifié.
+- **Par défaut, aucune automatisation :** l'utilisateur active l'option sur la fiche d'un revenu. Les anciennes périodes ne sont jamais écrites rétroactivement.
+- **Surtout :** `incomeVerified:false` veut dire revenu attendu automatiquement inscrit, pas virement bancaire constaté. Le Journal propose « Confirmer reçu ». L'inscription automatique ne modifie pas les dépenses récurrentes ni les prêts.
+- Tests à effectuer sur vrai iPhone : activer sur une échéance aujourd'hui, vérifier Journal, redémarrer sans doublon, confirmer reçu, supprimer/restaurer, tester une recette à venir et un revenu manuel existant.
+- Le service worker et les URLs `index.html` passent à `0212` pour les assets modifiés ; **ne pas désinstaller** la PWA pour mettre à jour.
+- Une autre conversation peut faire évoluer Vestiaire/Rituel parallèlement : toujours lire `main` avant toute modification d'`app.js`, `index.html`, `sw.js`.
