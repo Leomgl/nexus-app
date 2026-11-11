@@ -46,7 +46,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[],travelOutbox:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[],travelOutbox:[],vestiaireCatalogs:[],vestiaireSelections:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -67,10 +67,11 @@ const HOME_WIDGETS=[
  ['budget','Budget du mois','Dépenses et échéances'],
  ['focus','Projet en focus','Un objectif à faire avancer'],
  ['links','Applications liées','Propositions Gaming et Rituel'],
+ ['outfit','Vestiaire · Tenue du jour','Suggestions adaptées au calendrier et à la météo'],
  ['recent','Activité récente','Derniers éléments']
 ];
 const UI_KEY='nexus_interface_v07';
-const defaultUI=()=>({slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',pulseVersion:18,widgets:HOME_WIDGETS.map(x=>x[0])});
+const defaultUI=()=>({slot1:'projects',slot2:'budget',theme:'sage',density:'comfortable',pulseVersion:21,widgets:HOME_WIDGETS.map(x=>x[0])});
 function readUI(){
  const defaults=defaultUI();let stored;
  try{stored=JSON.parse(localStorage.getItem(UI_KEY)||'null');}catch{return defaults;}
@@ -80,13 +81,17 @@ function readUI(){
  let slot2=valid(stored.slot2)?stored.slot2:defaults.slot2;
  if(slot1===slot2)slot2=MODULES.find(m=>m[0]!==slot1)[0];
  const widgets=Array.isArray(stored.widgets)?[...new Set(stored.widgets.filter(x=>HOME_WIDGETS.some(w=>w[0]===x)))]:defaults.widgets;
- if(stored.pulseVersion!==18&&Array.isArray(stored.widgets)){
-   // First Pulse launch: preserve the user's existing layout and choices.
-   if(!widgets.includes('weather')) widgets.splice(Math.max(0,widgets.indexOf('today')+1),0,'weather');
-   if(!widgets.includes('links')) widgets.push('links');
+ if(Array.isArray(stored.widgets)){
+   // Only new widgets are introduced; prior user opt-outs remain respected.
+   if((Number(stored.pulseVersion)||0)<18){
+     if(!widgets.includes('weather'))widgets.splice(Math.max(0,widgets.indexOf('today')+1),0,'weather');
+     if(!widgets.includes('links'))widgets.push('links');
+   }
+   if((Number(stored.pulseVersion)||0)<21&&!widgets.includes('outfit'))
+     widgets.splice(Math.max(0,widgets.indexOf('weather')+1),0,'outfit');
  }
  return {slot1,slot2,widgets,theme:['sage','slate'].includes(stored.theme)?stored.theme:'sage',
-    density:['comfortable','compact'].includes(stored.density)?stored.density:'comfortable',pulseVersion:18};
+    density:['comfortable','compact'].includes(stored.density)?stored.density:'comfortable',pulseVersion:21};
 }
 let UI=readUI();
 function applyUI(){
@@ -820,7 +825,8 @@ function eventDetail(id){
    <button class="btn btn-danger btn-small" data-action="delete-event" data-id="${id}">${svg('trash')} Supprimer</button></div>
   ${project?`<div class="linked-section"><h3>${svg('briefcase')} Projet associé</h3>
    <button class="btn btn-neutral btn-small" data-action="project-detail" data-id="${project.id}">${escapeHtml(project.title)}</button></div>`:''}
-  ${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);
+  ${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}
+  ${window.NexusVestiaire?.eventBadge?.(e.id)||''}`);
 }
 
 function taskDetail(id){const t=data.tasks.find(x=>x.id===id);if(!t)return;const note=data.notes.find(n=>n.id===t.noteId),person=data.contacts.find(p=>p.id===t.personId);modal('Rappel',`<div class="eyebrow">À FAIRE</div><h2 style="font-size:24px;letter-spacing:-1px">${escapeHtml(t.title)}</h2><p class="muted-note">${t.done?'Terminé':'À faire'} · ${t.dueDate?formatDate(t.dueDate,{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Sans date limite'}${person?' · '+escapeHtml(person.name):''}</p><div class="form-actions" style="justify-content:flex-start"><button class="btn btn-soft btn-small" data-action="toggle-task" data-id="${id}">${svg('check')} ${t.done?'Réactiver':'Marquer terminé'}</button><button class="btn btn-neutral btn-small" data-action="edit-task" data-id="${id}">${svg('edit')} Modifier</button><button class="btn btn-danger btn-small" data-action="delete-task" data-id="${id}">${svg('trash')} Supprimer</button></div>${note?`<div class="linked-section"><h3>${svg('link')} Note d'origine</h3><button class="btn btn-neutral btn-small" data-action="note-detail" data-id="${note.id}">${svg('notes')} ${escapeHtml(note.title)}</button></div>`:''}`);}
@@ -909,6 +915,7 @@ function settingsView(){
   </section>
   ${window.NexusConnections?.settingsCard?.()||''}
   ${window.NexusTravel?.settingsCard?.()||''}
+  ${window.NexusVestiaire?.settingsCard?.()||''}
   ${window.NexusConnect2?.settingsCard?.()||''}
   <section class="preferences-panel">
    <div class="pref-heading">${svg('download')} <div><h2>Données & sauvegardes</h2><p>Tes informations restent sous ton contrôle.</p></div></div>
@@ -923,11 +930,11 @@ function settingsView(){
    <div class="info-strip">${svg('shield')} Tes données locales ne sont pas chiffrées. Le coffre chiffre les sauvegardes avant envoi. Conserve ta clé de récupération.</div>
   </section>
   <section class="preferences-panel">
-   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.20.1 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
+   <div class="pref-heading">${svg('refresh')} <div><h2>Version de NEXUS</h2><p>V0.21.0 · Vérifier que l'iPhone charge les derniers correctifs.</p></div></div>
    <div class="settings-option"><div><strong>Vérifier les mises à jour</strong><p>Demande les derniers fichiers, puis recharge NEXUS. Tes données enregistrées et le coffre restent en place.</p></div>
     <button type="button" class="btn btn-soft btn-small" data-action="refresh-app">${svg('refresh')} Actualiser</button></div>
   </section></div>
-  <footer class="settings-version">NEXUS · V0.20.1 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
+  <footer class="settings-version">NEXUS · V0.21.0 · Local-first · Gratuit · ${data.notes.length} notes · ${data.projects.length} projets</footer>`;
 }
 function exportJson(){const payload={app:'NEXUS',schemaVersion:2,exportedAt:new Date().toISOString(),data};downloadFile(`nexus-sauvegarde-${dateKey(new Date())}.json`,JSON.stringify(payload,null,2),'application/json');toast('Sauvegarde générée');}
 function downloadFile(name,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);}
@@ -947,6 +954,7 @@ document.addEventListener('click',async event=>{
  if(kind==='overlay'){if(event.target===action)closeModal();return;}
  if(kind==='close-modal'){closeModal();return;}
  if(kind.startsWith('pulse-')){await window.NexusPulse?.act?.(kind,action);return;}
+ if(kind.startsWith('vestiaire-')){await window.NexusVestiaire?.act?.(kind,action);return;}
  if(kind==='toggle-widget'){
   const id=action.dataset.widget;
   if(HOME_WIDGETS.some(w=>w[0]===id)){
@@ -1128,6 +1136,20 @@ async function verifyLinkedBudgetRecord(transactionId,pairId,sourceKey){
     x.status==='accepted'&&x.targetId===transactionId&&x.targetKind==='transactions');
  }catch{return false}
 }
+async function verifyVestiaire(kind,id,revision){
+ try{
+  let saved;
+  if(dbHandle)saved=await new Promise((resolve,reject)=>{
+   const r=dbHandle.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('main');
+   r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+  });else saved=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');
+  if(kind==='pair')return Array.isArray(saved?.linkConnections)&&saved.linkConnections.some(p=>p.id===id&&p.sourceApp==='vestiaire');
+  if(kind==='catalog')return Array.isArray(saved?.vestiaireCatalogs)&&saved.vestiaireCatalogs.some(x=>x.pairId===id&&x.revision===revision);
+  if(kind==='selection')return Array.isArray(saved?.vestiaireSelections)&&saved.vestiaireSelections.some(x=>x.eventId===id&&x.lookId===revision);
+  if(kind==='removedSelection')return Array.isArray(saved?.vestiaireSelections)&&!saved.vestiaireSelections.some(x=>x.eventId===id);
+  return false;
+ }catch{return false}
+}
 function safeConnectionRender(){
  const t=document.activeElement?.tagName;
  if(['INPUT','TEXTAREA','SELECT'].includes(t)||document.querySelector('.modal-overlay'))return;
@@ -1138,9 +1160,10 @@ function attachGamingImport(){
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
  window.NexusTravel?.attach?.(adapter);
+ window.NexusVestiaire?.attach?.({...adapter,verify:verifyVestiaire,navTo,svg});
  window.NexusContacts?.attach?.({state:()=>data,persist,render,modal,closeModal,toast,escape:escapeHtml,uid,svg,exportJson});
  window.NexusPulse?.attach?.({state:()=>data,render,modal,closeModal,toast,escape:escapeHtml,svg,dateKey,formatDate,money,monthTotals,forecast:(month)=>window.NexusBudget?.forecast?.(month)});
  window.NexusConnect2?.attach?.({state:()=>data,persist,verifyLedger:verifyLinkedBudgetRecord,safeRender:safeConnectionRender,toast,escape:escapeHtml,svg,uid});
 }
 
-(async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusConnect2?.init?.();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
+(async()=>{await loadData();applyUI();attachGamingImport();render();window.NexusConnect2?.init?.();window.NexusVestiaire?.init?.();window.NexusFace?.init?.();if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline worker unavailable',err));}})();
