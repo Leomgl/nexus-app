@@ -81,12 +81,12 @@ test('commitment cards share the legacy recurrence ledger rather than creating d
  assert.match(markup,/Prêt auto/);
  assert.match(markup,/1\/10/);
  assert.match(markup,/legacy-schedule/);
+ assert.equal(JSON.stringify(global.data),before);
  global.data.recurrences.push({id:'old',title:'Ancien abonnement',type:'expense',frequency:'monthly',day:2,amountCents:499,active:true,startDate:'2026-01-01'});
  const classified=b.commitmentsView('<div>Récurrences historiques</div>');
  assert.match(classified,/Classer une récurrence/);
  assert.match(classified,/data-action="b20-classify"/);
  assert.match(markup,/Reste à confirmer/);
- assert.equal(JSON.stringify(global.data),before);
 });
 
 test('budget navigation retains legacy Journal, categories, statistics and recurrences',()=>{
