@@ -44,6 +44,11 @@
   if(ask&&!confirm('Placer « '+formatTitle(key,record)+' » dans la corbeille ? Les éléments associés resteront enregistrés.'))return false;
   const entry=pushTrash(key,record);
   if(!entry)return false;
+  // A deleted automatic income must not be silently re-created the next time NEXUS opens.
+  if(key==='transactions'&&record.autoRecorded===true&&record.recurrenceId&&record.occurrenceKey){
+   const rule=data.recurrences.find(x=>x.id===record.recurrenceId);
+   if(rule){rule.skips=[...new Set([...(rule.skips||[]),record.occurrenceKey])];rule.updatedAt=new Date().toISOString();}
+  }
   // Keep foreign-key references untouched so they reconnect upon restoration.
   data[key]=data[key].filter(x=>x.id!==id);
   await persist();closeModal();render();
@@ -71,7 +76,13 @@
    alert('Impossible de restaurer : un élément portant le même identifiant existe déjà. Aucun élément n’a été écrasé.');
    return false;
   }
-  for(const x of items)data[x.key].push(clone(x.record));
+  for(const x of items){
+   data[x.key].push(clone(x.record));
+   if(x.key==='transactions'&&x.record.autoRecorded===true&&x.record.recurrenceId&&x.record.occurrenceKey){
+    const rule=data.recurrences.find(r=>r.id===x.record.recurrenceId);
+    if(rule){rule.skips=(rule.skips||[]).filter(key=>key!==x.record.occurrenceKey);rule.updatedAt=new Date().toISOString();}
+   }
+  }
   data.trash=data.trash.filter(x=>x.id!==id);
   await persist();closeModal();render();toast(items.length>1?items.length+' éléments restaurés.':'Élément restauré.');
   return true;
