@@ -21,20 +21,30 @@ async function localPushContext(tag){
     let settled=false,db=null;
     const done=value=>{if(settled)return;settled=true;try{db?.close();}catch{}resolve(value);};
     try{
-      const request=indexedDB.open('nexus-v0-1',1);
+      const request=indexedDB.open('nexus-v0-1');
       request.onupgradeneeded=()=>{try{request.transaction.abort();}catch{}};
       request.onerror=()=>done(null);
       request.onsuccess=()=>{
         db=request.result;
         if(!db.objectStoreNames.contains('data'))return done(null);
         const tx=db.transaction('data','readonly');
-        const read=tx.objectStore('data').get('nexus_push_context_v1');
-        read.onsuccess=()=>{
+        const store=tx.objectStore('data');
+        const read=store.get('nexus_push_context_v1');
+        const prefs=store.get('nexus_push_v1');
+        tx.oncomplete=()=>{
           const item=read.result?.[tag];
-          done(item&&typeof item.title==='string'&&typeof item.body==='string'
-            ?{title:item.title.slice(0,80),body:item.body.slice(0,220)}:null);
+          if(!item||typeof item.title!=='string'||typeof item.body!=='string')return done(null);
+          // Revoking display consent takes effect immediately, even when
+          // a previously scheduled remote job still has detailed local text.
+          const safe={
+            event:{title:'📅 Rendez-vous à venir',body:'Consulte ton agenda dans NEXUS.'},
+            task:{title:'✅ Rappel à venir',body:'Une tâche t’attend dans NEXUS.'},
+            budget:{title:'💳 Échéance budgétaire',body:'Une rentrée ou sortie d’argent est prévue dans NEXUS.'}
+          };
+          const selected=prefs.result?.showDetails===true?item:(safe[item.kind]||null);
+          done(selected?{title:selected.title.slice(0,80),body:selected.body.slice(0,220)}:null);
         };
-        read.onerror=()=>done(null);
+        tx.onerror=()=>done(null);
       };
     }catch{done(null);}
   });
