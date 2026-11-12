@@ -10,6 +10,25 @@
   return !isNaN(d.getTime())&&d.toISOString().startsWith(x);
  };
  const targetLabel={events:'Agenda',tasks:'Rappels',purchases:'Achats',transactions:'Budget',notes:'Notes'};
+ // An accepted proposal can outlive a transaction deleted from the Budget (single item or module reset).
+ // Keep deduplication anchored to the active source identity, even after another LINK review recreated it.
+ function activeTarget(item){
+  const kind=item?.payload?.destination;
+  const collection=api?.state()?.[kind];
+  if(!Array.isArray(collection))return null;
+  const direct=item.targetId?collection.find(x=>x.id===item.targetId):null;
+  if(direct)return direct;
+  if(kind!=='transactions')return null;
+  const sourceId=item.payload?.sourceId;
+  if(!sourceId)return null;
+  const bySource=collection.find(x=>x.originApp==='gaming'&&x.originSourceId===sourceId);
+  if(bySource)return bySource;
+  return collection.find(x=>(api.state().linkInbox||[]).some(other=>other!==item&&other.status==='accepted'&&
+   other.payload?.sourceApp==='gaming'&&other.payload?.sourceId===sourceId&&other.targetId===x.id))||null;
+ }
+ function missingBudgetTarget(item){
+  return item?.payload?.destination==='transactions'&&!!item.targetId&&!activeTarget(item);
+ }
  const mapping={
   installed_summary:['notes'],future_spending:['purchases'],pass_deadline:['events','tasks'],
   pass_paid:['transactions'],dlc_release:['events','purchases'],
@@ -97,7 +116,7 @@
    <div class="form-actions"><button class="btn" data-action="link-pull">Recevoir depuis Gaming</button>
     <button class="btn btn-neutral" data-action="link-show-code">Code de jumelage</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
-    <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
+    <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${missingBudgetTarget(x)?'Dépense supprimée':x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
     <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Gaming')} · Révision ${x.revision}
     ${x.payload.date?' · '+esc(x.payload.date):''}
     ${x.payload.priceCents!=null?' · '+(x.payload.priceCents/100).toLocaleString('fr-FR',{style:'currency',currency:'EUR'}):''}</small>
@@ -108,7 +127,7 @@
  }
  function review(id){
   const item=list().find(x=>x.id===id);if(!item)return;
-  const p=item.payload,kind=p.destination,exists=item.targetId&&api.state()[kind].some(x=>x.id===item.targetId);
+  const p=item.payload,kind=p.destination,exists=!!activeTarget(item),missing=missingBudgetTarget(item);
   const date=kind==='transactions'?(p.paymentDate||api.today()):p.date||'';
   const price=p.priceCents!=null?(p.priceCents/100).toFixed(2):'';
   const projects=api.state().projects||[];
@@ -118,6 +137,7 @@
   api.modal('Examiner · '+p.title,`<div class="nx-gaming-review">
    <p class="muted-note">Destination : <strong>${esc(targetLabel[kind])}</strong> · Données proposées par Gaming.
     ${exists?'Cette proposition mettra à jour le même élément NEXUS après confirmation.':''}</p>
+   ${missing?'<p class="muted-note">La dépense liée a été supprimée de ton Budget. Tu peux la restaurer depuis la corbeille ou choisir de la réimporter ici. La restauration de l’ancienne dépense sera bloquée si cela crée un doublon.</p>':''}
    <form id="nx-gaming-approve" class="nx-gaming-approve">
     <label class="field"><span>Titre</span><input type="text" name="title" maxlength="140" required value="${esc(p.title)}"></label>
     ${kind!=='notes'?`<label class="field"><span>${kind==='transactions'?'Date réelle de paiement':'Date'}</span>
@@ -127,7 +147,7 @@
     ${chooser}
     <label class="field"><span>Commentaire</span><textarea name="details" maxlength="1500">${esc(p.details)}</textarea></label>
     <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="link-reject" data-id="${esc(item.id)}">Ignorer</button>
-     <button type="submit" class="btn">${exists?'Confirmer la mise à jour':'Ajouter à NEXUS'}</button></div></form></div>`);
+     <button type="submit" class="btn">${exists?'Confirmer la mise à jour':missing?'Réimporter dans le Budget':'Ajouter à NEXUS'}</button></div></form></div>`);
   document.getElementById('nx-gaming-approve')?.addEventListener('submit',async e=>{
    e.preventDefault();
    const f=new FormData(e.currentTarget),values=Object.fromEntries(f.entries());
@@ -153,13 +173,12 @@
    api.toast('Vérifie le titre, la date, le montant et le projet.');return;
   }
   const collection=api.state()[kind];
-  const target=item.targetId?collection.find(x=>x.id===item.targetId):
-   kind==='transactions'?collection.find(x=>x.originApp==='gaming'&&x.originSourceId===item.payload.sourceId)||
-    collection.find(x=>(api.state().linkInbox||[]).some(y=>y!==item&&y.status==='accepted'&&
-      y.payload?.sourceApp==='gaming'&&y.payload?.sourceId===item.payload.sourceId&&y.targetId===x.id)):null;
-  if(item.targetId&&!target){
+  const target=activeTarget(item);
+  if(item.targetId&&!target&&kind!=='transactions'){
    api.toast('L’élément NEXUS lié a été supprimé. Restaure-le depuis la corbeille avant de réexaminer.');return;
   }
+  // Explicit reimport from this review creates a fresh ID; the deleted record stays in the trash.
+  // No background/automatic replay is enabled by this pathway. 
   const data={...target,id:target?.id||api.uid(),createdAt:target?.createdAt||now,updatedAt:now,
     title,originApp:'gaming',originSourceId:item.payload.sourceId,originLink:{pairId:item.pairId,sourceKey:item.sourceKey,revision:item.revision}};
   if(kind==='events')Object.assign(data,{start:date+'T'+item.payload.time+':00',details:clean(form.details,1500),
@@ -179,7 +198,7 @@
   item.targetId=data.id;item.targetKind=kind;item.status='accepted';item.updatedAt=now;
   try{
    await persistVerified();
-   api.render();api.toast(target?'Élément Gaming mis à jour dans NEXUS.':'Proposition Gaming ajoutée à NEXUS.');
+   api.render();api.toast(target?'Élément Gaming mis à jour dans NEXUS.':oldEntry.targetId?'Dépense Gaming réimportée dans le Budget.':'Proposition Gaming ajoutée à NEXUS.');
    panel();
   }catch(err){
    if(ix>=0)collection[ix]=old;else collection.splice(collection.findIndex(x=>x.id===data.id),1);
