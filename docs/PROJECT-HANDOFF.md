@@ -181,3 +181,12 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Tests ajoutés dans `tests/settings-v0214.test.cjs` ; tests de cache existants alignés. Validation syntaxique, des 13 vues/sous-vues et du cache effectuée ; **vraie recette Safari iOS toujours attendue**.
 - Aucune modification des objets métier, IndexedDB, préférences existantes, coffre, passkeys, push, Workers Cloudflare. Ne pas désinstaller Nexus pour rafraîchir.
 - Documentation : [SETTINGS-V0214.md](SETTINGS-V0214.md).
+
+
+## V0.21.6 — Import local de budget
+
+- Fiche de référence : [BUDGET-IMPORT-V0216.md](BUDGET-IMPORT-V0216.md).
+- Import CSV Notion ou JSON privé sur iPhone, fichier local uniquement, jamais de sommes personnelles en code public.
+- Aperçu et dédoublonnage avant ajout ; salaire existant ignoré ; prêts et abonnements gardent les mêmes récurrences ; aucun ajout au Journal ou reprise des états CSV.
+- Dates et durées inconnues sont à compléter ; `schedulePending:true` empêche échéances, auto-écritures et notifications fictives. Après édition, `schedulePending:false`.
+- Tests : `tests/budget-import-v0216.test.cjs` ; version 0.21.6.
