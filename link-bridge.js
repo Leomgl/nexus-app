@@ -70,8 +70,8 @@
    const s=await statusFor(flow);
    if(s!=='ok')return s;
    if(!window.NexusGamingImport?.synchronize)return 'unavailable';
-   await window.NexusGamingImport.synchronize();
-   return 'ok';
+   const result=await window.NexusGamingImport.synchronize();
+   return result?.busy?'unavailable':'ok';
   }
   return 'unavailable';
  }
