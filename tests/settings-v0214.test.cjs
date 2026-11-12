@@ -121,7 +121,7 @@ test('settings assets and iOS offline cache stay in sync',()=>{
  assert.match(html,/settings-v0214\.css\?v=0214/);
  assert.match(sw,/settings-v0214\.js\?v=0215/);
  assert.match(sw,/settings-v0214\.css\?v=0214/);
- assert.match(app,/NEXUS_VERSION='0\.21\.11'/);
+ assert.match(app,/NEXUS_VERSION='0\.21\.12'/);
  assert.match(app,/NexusSettings\?\.onInput/);
  assert.match(app,/NexusSettings\?\.act/);
  assert.match(app,/legacySettingsView/);
