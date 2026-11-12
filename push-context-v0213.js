@@ -94,7 +94,7 @@
        if(firing)firing.setDate(firing.getDate()-delta);
        // For budget notices, subtraction is calendar-day based (09:00 local)
        // rather than 48h UTC, surviving summer/winter timezone transitions.
-       await add('budget',{...rule,_noticeDays:delta},firing,0,occurrence.identity+':'+delta);
+       await add('budget',{...rule,amountCents:occurrence.amountCents??rule.amountCents,_noticeDays:delta},firing,0,occurrence.identity+':'+delta);
       }
      }
     }
