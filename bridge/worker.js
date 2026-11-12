@@ -4,12 +4,14 @@ const FRONTENDS=new Set([
  'https://gaming-app.q9pfwtztsc.workers.dev',
  'https://rituel-app.q9pfwtztsc.workers.dev',
  'https://rituel-web.q9pfwtztsc.workers.dev',
- 'https://vestiaire-app.q9pfwtztsc.workers.dev'
+ 'https://vestiaire-app.q9pfwtztsc.workers.dev',
+ 'https://garage-app.q9pfwtztsc.workers.dev'
 ]);
 const SCOPES={
  gaming:new Set(['installed_summary','future_spending','pass_deadline','pass_paid','dlc_release','game_release','gaming_event']),
  rituel:new Set(['restock_purchase','restock_task','product_paid','routine_schedule','routine_summary','trip_context']),
- vestiaire:new Set(['outfit_catalog'])
+ vestiaire:new Set(['outfit_catalog']),
+ garage:new Set(['rituel_catalog','rituel_location_request','garage_locations','trip_context'])
 };
 const HEX64=/^[a-f0-9]{64}$/i, UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const BASE64=/^[A-Za-z0-9_-]+$/;

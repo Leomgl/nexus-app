@@ -4,7 +4,7 @@ import { passkeyAction } from './passkeys.js';
 // No cookies: a high-entropy recovery secret derives a bearer token and a separate
 // AES-GCM encryption key on the CLIENT. The server only stores encrypted snapshots.
 const ORIGIN = 'https://leomgl.github.io';
-const LINK_ORIGINS = new Set([ORIGIN,'https://gaming-app.q9pfwtztsc.workers.dev','https://rituel-web.q9pfwtztsc.workers.dev','https://vestiaire-app.q9pfwtztsc.workers.dev']);
+const LINK_ORIGINS = new Set([ORIGIN,'https://gaming-app.q9pfwtztsc.workers.dev','https://rituel-web.q9pfwtztsc.workers.dev','https://vestiaire-app.q9pfwtztsc.workers.dev','https://garage-app.q9pfwtztsc.workers.dev']);
 const MAX_BODY = 5_600_000;
 const encoder = new TextEncoder();
 function response(payload, status=200, origin='') {
