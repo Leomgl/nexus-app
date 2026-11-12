@@ -76,6 +76,14 @@
    alert('Impossible de restaurer : un élément portant le même identifiant existe déjà. Aucun élément n’a été écrasé.');
    return false;
   }
+  // An explicit LINK reimport may have replaced a deleted Gaming/Rituel expense with a new ID.
+  // Restoring the old one (including inside a grouped Budget reset) must not count it twice.
+  const duplicatedExpenses=items.filter(x=>x.key==='transactions'&&x.record?.originApp&&x.record?.originSourceId&&
+   data.transactions.some(active=>active.originApp===x.record.originApp&&active.originSourceId===x.record.originSourceId));
+  if(duplicatedExpenses.length){
+   alert('Restauration bloquée : cette dépense liée existe déjà dans le Budget depuis sa réimportation. Supprime d’abord la nouvelle dépense si tu souhaites restaurer l’ancienne. Aucun autre élément de la corbeille n’a été modifié.');
+   return false;
+  }
   for(const x of items){
    data[x.key].push(clone(x.record));
    if(x.key==='transactions'&&x.record.autoRecorded===true&&x.record.recurrenceId&&x.record.occurrenceKey){
