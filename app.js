@@ -1194,7 +1194,7 @@ function safeConnectionRender(){
  render();
 }
 function attachGamingImport(){
- const adapter={state:()=>data,persist,verify:verifyNexusInbox,render,safeRender:safeConnectionRender,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
+ const adapter={state:()=>data,persist,verify:verifyNexusInbox,verifyLedger:verifyLinkedBudgetRecord,render,safeRender:safeConnectionRender,modal,toast,escape:escapeHtml,uid,today:()=>dateKey(new Date())};
  window.NexusGamingImport?.attach?.(adapter);
  window.NexusRituelImport?.attach?.(adapter);
  window.NexusTravel?.attach?.(adapter);
