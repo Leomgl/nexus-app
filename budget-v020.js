@@ -61,11 +61,11 @@
   return '';
  }
  function subscriptionRow(r){
-  const monthly=commitmentMonthlyEquivalent(r),next=r.active?nextDue(r):'';
+  const monthly=commitmentMonthlyEquivalent(r),next=r.active&&!r.schedulePending?nextDue(r):'';
   return `<article class="b20-item">
    <div class="b20-item-icon">${svg('refresh')}</div>
    <div class="b20-item-main"><div class="b20-item-title"><strong>${safe(r.title)}</strong><span class="b20-status ${r.active?'':'paused'}">${r.active?'Actif':'En pause'}</span></div>
-    <small>${r.frequency==='yearly'?'Annuel':'Mensuel'} · ${r.active&&next?'Prochain : '+dateLabel(next):r.active?'Échéance terminée ou non définie':'Prévision suspendue'}</small>
+    <small>${r.frequency==='yearly'?'Annuel':'Mensuel'} · ${r.schedulePending?'Date à préciser':r.active&&next?'Prochain : '+dateLabel(next):r.active?'Échéance terminée ou non définie':'Prévision suspendue'}</small>
     ${r.serviceUrl?`<a class="b20-link" href="${safe(r.serviceUrl)}" target="_blank" rel="noopener noreferrer">Voir le service ${svg('arrow')}</a>`:''}
    </div>
    <div class="b20-amount"><strong>${fmt(r.amountCents)}</strong><small>${r.frequency==='yearly'?fmt(monthly)+'/mois estimés':'par mois'}</small></div>
@@ -74,15 +74,15 @@
  }
  function loanRow(r){
   const p=loanProgress(r,data.transactions);
-  const next=r.active?nextDue(r):'';
+  const next=r.active&&!r.schedulePending?nextDue(r):'';
   const percent=p.total?Math.round(p.done/p.total*100):0;
   return `<article class="b20-loan">
    <div class="b20-loan-top"><div><strong>${safe(r.title)}</strong><small>${r.active?'Échéancier actif':'Échéancier suspendu'}${r.loanPrincipalCents?' · Montant financé déclaré : '+fmt(r.loanPrincipalCents):''}</small></div>
     <button type="button" class="b20-edit" data-action="b20-loan-edit" data-id="${safe(r.id)}" aria-label="Modifier ${safe(r.title)}">${svg('edit')}</button></div>
-   <div class="b20-loan-stats"><div><span>Mensualité prévue</span><strong>${fmt(r.amountCents)}</strong></div><div><span>Échéances confirmées</span><strong>${p.done}/${p.total}</strong></div>
-    <div><span>Reste à confirmer *</span><strong>${fmt(p.remainingScheduledCents)}</strong></div></div>
+   <div class="b20-loan-stats"><div><span>Mensualité prévue</span><strong>${fmt(r.amountCents)}</strong></div><div><span>Échéances confirmées</span><strong>${p.total?p.done+'/'+p.total:'—'}</strong></div>
+    <div><span>Reste à confirmer *</span><strong>${p.total?fmt(p.remainingScheduledCents):'—'}</strong></div></div>
    <div class="b20-track"><i style="width:${percent}%"></i></div>
-   <small class="b20-muted">${next?'Prochaine échéance : '+dateLabel(next):'Pas de prochaine échéance active'} · ${p.remaining} mensualité(s) non confirmée(s)</small>
+   <small class="b20-muted">${r.schedulePending?'Date à préciser':next?'Prochaine échéance : '+dateLabel(next):'Pas de prochaine échéance active'} · ${p.total?p.remaining+' mensualité(s) non confirmée(s)':'Durée du prêt à préciser'}</small>
   </article>`;
  }
  function incomeRow(rule){
@@ -105,6 +105,7 @@
   const active=subs.filter(r=>r.active).reduce((sum,r)=>sum+commitmentMonthlyEquivalent(r),0);
   const totalLoan=loans.filter(r=>r.active).reduce((sum,r)=>sum+r.amountCents,0);
   return `<div class="b20-wrap">
+     <div class="b21-import-entry"><button type="button" class="btn btn-neutral btn-small" data-action="budget-import-open">${svg('upload')} Importer des lignes</button><span>Import local sans doublons · CSV / JSON</span></div>
     <div class="b20-summary"><div><span>Abonnements actifs, équivalent mensuel</span><strong>${fmt(active)}</strong></div>
     <div><span>Mensualités de prêts actives</span><strong>${fmt(totalLoan)}</strong></div></div>
     <section class="b8-panel b20-panel">
@@ -214,7 +215,7 @@
  }
  function subscriptionForm(rule={}){
   const editing=!!rule.id;
-  const first=validDate(rule.startDate)?rule.startDate:dateKey(new Date());
+  const first=validDate(rule.startDate)?rule.startDate:(rule.schedulePending?'':dateKey(new Date()));
   const content=`<form id="b20-sub-form" class="b8-form">
     ${field('Nom du service','title',rule.title||'','maxlength="130" placeholder="Ex. Stockage iCloud" required')}
     <div class="b8-form-grid">${field('Prix payé par échéance (€)','amount',Number.isInteger(rule.amountCents)?String(rule.amountCents/100):'','inputmode="decimal" required')}
@@ -247,7 +248,7 @@
      !confirm('Modifier le calendrier d’un abonnement déjà utilisé ? Les dépenses enregistrées resteront intactes.'))return;
    const now=nowISO(),parts=date.split('-').map(Number);
    const updated={...rule,id:rule.id||uid(),title,amountCents:amount,type:'expense',frequency:v.frequency,
-    startDate:date,endDate:end,day:parts[2],month:parts[1],weekday:1,category:rule.category||'Abonnements',
+    startDate:date,endDate:end,schedulePending:false,day:parts[2],month:parts[1],weekday:1,category:rule.category||'Abonnements',
     projectId:v.projectId||'',commitmentKind:'subscription',serviceUrl:httpsURL(url),
     notes:String(v.notes||'').slice(0,800),active:v.active==='on',
     skips:Array.isArray(rule.skips)?rule.skips:[],createdAt:rule.createdAt||now,updatedAt:now};
@@ -261,14 +262,14 @@
   modal(editing?'Modifier un prêt':'Nouveau prêt',`<form id="b20-loan-form" class="b8-form">
     ${field('Nom du prêt','title',rule.title||'','maxlength="130" placeholder="Ex. Prêt auto" required')}
     <div class="b8-form-grid">${field('Mensualité prévue (€)','amount',Number.isInteger(rule.amountCents)?String(rule.amountCents/100):'','inputmode="decimal" required')}
-    ${field('Nombre de mensualités','installments',rule.loanInstallments||12,'type="number" min="1" max="600" step="1" required')}</div>
+    ${field('Nombre de mensualités (facultatif)','installments',rule.loanInstallments??'','type="number" min="1" max="600" step="1"')}</div>
     <div class="b8-form-grid">${field('Première échéance','firstDate',first,'type="date" required')}
     ${field('Montant initial financé (€), facultatif','principal',Number.isInteger(rule.loanPrincipalCents)?String(rule.loanPrincipalCents/100):'','inputmode="decimal"')}</div>
     <label class="b8-field">Catégorie<select name="category">${window.NexusBudget?.categoryOptions?.(rule.category||'Autres',!!rule.id)||'<option>Autres</option>'}</select></label>
     ${projectField(rule.projectId||'')}
     <label class="b8-field">Notes<textarea name="notes" maxlength="800" rows="2">${safe(rule.notes||'')}</textarea></label>
     <label class="b8-checkbox"><input type="checkbox" name="active" ${checked(rule.active!==false)}> Échéancier actif</label>
-    <p class="b8-form-note">Le nombre de mensualités définit la durée du calendrier, sans calcul d'intérêts ni déduction automatique d'un capital restant dû. Seuls les paiements confirmés alimentent le Journal.</p>
+    <p class="b8-form-note">Laisse la durée vide si tu ne la connais pas. Le nombre renseigné définit la durée du calendrier, sans calcul d'intérêts ni déduction automatique d'un capital restant dû. Seuls les paiements confirmés alimentent le Journal.</p>
     <div class="form-actions">${editing?`<button type="button" class="btn btn-danger btn-small" data-action="b20-rule-delete" data-id="${safe(rule.id)}">Supprimer</button>`:''}
     <button type="button" class="btn btn-neutral" data-action="close-modal">Annuler</button>
     <button type="submit" class="btn">${svg('check')} Enregistrer</button></div></form>`);
@@ -277,8 +278,8 @@
    evt.preventDefault();if(!form.reportValidity())return;
    const v=Object.fromEntries(new FormData(form).entries());
    const amount=toCents(v.amount),principal=String(v.principal||'').trim()?toCents(v.principal):null;
-   const installments=Number(v.installments),date=String(v.firstDate||''),title=String(v.title||'').trim();
-   if(!title||title.length>130||!safeCents(amount)||amount<=0||!Number.isSafeInteger(installments)||installments<1||installments>600||
+   const installments=String(v.installments||'').trim()?Number(v.installments):null,date=String(v.firstDate||''),title=String(v.title||'').trim();
+   if(!title||title.length>130||!safeCents(amount)||amount<=0||(installments!==null&&(!Number.isSafeInteger(installments)||installments<1||installments>600))||
       !validDate(date)||principal!==null&&!safeCents(principal)||(v.projectId&&!data.projects.some(p=>p.id===v.projectId))){
       toast('Vérifie la mensualité, la durée, la date et le montant initial.');return;
    }
@@ -287,7 +288,7 @@
       !confirm('Modifier la durée ou la première date d’un prêt ayant des échéances enregistrées ? Les paiements déjà confirmés resteront intacts.'))return;
    const now=nowISO(),parts=date.split('-').map(Number);
    const updated={...rule,id:rule.id||uid(),title,type:'expense',amountCents:amount,frequency:'monthly',
-     day:parts[2],month:parts[1],weekday:1,startDate:date,endDate:periodEndDate(date,installments),
+     day:parts[2],month:parts[1],weekday:1,startDate:date,endDate:installments===null?'':periodEndDate(date,installments),schedulePending:false,
      commitmentKind:'loan',loanInstallments:installments,loanPrincipalCents:principal,
      category:v.category||'Autres',projectId:v.projectId||'',notes:String(v.notes||'').slice(0,800),
      active:v.active==='on',skips:Array.isArray(rule.skips)?rule.skips:[],
