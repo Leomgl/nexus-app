@@ -1,5 +1,7 @@
 # NEXUS V0.21.0 — Vestiaire contextuel · 11 novembre 2026
 
+> Mise à jour **NEXUS V0.21.8** (12/11/2026) : réception des **catalogues complets en lots chiffrés V2**, sans limite historique des 24 tenues côté catalogue ; l'ancien protocole V1 à 24 tenues reste lisible. Les descriptions V0.21.0 ci-dessous sont historiques. Voir [VESTIAIRE-CATALOG-V0218.md](VESTIAIRE-CATALOG-V0218.md) pour les règles actuelles et la recette.
+
 > **Statut : code sur GitHub et Workers Cloudflare mis à jour ; tests automatisés réussis. Recette réelle sur les deux PWA iPhone à valider.**
 > Relire [PROJECT-HANDOFF.md](PROJECT-HANDOFF.md) pour reprendre dans un autre thread.
 
