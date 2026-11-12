@@ -198,7 +198,7 @@ test('UI and offline cache agree on version 0.21.11',()=>{
  assert.match(html,/app\.js\?v=02111/);
  assert.match(html,/settings-v0214\.js\?v=0215/);
  assert.match(html,/settings-v0214\.css\?v=0214/);
- assert.match(sw,/nexus-v0\.21\.10/);
+ assert.match(sw,/nexus-v0\.21\.11/);
  assert.match(sw,/contacts-v017\.js\?v=0174/);
  assert.match(html,/connect-v019\.js\?v=0191/);
  assert.match(sw,/connect-v019\.js\?v=0191/);
