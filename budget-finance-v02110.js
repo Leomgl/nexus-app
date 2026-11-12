@@ -119,7 +119,7 @@ function extraForm(id){
  </form>`);
  document.getElementById('fin-extra')?.addEventListener('submit',e=>{
   e.preventDefault();if(!e.currentTarget.reportValidity())return;
-  const v=Object.fromEntries(new FormData(e.currentTarget)),date=String(v.date||''),mode=v.mode;
+  const v=Object.fromEntries(new FormData(e.currentTarget).entries()),date=String(v.date||''),mode=v.mode;
   const principalCents=cents(v.balance),extraCents=cents(v.extra),aprPercent=Number(String(v.apr).replace(',','.'));
   if(!dateOK(date)||date>dateKey(new Date())||(p&&date<p.date)||String(v.apr).trim()===''){toast('Vérifie la date et le taux nominal.');return;}
   const result=calculate({principalCents,extraCents,aprPercent,mode,months:Number(v.months),paymentCents:cents(v.payment)});
@@ -176,7 +176,7 @@ function adjustForm(id){
    <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="close-modal">Annuler</button><button class="btn" type="submit">Enregistrer les corrections</button></div></form>`);
  document.getElementById('fin-adjust')?.addEventListener('submit',async e=>{
   e.preventDefault();if(!e.currentTarget.reportValidity())return;
-  const v=Object.fromEntries(new FormData(e.currentTarget)),monthlyCents=cents(v.monthly),lastCents=cents(v.last),months=Number(v.months);
+  const v=Object.fromEntries(new FormData(e.currentTarget).entries()),monthlyCents=cents(v.monthly),lastCents=cents(v.last),months=Number(v.months);
   if(!monthlyCents||!lastCents||lastCents>monthlyCents||!Number.isInteger(months)||months<1||months>600){toast('Vérifie le nouveau calendrier.');return;}
   const endMonth=monthPlus(p.effectiveMonth,months-1);
   if(data.transactions.some(t=>t.recurrenceId===id&&/^\d{4}-\d{2}$/.test(t.occurrenceKey||'')&&t.occurrenceKey>endMonth)){
@@ -212,7 +212,7 @@ function variableForm(){
    <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="close-modal">Annuler</button><button type="submit" class="btn">Enregistrer le revenu</button></div></form>`);
  document.getElementById('fin-variable')?.addEventListener('submit',async e=>{
   e.preventDefault();if(!e.currentTarget.reportValidity())return;
-  const v=Object.fromEntries(new FormData(e.currentTarget)),amountCents=cents(v.amount),date=String(v.date||'');
+  const v=Object.fromEntries(new FormData(e.currentTarget).entries()),amountCents=cents(v.amount),date=String(v.date||'');
   const labels={cpam:'Indemnités CPAM',employer:'Complément employeur',other:'Autre versement'},title=labels[v.source];
   if(!title||!amountCents||!dateOK(date)||date>dateKey(new Date())){toast('Vérifie la date de réception et le montant.');return;}
   if(data.transactions.some(t=>t.type==='income'&&t.title===title&&t.date===date&&t.amountCents===amountCents)){
