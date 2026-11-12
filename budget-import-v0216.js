@@ -40,7 +40,7 @@
   if(!title||!Number.isSafeInteger(signed)||!signed||Math.abs(signed)>100000000000)throw new Error('Ligne invalide : '+(title||'?'));
   const type=raw.type==='income'||fold(raw.type)==='entree'||signed>0?'income':'expense';
   const kind=raw.commitmentKind!==undefined?String(raw.commitmentKind):
-   type==='income'?'':/pret|credit/i.test(category)?'loan':/abonn/i.test(category)||key(title)==='revolut'?'subscription':'';
+   type==='income'?'':/pret|credit/.test(fold(category))?'loan':/abonn/.test(fold(category))||key(title)==='revolut'?'subscription':'';
   if(!['','subscription','loan'].includes(kind))throw new Error('Type de récurrence inconnu.');
   const flags=['Date de prélèvement à préciser'];
   if(kind==='loan'&&!Number.isSafeInteger(raw.loanInstallments))flags.push('Durée du prêt à préciser');
