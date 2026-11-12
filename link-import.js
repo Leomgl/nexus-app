@@ -148,6 +148,43 @@
    }
   });
  }
+ async function auditSnapshot(){
+  if(!api||!window.LinkAudit)throw Error('Module de vérification LINK indisponible.');
+  const p=connection();
+  if(!p)return window.LinkAudit.snapshot(null,'nexus',[]);
+  const rows=list().filter(x=>x?.pairId===p.id&&
+    ['pending','accepted','rejected'].includes(x.status)&&
+    typeof x.sourceKey==='string'&&/^[a-f0-9]{64}$/i.test(x.sourceKey)&&
+    Number.isSafeInteger(x.revision)&&x.revision>0&&x.revision<=1000000)
+   .map(x=>({sourceKey:x.sourceKey,revision:x.revision}));
+  return window.LinkAudit.snapshot(p,'nexus',rows);
+ }
+ async function auditPanel(){
+  if(!api)return;
+  let report,code;
+  try{report=await auditSnapshot();code=window.LinkAudit.encode(report)}
+  catch(err){api.toast('Vérification LINK : '+clean(err?.message,80));return}
+  const href=OBSERVER_LINK_URL+'#audit='+encodeURIComponent(code);
+  const html='<div class="nx-gaming-import">'+
+   '<div class="info-strip">Empreintes temporaires des propositions Gaming conservées dans la boîte de réception Nexus. Aucune clé, code NXL1, identité, titre, montant ou contenu de message n’est exporté. Ce contrôle ne prouve pas un accusé de réception du serveur.</div>'+
+   '<div class="nx-gaming-stats"><div><strong>'+report.total+'</strong><small>Événements conservés</small></div>'+
+   '<div><strong>'+report.events.length+'</strong><small>Empreintes temporaires</small></div></div>'+
+   '<p class="muted-note">Jour UTC : '+report.day+'. '+(report.limited?'Échantillon limité à 128 événements.':'Rapport non tronqué.')+
+   ' Fais le même contrôle dans Gaming aujourd’hui pour comparer les événements dans LINK.</p>'+
+   '<div class="form-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="'+href+'">Comparer dans LINK ↗</a>'+
+   '<button class="btn btn-neutral" id="nx-link-audit-copy" type="button">Copier le code</button></div>'+
+   '<label class="field"><span>Code temporaire de concordance (LDA1)</span><textarea id="nx-link-audit-code" rows="4" readonly style="width:100%;overflow-wrap:anywhere;word-break:break-all">'+code+'</textarea></label>'+
+   '<p class="muted-note">Si Safari s’ouvre au lieu de LINK, utilise le copier-coller dans LINK → Diagnostic → Concordance des événements. Aucune donnée de Nexus n’est modifiée.</p></div>';
+  api.modal('LINK · Concordance des événements',html);
+  document.getElementById('nx-link-audit-copy')?.addEventListener('click',async()=>{
+   try{await navigator.clipboard.writeText(code);api.toast('Code temporaire Nexus copié.')}
+   catch{
+    const el=document.getElementById('nx-link-audit-code');el?.select();
+    try{if(!document.execCommand?.('copy'))throw Error('COPY_UNSUPPORTED');api.toast('Code copié.')}
+    catch{api.toast('Sélectionne le code et utilise Copier.')}
+   }
+  });
+ }
  const counters=()=>{const p=connection(),rows=list().filter(x=>x.pairId===p?.id);return {
   pending:rows.filter(x=>x.status==='pending').length,
   accepted:rows.filter(x=>x.status==='accepted').length,
@@ -163,7 +200,8 @@
     <div><strong>${totals.accepted}</strong><small>Acceptées</small></div><div><strong>${totals.rejected}</strong><small>Ignorées</small></div></div>
    <div class="form-actions"><button class="btn" data-action="link-pull">Recevoir depuis Gaming</button>
     <button class="btn btn-neutral" data-action="link-show-code">Code de jumelage</button>
-    <button class="btn btn-soft" data-action="link-observe">Diagnostic LINK</button></div>
+    <button class="btn btn-soft" data-action="link-observe">Diagnostic LINK</button>
+    <button class="btn btn-soft" data-action="link-audit">Vérifier les événements</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
     <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${missingBudgetTarget(x)?'Dépense supprimée':x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
     <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Gaming')} · Révision ${x.revision}
@@ -272,11 +310,12 @@
  function act(kind,button){
   if(kind==='link-proposals'){panel();return true}
   if(kind==='link-observe'){observe();return true}
+  if(kind==='link-audit'){void auditPanel();return true}
   if(kind==='link-pull'){pull();return true}
   if(kind==='link-review'){review(button.dataset.id);return true}
   if(kind==='link-reject'){reject(button.dataset.id);return true}
   return false;
  }
  function attach(model){api=model}
- window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe});
+ window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe,auditSnapshot,auditPanel});
 })();
