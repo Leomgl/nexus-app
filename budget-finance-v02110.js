@@ -134,7 +134,7 @@ function extraForm(id){
    <div class="b20-summary"><div><span>Capital après versement</span><strong>${eur(result.balanceCents)}</strong></div>
      <div><span>Mensualité future</span><strong>${result.months?eur(result.monthlyCents):'Prêt soldé'}</strong></div>
      <div><span>Échéances restantes</span><strong>${result.months}</strong></div>
-     <div><span>Nouvelle date de fin</span><strong>${safe(formatDate(endDate,{month:'short',year:'numeric'}))}</strong></div></div>
+     <div><span>Nouvelle date de fin</span><strong>${esc(formatDate(endDate,{month:'short',year:'numeric'}))}</strong></div></div>
    <p class="b8-form-note">Versement : ${eur(extraCents)} · dernière mensualité : ${result.months?eur(result.lastCents):'aucune'} · prochaines échéances à partir de ${effectiveMonth}. Taux nominal : ${aprPercent}%.</p>
    <div class="form-actions"><button type="button" class="btn btn-neutral" data-action="fin-loan-extra" data-id="${esc(id)}">Modifier</button>
      <button class="btn" data-action="fin-loan-confirm" data-id="${esc(id)}">Confirmer le versement payé</button></div></div>`);
