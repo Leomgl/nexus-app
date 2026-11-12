@@ -178,9 +178,10 @@
    <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-unselect" data-event="${esc(id)}">Retirer</button></div></div>`;
  }
  function settingsCard(){
-  const p=pair(),c=catalog();
+  const p=pair(),c=catalog(),pending=(db().vestiaireTransfers||[]).find(x=>x.pairId===p?.id);
+  const progress=pending?' · Réception en cours : '+pending.pages.filter(Array.isArray).length+'/'+pending.pageCount+' lots':'';
   return `<section class="preferences-panel nxv-settings"><div class="pref-heading">${svg('shirt')}<div><h2>Vestiaire · Tenues contextuelles</h2><p>Partager un catalogue résumé, chiffré et autorisé, sans exporter les photos.</p></div></div>
-  ${p?`<p class="pref-hint">Liaison privée active · ${c?.looks?.length||0} tenues reçues ${c?'· '+esc(c.sharedAt.slice(0,10)):''}. Ce code permet d'accéder à la connexion : garde-le confidentiel.</p>
+  ${p?`<p class="pref-hint">Liaison privée active · ${c?.looks?.length||0} tenues reçues ${c?'· '+esc(c.sharedAt.slice(0,10)):''}${progress}. Ce code permet d'accéder à la connexion : garde-le confidentiel.</p>
    <label class="field"><span>Code privé à importer dans Vestiaire → Réglages</span><textarea id="nxv-code" rows="3" readonly>${esc(CORE().invitation(p))}</textarea></label>
    <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="vestiaire-copy">Copier le code</button>
    <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-refresh">Recevoir</button>
