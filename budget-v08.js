@@ -138,7 +138,7 @@
    const values=[];
    const make=(day,identity)=>{
      const date=dateKey(new Date(y,m-1,day,12));
-     if(dateWithin(rule,date))values.push({rule,date,identity,skipped:Array.isArray(rule.skips)&&rule.skips.includes(identity)});
+     if(dateWithin(rule,date)){const amountCents=window.NexusBudgetFinance?.scheduledAmount?.(rule,identity)??rule.amountCents;if(amountCents>0)values.push({rule,date,identity,amountCents,skipped:Array.isArray(rule.skips)&&rule.skips.includes(identity)});}
    };
    if(rule.frequency==='monthly'){
      const day=Math.min(daysIn(y,m),Math.max(1,Number(rule.day)||1));
@@ -162,8 +162,8 @@
    const occurrencesList=recurrenceOccurrences(month);
    const pending=occurrencesList.filter(o=>!o.skipped&&!linkedTx(o));
    return {occurrences:occurrencesList,pending,
-     income:pending.filter(x=>x.rule.type==='income').reduce((s,x)=>s+x.rule.amountCents,0),
-     expense:pending.filter(x=>x.rule.type==='expense').reduce((s,x)=>s+x.rule.amountCents,0)};
+     income:pending.filter(x=>x.rule.type==='income').reduce((s,x)=>s+(x.amountCents??x.rule.amountCents),0),
+     expense:pending.filter(x=>x.rule.type==='expense').reduce((s,x)=>s+(x.amountCents??x.rule.amountCents),0)};
  }
  // Recettes automatiquement reportées dans le Journal, mais jamais certifiées par une banque.
  // Toutes les clés de récurrence existantes restent les identifiants de dédoublonnage.
@@ -353,7 +353,7 @@
    return `<div class="b8-occurrence ${o.skipped?'is-skipped':''}">
     <span class="b8-occ-date"><strong>${o.date.slice(8,10)}</strong><small>${formatDate(o.date,{month:'short'})}</small></span>
     <span class="b8-occ-info"><strong>${safe(o.rule.title)}</strong><small>${pill(flag,tx?'done':o.skipped?'muted':isPast?'warning':'')}</small></span>
-    <strong class="b8-occ-amount ${o.rule.type==='income'?'positive':'negative'}">${o.rule.type==='income'?'+':'−'}${currencies(o.rule.amountCents)}</strong>
+    <strong class="b8-occ-amount ${o.rule.type==='income'?'positive':'negative'}">${o.rule.type==='income'?'+':'−'}${currencies(o.amountCents??o.rule.amountCents)}</strong>
     <div class="b8-occ-actions">${tx?
       `${tx.autoRecorded&&!tx.incomeVerified?`<button class="b8-mini-btn b8-mini-primary" data-action="b8-income-verify" data-id="${safe(tx.id)}">Reçu ✓</button>`:''}<button class="b8-mini-btn" data-action="transaction-detail" data-id="${safe(tx.id)}" aria-label="Voir l'opération">${svg('chevright')}</button>`:
       o.skipped?`<button class="b8-mini-btn" data-action="b8-unskip" data-id="${safe(o.rule.id)}" data-key="${safe(o.identity)}">Réactiver</button>`:
@@ -678,7 +678,7 @@
    // Explicitly show the scheduled date and amount before writing to the journal.
    const html=`<form id="b8-book-form" class="b8-form">
     <p class="subtitle">${safe(rule.title)} · prévu pour le ${formatDate(occ.date,{day:'numeric',month:'long',year:'numeric'})}</p>
-    <div class="b8-form-grid">${textField('Montant réel (€)','amountEuros',euroInput(rule.amountCents),'inputmode="decimal" required')}
+    <div class="b8-form-grid">${textField('Montant réel (€)','amountEuros',euroInput(occ.amountCents??rule.amountCents),'inputmode="decimal" required')}
      ${textField('Date réelle','date',occ.date,'type="date" required')}</div>
     <p class="b8-form-note">Une validation crée une opération réelle dans le journal. Tu peux ajuster le montant et la date, sans modifier la règle.</p>
     <div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button>
