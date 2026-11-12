@@ -100,6 +100,54 @@
   try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
   catch(e){api.toast('Réception Gaming : '+e.message.slice(0,80))}
  }
+ const OBSERVER_LINK_URL='https://link-app.q9pfwtztsc.workers.dev/';
+ function observation(){
+  if(!api)throw Error('NEXUS n’est pas initialisé');
+  const pair=connection();
+  const rows=pair?list().filter(x=>x.pairId===pair.id&&['pending','accepted','rejected'].includes(x.status)):[];
+  const count=status=>rows.filter(x=>x.status===status).length;
+  const times=rows.map(x=>Date.parse(x.createdAt)).filter(x=>Number.isFinite(x)&&x<=Date.now()+300000);
+  return {
+   schema:'link.observation.nexus.v1',
+   contractId:'gaming-nexus',app:'nexus',
+   createdAt:new Date().toISOString(),paired:!!pair,
+   scopeCount:pair?.scopes?.length||0,
+   recorded:rows.length,pending:count('pending'),accepted:count('accepted'),rejected:count('rejected'),
+   lastRecordedAt:times.length?new Date(Math.max(...times)).toISOString():null
+  };
+ }
+ function observationCode(report){
+  const value=JSON.stringify(report),bytes=new TextEncoder().encode(value);
+  let text='';for(const b of bytes)text+=String.fromCharCode(b);
+  return 'LDN1.'+btoa(text).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+ }
+ function observe(){
+  if(!api)return;
+  let snapshot,code;
+  try{snapshot=observation();code=observationCode(snapshot)}
+  catch(err){api.toast('Diagnostic LINK : '+clean(err?.message,80));return;}
+  const href=OBSERVER_LINK_URL+'#nexus-observe='+encodeURIComponent(code);
+  const html='<div class="nx-gaming-import">'
+   +'<div class="info-strip">Relevé local de la boîte de réception Gaming. Aucune clé, invitation NXL1, donnée de jeu, dépense ou identité de paire n’est exportée. Ce n’est pas une preuve d’accusé réception serveur.</div>'
+   +'<div class="nx-gaming-stats"><div><strong>'+snapshot.recorded+'</strong><small>Propositions conservées</small></div>'
+   +'<div><strong>'+snapshot.pending+'</strong><small>À examiner</small></div>'
+   +'<div><strong>'+snapshot.accepted+'</strong><small>Acceptées</small></div></div>'
+   +'<p class="muted-note">Jumelage : '+(snapshot.paired?'configuré':'absent')+' · '+snapshot.scopeCount+' permission(s) · '+snapshot.rejected+' ignorée(s). Les propositions historiques peuvent différer du catalogue actuel Gaming.</p>'
+   +'<div class="form-actions"><a class="btn" href="'+href+'" target="_blank" rel="noopener noreferrer">Ouvrir dans LINK ↗</a>'
+   +'<button class="btn btn-neutral" type="button" id="nx-link-observer-copy">Copier le code</button></div>'
+   +'<label class="field"><span>Code technique de diagnostic (LDN1)</span><textarea id="nx-link-observer-code" rows="4" readonly style="width:100%;overflow-wrap:anywhere;word-break:break-all">'+code+'</textarea></label>'
+   +'<p class="muted-note">Si iOS ouvre Safari plutôt que LINK, copie le code et colle-le dans LINK → Diagnostic → Côté Nexus. Ce relevé ne déclenche aucun échange et ne modifie aucune proposition.</p></div>';
+  api.modal('LINK · Diagnostic côté Nexus',html);
+  document.getElementById('nx-link-observer-copy')?.addEventListener('click',async()=>{
+   try{await navigator.clipboard.writeText(code);api.toast('Diagnostic Nexus copié pour LINK.')}
+   catch{
+    const el=document.getElementById('nx-link-observer-code');
+    el?.select();
+    try{if(!document.execCommand?.('copy'))throw Error('COPY_UNSUPPORTED');api.toast('Diagnostic copié.')}
+    catch{api.toast('Sélectionne le code puis utilise Copier.')}
+   }
+  });
+ }
  const counters=()=>{const p=connection(),rows=list().filter(x=>x.pairId===p?.id);return {
   pending:rows.filter(x=>x.status==='pending').length,
   accepted:rows.filter(x=>x.status==='accepted').length,
@@ -114,7 +162,8 @@
    <div class="nx-gaming-stats"><div><strong>${totals.pending}</strong><small>À examiner</small></div>
     <div><strong>${totals.accepted}</strong><small>Acceptées</small></div><div><strong>${totals.rejected}</strong><small>Ignorées</small></div></div>
    <div class="form-actions"><button class="btn" data-action="link-pull">Recevoir depuis Gaming</button>
-    <button class="btn btn-neutral" data-action="link-show-code">Code de jumelage</button></div>
+    <button class="btn btn-neutral" data-action="link-show-code">Code de jumelage</button>
+    <button class="btn btn-soft" data-action="link-observe">Diagnostic LINK</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
     <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${missingBudgetTarget(x)?'Dépense supprimée':x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
     <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Gaming')} · Révision ${x.revision}
@@ -222,11 +271,12 @@
  }
  function act(kind,button){
   if(kind==='link-proposals'){panel();return true}
+  if(kind==='link-observe'){observe();return true}
   if(kind==='link-pull'){pull();return true}
   if(kind==='link-review'){review(button.dataset.id);return true}
   if(kind==='link-reject'){reject(button.dataset.id);return true}
   return false;
  }
  function attach(model){api=model}
- window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters});
+ window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe});
 })();
