@@ -201,8 +201,15 @@
    api.render();api.toast(target?'Élément Gaming mis à jour dans NEXUS.':oldEntry.targetId?'Dépense Gaming réimportée dans le Budget.':'Proposition Gaming ajoutée à NEXUS.');
    panel();
   }catch(err){
-   if(ix>=0)collection[ix]=old;else collection.splice(collection.findIndex(x=>x.id===data.id),1);
-   Object.assign(item,oldEntry);api.toast('Enregistrement refusé : '+err.message.slice(0,75));
+   if(ix>=0)collection[ix]=old;else{
+    const inserted=collection.findIndex(x=>x.id===data.id);
+    if(inserted>=0)collection.splice(inserted,1);
+   }
+   for(const key of Object.keys(item))if(!(key in oldEntry))delete item[key];
+   Object.assign(item,oldEntry);
+   // A save may have reached IndexedDB but failed verification; restore the prior snapshot too.
+   try{await api.persist()}catch(rollbackError){console.warn('NEXUS LINK rollback failed',rollbackError);}
+   api.toast('Enregistrement refusé : '+err.message.slice(0,75));
   }
  }
  async function reject(id){
