@@ -20,31 +20,70 @@
   if(!res.ok)throw new Error(({CHALLENGE_EXPIRED:'Défi expiré. Réessaie.',UNKNOWN_CREDENTIAL:'Cette passkey n’est pas enregistrée.',INVALID_SIGNATURE:'La signature Face ID / passkey a été refusée.',USER_VERIFICATION_REQUIRED:'Vérification biométrique ou code iPhone nécessaire.',CREDENTIAL_EXISTS:'Cette passkey est déjà enregistrée.',INVALID_RP_ID:'Erreur de domaine de sécurité.'})[data.error]||'Erreur WebAuthn : '+(data.error||res.status));
   return data;
  }
- const safe=async f=>{try{await f();}catch(e){alert(e.message||'La vérification Face ID est indisponible.');}};
+ const describeError=e=>{
+  const name=String(e?.name||''),message=String(e?.message||'');
+  if(name==='NotAllowedError')return 'Face ID a été annulé, refusé ou bloqué par iOS. Réessaie depuis le bouton.';
+  if(name==='SecurityError')return 'iOS refuse ce domaine pour la passkey. Ouvre NEXUS depuis son icône d’origine.';
+  if(name==='InvalidStateError')return 'Cette passkey est déjà configurée sur cet appareil.';
+  if(name==='AbortError')return 'La demande Face ID a été interrompue. Réessaie.';
+  if(name==='TypeError'&&message.includes('publicKey'))return 'Les données WebAuthn reçues sont incompatibles. Réessaie.';
+  return message||'La vérification Face ID est indisponible.';
+ };
+ const safe=async f=>{try{await f();}catch(e){alert(describeError(e));}};
+ // WebAuthn on Safari iOS needs the biometric call directly in the tap handler.
+ // Prefetch and precompute challenge/options BEFORE enabling the button.
+ const READY_MS=90_000,prepared={verify:null,register:null},loading={verify:null,register:null};
+ const fresh=kind=>{
+  const data=prepared[kind];
+  return data&&Date.now()-data.at<READY_MS?data:null;
+ };
+ async function prime(kind,force=false){
+  if(!force&&fresh(kind))return prepared[kind];
+  if(loading[kind])return loading[kind];
+  const promise=(async()=>{
+   if(!available())throw new Error('Face ID / passkeys non disponibles sur ce navigateur.');
+   const session=await window.NexusCloud?.session?.();
+   if(!session?.token)throw new Error('Connecte le coffre cloud NEXUS pour utiliser Face ID, ou utilise ta clé de récupération.');
+   const [opts,digest]=await Promise.all([
+    call('/api/v1/passkey/options','POST',{kind}),
+    kind==='register'?crypto.subtle.digest('SHA-256',encoder.encode(session.token)):Promise.resolve(null)
+   ]);
+   if(kind==='verify'&&!opts.credentialIds?.length)
+    throw new Error('Aucune passkey enregistrée pour ce coffre. Utilise la clé de récupération.');
+   const item={opts,userId:digest?new Uint8Array(digest):null,at:Date.now()};
+   prepared[kind]=item;return item;
+  })();
+  loading[kind]=promise;
+  try{return await promise}
+  finally{if(loading[kind]===promise)loading[kind]=null}
+ }
+ function consume(kind){
+  const item=fresh(kind);
+  prepared[kind]=null;
+  return item;
+ }
  function unlockUI(){
   unlocked=true;
   document.documentElement.classList.remove('nexus-lock-pending');
   document.getElementById('nexus-lock-overlay')?.remove();
  }
  async function register(){
-  if(!available())throw new Error('Les passkeys ne sont pas prises en charge par ce navigateur.');
-  const sess=await window.NexusCloud?.session?.();
-  if(!sess)throw new Error('Tu dois d’abord connecter ton coffre chiffré.');
-  const opts=await call('/api/v1/passkey/options','POST',{kind:'register'});
-  const userId=await crypto.subtle.digest('SHA-256',encoder.encode(sess.token));
-  const cred=await navigator.credentials.create({publicKey:{
+  const preparedRegister=consume('register');
+  if(!preparedRegister)throw new Error('Préparation Face ID expirée. Réessaie.');
+  const {opts,userId}=preparedRegister;
+  // There is NO await before navigator.credentials.create(): retain iOS user activation.
+  const credentialPromise=navigator.credentials.create({publicKey:{
    challenge:b64bytes(opts.challenge),
    rp:{id:opts.rpId,name:'NEXUS'},
-   user:{id:new Uint8Array(userId),name:'nexus-personal',displayName:'NEXUS personnel'},
+   user:{id:userId,name:'nexus-personal',displayName:'NEXUS personnel'},
    pubKeyCredParams:[{type:'public-key',alg:-7}],
-   timeout:120000,
-   attestation:'none',
+   timeout:120000,attestation:'none',
    authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},
    excludeCredentials:opts.credentialIds.map(id=>({type:'public-key',id:b64bytes(id)}))
   }});
+  const cred=await credentialPromise;
   if(!cred)throw new Error('Création annulée.');
-  const spki=cred.response.getPublicKey?.();
-  const auth=cred.response.getAuthenticatorData?.();
+  const spki=cred.response.getPublicKey?.(),auth=cred.response.getAuthenticatorData?.();
   const alg=cred.response.getPublicKeyAlgorithm?.();
   if(!spki||!auth||alg!==-7)throw new Error('Cette passkey n’expose pas la clé ES256 requise par NEXUS.');
   await call('/api/v1/passkey/register','POST',{
@@ -57,13 +96,16 @@
   closeModal();renderLock();
  }
  async function verify(){
-  const opts=await call('/api/v1/passkey/options','POST',{kind:'verify'});
-  if(!opts.credentialIds?.length)throw new Error('Aucune passkey enregistrée. Utilise ta clé de récupération.');
-  const assertion=await navigator.credentials.get({publicKey:{
-    challenge:b64bytes(opts.challenge),rpId:opts.rpId,timeout:120000,
-    userVerification:'required',
-    allowCredentials:opts.credentialIds.map(id=>({type:'public-key',id:b64bytes(id)}))
+  const preparedVerify=consume('verify');
+  if(!preparedVerify)throw new Error('Préparation Face ID expirée. Réessaie.');
+  const {opts}=preparedVerify;
+  // There is NO await before navigator.credentials.get(): retain iOS user activation.
+  const assertionPromise=navigator.credentials.get({publicKey:{
+   challenge:b64bytes(opts.challenge),rpId:opts.rpId,timeout:120000,
+   userVerification:'required',
+   allowCredentials:opts.credentialIds.map(id=>({type:'public-key',id:b64bytes(id)}))
   }});
+  const assertion=await assertionPromise;
   if(!assertion)throw new Error('Vérification annulée.');
   await call('/api/v1/passkey/verify','POST',{
    challengeId:opts.challengeId,credentialId:b64u(assertion.rawId),
@@ -82,7 +124,8 @@
    <div class="nx-lock-mark">N</div>
    <h1>NEXUS verrouillé</h1>
    <p>Vérifie ton identité avec la passkey de l'iPhone (Face ID ou code).</p>
-   <button class="btn" id="nx-unlock-passkey">Déverrouiller avec Face ID / passkey</button>
+   <button class="btn" id="nx-unlock-passkey" type="button" disabled>Préparation Face ID…</button>
+   <p id="nx-passkey-status" role="status" aria-live="polite">Connexion au service de vérification…</p>
    <details><summary>Utiliser ma clé de récupération</summary>
     <p>Cette solution fonctionne hors ligne si le coffre est déjà sur cet appareil.</p>
     <label for="nx-recovery-unlock">Clé de récupération</label>
@@ -91,7 +134,29 @@
    </details>
    <small>Verrouillage de confort : les données locales ne sont pas chiffrées par cette option.</small>
   </div>`;
-  host.querySelector('#nx-unlock-passkey').addEventListener('click',()=>safe(verify));
+  const unlock=host.querySelector('#nx-unlock-passkey'),status=host.querySelector('#nx-passkey-status');
+  const primeLock=async()=>{
+   unlock.disabled=true;unlock.textContent='Préparation Face ID…';
+   status.textContent='Préparation sécurisée du défi…';
+   try{
+    await prime('verify',true);
+    if(!unlock.isConnected)return;
+    unlock.disabled=false;unlock.textContent='Déverrouiller avec Face ID / passkey';
+    status.textContent='Face ID prêt. Appuie pour déverrouiller.';
+   }catch(e){
+    if(!unlock.isConnected)return;
+    unlock.disabled=false;unlock.textContent='Réessayer Face ID';
+    status.textContent=describeError(e)+' La clé de récupération reste disponible.';
+   }
+  };
+  unlock.addEventListener('click',()=>{
+   if(!fresh('verify')){void primeLock();return}
+   unlock.disabled=true;status.textContent='Demande de vérification iPhone…';
+   void safe(verify).finally(()=>{
+    if(lockedByPreference()&&!unlocked&&unlock.isConnected)void primeLock();
+   });
+  });
+  void primeLock();
   host.querySelector('#nx-unlock-recovery').addEventListener('click',()=>safe(async()=>{
     const key=document.getElementById('nx-recovery-unlock').value.trim();
     if(!await window.NexusCloud?.validateRecoveryKey?.(key))throw new Error('Clé de récupération incorrecte.');
@@ -100,18 +165,42 @@
  }
  async function openPanel(){
   if(!available())throw new Error('WebAuthn n’est pas disponible ici. Essaie dans Safari iPhone.');
-  const supported=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(()=>false);
+  const supported=typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable==='function'?
+   await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(()=>false):false;
   const list=await call('/api/v1/passkey/list');
   modal('Face ID / Passkeys',`
    <div class="info-strip">${svg('shield')} Cette option fait vérifier une signature WebAuthn par Cloudflare. Elle verrouille l’interface NEXUS, mais ne chiffre pas les données locales ni la clé de récupération.</div>
    <p class="muted-note">Authentificateur iPhone : ${supported?'Disponible':'Non confirmé'} · Verrouillage : ${lockedByPreference()?'activé':'inactif'} · Passkeys enregistrées : ${list.credentials.length}</p>
    <div class="vault-actions">
-     <button class="btn" id="nx-passkey-enroll">${svg('shield')} ${lockedByPreference()?'Ajouter une passkey':'Activer Face ID / passkey'}</button>
+     <button class="btn" id="nx-passkey-enroll" type="button" disabled>Préparation Face ID…</button>
      ${lockedByPreference()?'<button class="btn btn-soft" id="nx-passkey-lock">Verrouiller maintenant</button><button class="btn btn-neutral" id="nx-passkey-disable">Désactiver le verrouillage local</button>':''}
    </div>
+   <p class="muted-note" id="nx-passkey-enroll-status" role="status" aria-live="polite">Préparation de la passkey…</p>
    <p class="muted-note">La clé de récupération du coffre reste indispensable sur un nouvel appareil. Face ID ou le code iPhone peuvent être utilisés selon iOS. En cas de refus, la clé permet un accès de secours.</p>
   `);
-  document.getElementById('nx-passkey-enroll').addEventListener('click',()=>safe(register));
+  const enroll=document.getElementById('nx-passkey-enroll');
+  const enrollStatus=document.getElementById('nx-passkey-enroll-status');
+  const primeEnroll=async()=>{
+   enroll.disabled=true;enroll.textContent='Préparation Face ID…';
+   enrollStatus.textContent='Préparation sécurisée de la passkey…';
+   try{
+    await prime('register',true);
+    if(!enroll.isConnected)return;
+    enroll.disabled=false;
+    enroll.textContent=lockedByPreference()?'Ajouter une passkey':'Activer Face ID / passkey';
+    enrollStatus.textContent='Prêt : appuie pour confirmer avec Face ID.';
+   }catch(e){
+    if(!enroll.isConnected)return;
+    enroll.disabled=false;enroll.textContent='Réessayer la préparation';
+    enrollStatus.textContent=describeError(e);
+   }
+  };
+  enroll.addEventListener('click',()=>{
+   if(!fresh('register')){void primeEnroll();return}
+   enroll.disabled=true;enrollStatus.textContent='Demande de création sur iPhone…';
+   void safe(register).finally(()=>{if(enroll.isConnected)void primeEnroll()});
+  });
+  void primeEnroll();
   document.getElementById('nx-passkey-lock')?.addEventListener('click',()=>{closeModal();unlocked=false;renderLock();});
   document.getElementById('nx-passkey-disable')?.addEventListener('click',()=>{
     if(!confirm('Désactiver le verrouillage de cet appareil ? Les passkeys restent enregistrées sur le serveur pour une utilisation future.'))return;
