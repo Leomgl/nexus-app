@@ -133,7 +133,7 @@
  function daysIn(year,month){return new Date(year,month,0).getDate();}
  function dateWithin(rule,date){return (!rule.startDate||date>=rule.startDate)&&(!rule.endDate||date<=rule.endDate);}
  function occurrences(rule,month){
-   const p=monthParts(month);if(!p||!rule.active)return [];
+   const p=monthParts(month);if(!p||!rule.active||rule.schedulePending===true)return [];
    const y=p.year,m=p.month;
    const values=[];
    const make=(day,identity)=>{
@@ -374,7 +374,7 @@
     <div class="b8-rules">${rules.length?rules.map(r=>`<div class="b8-rule-row">
       <span class="b8-rule-icon ${r.type}">${svg(r.type==='income'?'arrow':'wallet')}</span>
       <span class="b8-rule-copy"><strong>${safe(r.title)}</strong><small>${safe(rulePeriodDescription(r))}
-      · ${safe(r.category||'Autres')}${!r.active?' · En pause':''}</small></span>
+      · ${safe(r.category||'Autres')}${r.schedulePending?' · Date à préciser':''}${!r.active?' · En pause':''}</small></span>
       <span class="b8-rule-price ${r.type==='income'?'positive':'negative'}">${r.type==='income'?'+':'−'}${currencies(r.amountCents)}</span>
       <div class="b8-rule-actions">
        <button data-action="b8-rule-toggle" data-id="${safe(r.id)}">${r.active?'Pause':'Activer'}</button>
@@ -533,7 +533,7 @@
  function refresh(){render();}
  function ruleForm(rule={}){
   const existing=!!rule.id;
-  const defaultDate=budgetMonth+'-01';
+  const defaultDate=rule.schedulePending?'':budgetMonth+'-01';
   const freq=rule.frequency||'monthly';
   const notifyDays=Array.isArray(rule.notifyDays)?rule.notifyDays:[2,0];
   const content=`<form id="b8-rule-form" class="b8-form">
@@ -597,7 +597,7 @@
     day:v.frequency==='weekly'?Number(rule.day||1):Number(v.day),
     weekday:v.frequency==='weekly'?Number(v.weekday):Number(rule.weekday??1),
     month:v.frequency==='yearly'?Number(v.month):Number(rule.month||1),
-    startDate:v.startDate,endDate:v.endDate||'',
+    startDate:v.startDate,endDate:v.endDate||'',schedulePending:false,
     category:v.category,projectId:v.projectId||'',active:!!v.active,
     notifyDays,
     skips:Array.isArray(rule.skips)?rule.skips:[],
