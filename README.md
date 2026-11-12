@@ -439,3 +439,15 @@ L'interface « Réglages → Applications & connexions → Gaming → Propositio
 Aucune nouvelle permission, migration de stockage, publication de proposition, ACK, mutation de Budget ou modification du relais Nexus/Gaming n'est réalisée. Les données et notifications de Nexus restent sur leur origine GitHub Pages existante ; la version du script `link-import.js?v=02113` et le cache `nexus-v0.21.12.1` sont mis à jour pour iPhone.
 
 Tests Node et GitHub Actions : voir le workflow « NEXUS JavaScript checks » ; la **recette tactile iPhone et le statut du build GitHub Pages** doivent être vérifiés séparément avant de considérer l'interface opérationnelle sur le téléphone.
+
+## Nexus V0.21.12.2 — correctif Face ID / passkeys iPhone (12 novembre 2026, Forge #30)
+
+Après la recette LINK V0.4, le propriétaire a signalé que Face ID / passkeys ne fonctionnait plus. **Cause plausible identifiée dans `passkey-client.js`** : des opérations asynchrones (demande de défi serveur, session cloud, dérivation de l'ID de registration) avaient lieu entre le tap et l'appel natif WebAuthn, ce qui peut annuler l'activation utilisateur exigée par Safari/iOS. Le code n'avait pas été modifié par LINK V0.4 ; le lien causal avec la dernière évolution n'est pas établi.
+
+Correctif : préparation du défi *avant* d'activer le bouton ; appels synchrones de `navigator.credentials.get/create` dans le gestionnaire du geste iPhone ; durée de vie locale limitée à 90 s pour un défi serveur de 180 s, renouvellement après échec ou expiration ; diagnostics utiles dans le verrouillage et le panneau Face ID ; possibilité de déverrouiller via la **clé de récupération existante** sans la communiquer.
+
+Les passkeys, l'inscription côté Cloudflare, l'API, les secrets, le coffre IndexedDB, les connexions Gaming/Link, les notifications et les sauvegardes n'ont **pas** été modifiés. Nouveau `./passkey-client.js?v=02114` et cache PWA `nexus-v0.21.12.2` pour forcer iOS à charger le correctif. Le chiffrement des données n'est pas changé.
+
+**Tests :** `tests/passkey-ios-gesture.test.cjs` (enregistrement + authentification pendant le geste, retour d'erreur sans déverrouillage, coffre absent, cohérence cache). CI Nexus **85/85** https://github.com/Leomgl/nexus-app/actions/runs/43314341065 ; GitHub Pages **déployé** https://github.com/Leomgl/nexus-app/actions/runs/43314340452 .
+
+**Recette iPhone obligatoire :** fermer/réouvrir Nexus en ligne depuis son icône ; attendre « Préparation Face ID… », essayer la passkey existante. Si besoin, Réglages → Sécurité → Face ID / passkeys permet de réessayer l'inscription sans supprimer les anciennes clés. En cas d'échec, relever **uniquement le texte de l'erreur** et si la feuille biométrique iOS apparaît ; ne jamais partager secret, challenge ou clé de récupération. Suivi : FORGE #30, statut en cours jusqu'à confirmation tactile.
