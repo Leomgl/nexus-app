@@ -211,3 +211,10 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Calculs de prévision et notifications par `occurrence.amountCents`, y compris dernière mensualité partielle. Simulation nominale hors frais/assurance, non contractuelle.
 - Revenus réguliers : **Pause / Reprendre** ; reprise de l'automatisation sans rattrapage. Recettes variables CPAM/employeur saisies au Journal manuellement, sans récurrence ni estimation automatique.
 - Version 0.21.10, cache iOS `nexus-v0.21.10.0`, tests `tests/budget-finance-v02110.test.cjs`. Tests Node/Pages réussis à la livraison ; **recette Safari iPhone à faire**.
+
+## FORGE #25 — Agenda médical ↔ Santé, Nexus V0.21.11 (12/11/2026)
+
+- Source : `nexus-sante.js` (projection medical, IDs, révisions, tombstones, merge conservative, consentement `sendMedical`, réception E2EE) ; `app.js` (case « médical » et gestion de l'édition) ; `recycle.js` (suppression/restauration) ; `index.html`, `sw.js` (cache V0.21.11), tests.
+- Contrat entrant `sante.calendar.v1` inchangé, sortant `nexus.calendar.v1` paginé 12 événements par page, max 8 pages. Même jumelage NXS1, scope `health_calendar`, relais dédié Santé ; aucun nouveau secret, D1 ou entitlement.
+- L'agenda Nexus reste non chiffré localement. Santé reste coffre AES-GCM. Notifications rendez-vous Nexus, médications Santé. Consentement explicite dans Réglages → Santé, auto-import activé lors de l'opt-in. Deux PWAs ouvertes successivement pour synchroniser, pas de tâche de fond iOS. Ne jamais exposer données médicales dans FORGE.
+- Vérifier CI et recette réelle iPhone : événement préexistant au titre ambigu via case Médical, double création identique, modification des deux côtés, suppression, corbeille, hors ligne/reprise, conflits, DST et installation sans perte de l'IndexedDB.
