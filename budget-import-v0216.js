@@ -130,7 +130,7 @@
  }
  function act(kind){
   if(kind==='budget-import-open'){document.getElementById('nexus-budget-import-file')?.click();return true;}
-  if(kind==='budget-import-confirm'){void apply();return true;}
+  if(kind==='budget-import-confirm')return apply();
   return false;
  }
  window.NexusBudgetImport=Object.freeze({act,onFiles,parseCSV,fromRaw,existing});
