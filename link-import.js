@@ -198,6 +198,8 @@
   item.targetId=data.id;item.targetKind=kind;item.status='accepted';item.updatedAt=now;
   try{
    await persistVerified();
+   if(kind==='transactions'&&api.verifyLedger&&
+    !(await api.verifyLedger(data.id,item.pairId,item.sourceKey)))throw Error('Écriture Budget non vérifiée');
    api.render();api.toast(target?'Élément Gaming mis à jour dans NEXUS.':oldEntry.targetId?'Dépense Gaming réimportée dans le Budget.':'Proposition Gaming ajoutée à NEXUS.');
    panel();
   }catch(err){
