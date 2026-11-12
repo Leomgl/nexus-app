@@ -76,7 +76,7 @@ test('Medical calendar projection only includes medical events and normalises th
   {id:'32345678-1234-4234-8234-123456789012',title:'Contrôle',start:'2026-11-17T14:00:00',healthSync:true}
  ];
  const snapshot=api.outgoing();
- assert.deepEqual(snapshot.map(e=>e.id),[medicalId,'32345678-1234-4234-8234-123456789012']);
+ assert.deepEqual(Array.from(snapshot,e=>e.id),[medicalId,'32345678-1234-4234-8234-123456789012']);
  assert.equal(snapshot[0].start,new Date('2026-11-16T08:15:00').toISOString());
  assert.equal(snapshot[0].location,'Centre fictif');
  assert.equal(snapshot[0].deleted,false);
