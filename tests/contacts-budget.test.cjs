@@ -183,12 +183,12 @@ test('rendered directory alphabet sections always display A before M even with e
  }finally{global.document=priorDocument;}
 });
 
-test('UI and offline cache agree on version 0.21.10',()=>{
+test('UI and offline cache agree on version 0.21.11',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  assert.match(html,/data-nexus-version/);
- assert.match(app,/NEXUS_VERSION='0\.21\.10'/);
+ assert.match(app,/NEXUS_VERSION='0\.21\.11'/);
  assert.match(html,/contacts-v017\.js\?v=0174/);
  assert.match(html,/pulse-v018\.js\?v=0215/);
  assert.match(html,/pulse-v018\.css\?v=0180/);
