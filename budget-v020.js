@@ -28,6 +28,7 @@
   return rule?.frequency==='yearly'?Math.round(amount/12):amount;
  }
  function loanProgress(rule,transactions){
+  const revised=window.NexusBudgetFinance?.scheduledTotal?.(rule,transactions);if(revised)return revised;
   const count=Number.isInteger(rule?.loanInstallments)?Math.max(0,Math.min(600,rule.loanInstallments)):0;
   const confirmed=new Set((transactions||[]).filter(t=>t.recurrenceId===rule?.id&&
    t.type==='expense'&&typeof t.occurrenceKey==='string'&&/^\d{4}-\d{2}$/.test(t.occurrenceKey))
@@ -76,13 +77,17 @@
   const p=loanProgress(r,data.transactions);
   const next=r.active&&!r.schedulePending?nextDue(r):'';
   const percent=p.total?Math.round(p.done/p.total*100):0;
+  const revised=Array.isArray(r.loanScheduleRevisions)&&r.loanScheduleRevisions.length>0;
+  const currentMonth=dateKey(new Date()).slice(0,7);
+  const monthAmount=window.NexusBudgetFinance?.scheduledAmount?.(r,currentMonth)??r.amountCents;
   return `<article class="b20-loan">
    <div class="b20-loan-top"><div><strong>${safe(r.title)}</strong><small>${r.active?'Échéancier actif':'Échéancier suspendu'}${r.loanPrincipalCents?' · Montant financé déclaré : '+fmt(r.loanPrincipalCents):''}</small></div>
     <button type="button" class="b20-edit" data-action="b20-loan-edit" data-id="${safe(r.id)}" aria-label="Modifier ${safe(r.title)}">${svg('edit')}</button></div>
-   <div class="b20-loan-stats"><div><span>Mensualité prévue</span><strong>${fmt(r.amountCents)}</strong></div><div><span>Échéances confirmées</span><strong>${p.total?p.done+'/'+p.total:'—'}</strong></div>
+   <div class="b20-loan-stats"><div><span>Mensualité prévue</span><strong>${fmt(monthAmount)}</strong></div><div><span>Échéances confirmées</span><strong>${p.total?p.done+'/'+p.total:'—'}</strong></div>
     <div><span>Reste à confirmer *</span><strong>${p.total?fmt(p.remainingScheduledCents):'—'}</strong></div></div>
    <div class="b20-track"><i style="width:${percent}%"></i></div>
-   <small class="b20-muted">${r.schedulePending?'Date à préciser':next?'Prochaine échéance : '+dateLabel(next):'Pas de prochaine échéance active'} · ${p.total?p.remaining+' mensualité(s) non confirmée(s)':'Durée du prêt à préciser'}</small>
+   <small class="b20-muted">${r.schedulePending?'Date à préciser':next?'Prochaine échéance : '+dateLabel(next):'Pas de prochaine échéance active'} · ${p.total?p.remaining+' mensualité(s) non confirmée(s)':'Durée du prêt à préciser'}${revised?' · Nouvelle fin estimée : '+dateLabel(r.endDate):''}</small>
+   <div class="b21-loan-actions"><button type="button" class="btn btn-soft btn-small" data-action="fin-loan-extra" data-id="${safe(r.id)}">${svg('plus')} Remboursement anticipé</button>${revised?`<button type="button" class="btn btn-neutral btn-small" data-action="fin-loan-adjust" data-id="${safe(r.id)}">${svg('edit')} Ajuster</button>`:''}</div>
   </article>`;
  }
  function incomeRow(rule){
@@ -94,6 +99,7 @@
     <small>${rule.frequency==='yearly'?'Annuel':rule.frequency==='weekly'?'Hebdomadaire':'Mensuel'} · ${next?'Prochaine échéance : '+dateLabel(next):'Aucune échéance à venir'}</small>
    </div>
    <div class="b20-amount"><strong>+${fmt(rule.amountCents)}</strong><small>par échéance</small></div>
+   <button type="button" class="b21-income-toggle" data-action="fin-income-toggle" data-id="${safe(rule.id)}">${rule.active?'Pause':'Reprendre'}</button>
    <button type="button" class="b20-edit" data-action="b20-income-edit" data-id="${safe(rule.id)}" aria-label="Modifier ${safe(rule.title)}">${svg('edit')}</button>
   </article>`;
  }
@@ -103,7 +109,7 @@
   const loans=pendingRules('loan').sort(byTitle);
   const existingRules=data.recurrences.filter(r=>!r.commitmentKind&&r.type==='expense'&&['monthly','yearly'].includes(r.frequency));
   const active=subs.filter(r=>r.active).reduce((sum,r)=>sum+commitmentMonthlyEquivalent(r),0);
-  const totalLoan=loans.filter(r=>r.active).reduce((sum,r)=>sum+r.amountCents,0);
+  const totalLoan=loans.filter(r=>r.active).reduce((sum,r)=>sum+(window.NexusBudgetFinance?.scheduledAmount?.(r,dateKey(new Date()).slice(0,7))??r.amountCents),0);
   return `<div class="b20-wrap">
      <div class="b21-import-entry"><button type="button" class="btn btn-neutral btn-small" data-action="budget-import-open">${svg('upload')} Importer des lignes</button><span>Import local sans doublons · CSV / JSON</span></div>
     <div class="b20-summary"><div><span>Abonnements actifs, équivalent mensuel</span><strong>${fmt(active)}</strong></div>
@@ -112,6 +118,7 @@
      ${panelTitle('Revenus réguliers','Salaire, rente, revenus locatifs ou autres recettes prévues.',
        `<button class="btn btn-small" data-action="b20-income-new">${svg('plus')} Revenu</button>`)}
      <div class="b20-list">${incomes.length?incomes.map(incomeRow).join(''):`<div class="b20-blank">${svg('wallet')}<strong>Aucun revenu récurrent</strong><p>Ajoute ton salaire ou une autre entrée d’argent pour préparer ton budget.</p></div>`}</div>
+     <div class="b21-income-actions"><button type="button" class="btn btn-soft btn-small" data-action="fin-income-new">${svg('plus')} Versement variable (CPAM, employeur…)</button></div>
      <p class="b8-disclaimer">L’inscription automatique est facultative pour chaque revenu. Les sommes ajoutées sont des recettes programmées, pas des virements bancaires vérifiés.</p>
     </section>
     ${existingRules.length?`<div class="b20-classify"><span>${svg('info')} Tu as déjà des prélèvements dans Récurrences ? Classe-les sans créer de doublons.</span>
@@ -125,7 +132,7 @@
       ${panelTitle('Prêts et crédits','Mensualités prévues, durée du contrat et échéances confirmées.',
        `<button class="btn btn-small" data-action="b20-loan-new">${svg('plus')} Prêt</button>`)}
       <div class="b20-loan-grid">${loans.length?loans.map(loanRow).join(''):`<div class="b20-blank">${svg('wallet')}<strong>Aucun prêt enregistré</strong><p>Renseigne une mensualité et une durée : NEXUS prépare l’échéancier.</p></div>`}</div>
-      <p class="b8-disclaimer">* Le reste à confirmer correspond aux mensualités prévues non enregistrées dans NEXUS. Ce n'est ni le capital restant dû ni un relevé bancaire. Les intérêts éventuels sont inclus uniquement si tu les as intégrés dans la mensualité.</p>
+      <p class="b8-disclaimer">* Les remboursements anticipés sont des dépenses supplémentaires distinctes. Les nouvelles mensualités sont des simulations selon le capital et le taux déclarés, à valider avec ta banque. Le reste à confirmer correspond aux mensualités prévues non enregistrées dans NEXUS. Ce n'est ni le capital restant dû ni un relevé bancaire. Les intérêts éventuels sont inclus uniquement si tu les as intégrés dans la mensualité.</p>
     </section>
     <div class="b20-legacy">${recurrencesHtml}</div>
   </div>`;
@@ -258,7 +265,7 @@
   });
  }
  function loanForm(rule={}){
-  const editing=!!rule.id,first=validDate(rule.startDate)?rule.startDate:dateKey(new Date());
+  const editing=!!rule.id,first=validDate(rule.startDate)?rule.startDate:(rule.schedulePending?'':dateKey(new Date()));
   modal(editing?'Modifier un prêt':'Nouveau prêt',`<form id="b20-loan-form" class="b8-form">
     ${field('Nom du prêt','title',rule.title||'','maxlength="130" placeholder="Ex. Prêt auto" required')}
     <div class="b8-form-grid">${field('Mensualité prévue (€)','amount',Number.isInteger(rule.amountCents)?String(rule.amountCents/100):'','inputmode="decimal" required')}
@@ -286,9 +293,12 @@
    if(editing&&(rule.startDate!==date||rule.loanInstallments!==installments)&&
       data.transactions.some(t=>t.recurrenceId===rule.id)&&
       !confirm('Modifier la durée ou la première date d’un prêt ayant des échéances enregistrées ? Les paiements déjà confirmés resteront intacts.'))return;
+   if(editing&&rule.loanScheduleRevisions?.length&&(rule.startDate!==date||rule.loanInstallments!==installments)){
+    toast('Pour changer un échéancier après remboursement anticipé, utilise « Ajuster ».');return;
+   }
    const now=nowISO(),parts=date.split('-').map(Number);
    const updated={...rule,id:rule.id||uid(),title,type:'expense',amountCents:amount,frequency:'monthly',
-     day:parts[2],month:parts[1],weekday:1,startDate:date,endDate:installments===null?'':periodEndDate(date,installments),schedulePending:false,
+     day:parts[2],month:parts[1],weekday:1,startDate:date,endDate:rule.loanScheduleRevisions?.length?rule.endDate:(installments===null?'':periodEndDate(date,installments)),schedulePending:false,
      commitmentKind:'loan',loanInstallments:installments,loanPrincipalCents:principal,
      category:v.category||'Autres',projectId:v.projectId||'',notes:String(v.notes||'').slice(0,800),
      active:v.active==='on',skips:Array.isArray(rule.skips)?rule.skips:[],
