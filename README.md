@@ -429,3 +429,13 @@ Détails et tests de réception : [docs/CONTACTS-V017.md](docs/CONTACTS-V017.md)
 Depuis **Personnes → Gérer le carnet**, le réimport complet conserve les identifiants des contacts reconnus (liens Agenda/Rappels préservés), sauvegarde le contenu JSON avant remplacement et déplace les contacts absents dans la corbeille. Un bouton de vidage complet est aussi disponible via le système de corbeille existant, mais il peut casser les liens après création de nouveaux IDs. Le fichier `.vcf` affiche un compteur de photos intégrées avant confirmation.
 
 **Limite de confidentialité :** stockage local non chiffré par NEXUS et origine GitHub Pages partagée avec les autres PWAs. Le coffre distant chiffre les snapshots, sans garantir une sécurité absolue ni protéger contre du code malveillant exécuté sur l'origine. Voir [docs/CONTACTS-V017.md](docs/CONTACTS-V017.md).
+
+## Nexus V0.21.12.1 — diagnostic local LINK V0.4 (FORGE #28, 12/11/2026)
+
+L'interface « Réglages → Applications & connexions → Gaming → Propositions → Diagnostic LINK » permet désormais d'exporter un **instantané technique et volontaire** des propositions Gaming persistées dans l'Inbox locale de Nexus. Le code `LDN1` embarque seulement le statut du jumelage, le nombre de permissions, les comptes de propositions **conservées / à examiner / acceptées / ignorées**, l'heure du relevé et la dernière date de création locale. Les IDs de paires/entités, titres, montants, secrets NXL1 et contenus des messages n'en font pas partie.
+
+« Ouvrir dans LINK » passe le code dans le fragment de l'URL ; « Copier le code » fonctionne pour les PWA ouvertes sur des origines distinctes. LINK V0.4 compare ce relevé à celui de Gaming (LDO1) **sans appeler Nexus pour lire son IndexedDB et sans faire de transfert automatique**.
+
+Aucune nouvelle permission, migration de stockage, publication de proposition, ACK, mutation de Budget ou modification du relais Nexus/Gaming n'est réalisée. Les données et notifications de Nexus restent sur leur origine GitHub Pages existante ; la version du script `link-import.js?v=02113` et le cache `nexus-v0.21.12.1` sont mis à jour pour iPhone.
+
+Tests Node et GitHub Actions : voir le workflow « NEXUS JavaScript checks » ; la **recette tactile iPhone et le statut du build GitHub Pages** doivent être vérifiés séparément avant de considérer l'interface opérationnelle sur le téléphone.
