@@ -201,7 +201,7 @@
    <div class="form-actions"><button class="btn" data-action="link-pull">Recevoir depuis Gaming</button>
     <button class="btn btn-neutral" data-action="link-show-code">Code de jumelage</button>
     <button class="btn btn-soft" data-action="link-observe">Diagnostic LINK</button>
-    <button class="btn btn-soft" data-action="link-audit">Vérifier les événements</button></div>
+    </div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
     <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${missingBudgetTarget(x)?'Dépense supprimée':x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
     <small>${esc(targetLabel[x.payload.destination]||'NEXUS')} · ${esc(x.payload.game||'Gaming')} · Révision ${x.revision}
@@ -310,7 +310,7 @@
  function act(kind,button){
   if(kind==='link-proposals'){panel();return true}
   if(kind==='link-observe'){observe();return true}
-  if(kind==='link-audit'){void auditPanel();return true}
+  
   if(kind==='link-pull'){pull();return true}
   if(kind==='link-review'){review(button.dataset.id);return true}
   if(kind==='link-reject'){reject(button.dataset.id);return true}
