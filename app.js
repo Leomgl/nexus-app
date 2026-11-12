@@ -1,6 +1,6 @@
 /* NEXUS V0.20 — Pulse + Connect + Budget advanced, local-first data model. */
 'use strict';
-const NEXUS_VERSION='0.21.5';
+const NEXUS_VERSION='0.21.6';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   notes:'<path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/><path d="M8 12h7M8 16h8M15 3l6 6M14 9l6-6"/>',
@@ -1047,7 +1047,8 @@ document.addEventListener('click',async event=>{
   const p=data.purchases.find(x=>x.id===id);
   if(p&&p.status==='purchased'&&!data.transactions.some(t=>t.purchaseId===id)) extraCaptureForm('transaction',{}, {purchaseId:id});
  }
- if(kind.startsWith('b20-')){window.NexusBudget20?.act?.(kind,action);return;}
+ if(kind.startsWith('budget-import-')){window.NexusBudgetImport?.act?.(kind,action);return;}
+  if(kind.startsWith('b20-')){window.NexusBudget20?.act?.(kind,action);return;}
  if(['b8-','b9-','b10-'].some(prefix=>kind.startsWith(prefix))){window.NexusBudget?.act?.(kind,action);return;}
   if(kind==='purchase-filter'){purchaseFilter=action.dataset.filter;render();}
  if(kind==='project-filter'){projectFilter=action.dataset.filter;render();}
@@ -1103,6 +1104,7 @@ document.addEventListener('click',async event=>{
  if(kind.startsWith('trash-')){await window.NexusRecycle?.act?.(kind,action);return;}
 });
 document.addEventListener('change',event=>{
+ if(event.target?.id==='nexus-budget-import-file'){void window.NexusBudgetImport?.onFiles?.(event.target);return;}
  if(window.NexusConnect2?.onChange?.(event.target))return;
  if(window.NexusContacts?.onChange?.(event.target))return;
  if(window.NexusConnections?.onChange?.(event.target))return;
