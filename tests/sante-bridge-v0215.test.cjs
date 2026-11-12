@@ -49,3 +49,20 @@ test('Agenda import creates one event with Nexus reminders and preserves local e
  await api.act('sante-import');
  assert.equal(data.events[0].title,'Édité localement dans Nexus','never overwrite local edit');
 });
+
+test('Optional hydration totals are validated and rendered only when shared',()=>{
+ const {api,data}=harness();
+ const now=new Date(),today=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+ const base={type:'sante.daily.v1',sourceApp:'sante',day:today,total:0,done:0,items:[]};
+ assert.equal(api.validDaily(base).hydration,null);
+ const hydration={day:today,fluidMl:1350,waterMl:1000,caffeineMg:120,entries:5,targetMl:2000};
+ assert.equal(api.validDaily({...base,hydration}).hydration.fluidMl,1350);
+ assert.equal(api.validDaily({...base,hydration:{...hydration,fluidMl:-1}}),null);
+ assert.equal(api.validDaily({...base,hydration:{...hydration,waterMl:1400}}),null);
+ data.linkConnections.push({id:'pair',sourceApp:'sante'});
+ data.santeDaily=[{...api.validDaily({...base,hydration}),sharedAt:new Date().toISOString()}];
+ assert.match(api.widget(),/Boissons du jour/);
+ assert.match(api.widget(),/1350/);
+ data.santeDaily=[{...api.validDaily(base),sharedAt:new Date().toISOString()}];
+ assert.doesNotMatch(api.widget(),/Boissons du jour/);
+});

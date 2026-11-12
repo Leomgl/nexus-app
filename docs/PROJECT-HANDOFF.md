@@ -1,3 +1,6 @@
+## ACTU — NEXUS V0.21.9, résumé Santé hydratation (12/11/2026)
+- Reprise de la branche main contenant Vestiaire V0.21.8 ; ajout de l'agrégat boissons (ml/eau/caféine) facultatif dans le widget Santé Pulse. Consentement demandé dans Santé, stockage reçu Nexus non chiffré, validDaily compatible ancien schéma, tests et cache mis à jour. Voir docs/SANTE-HYDRATATION-V0219.md. Recette iPhone requise.
+
 # NEXUS · REPRISE PROJET / NOTES POUR LES PROCHAINS THREADS
 
 > **LIRE CE FICHIER EN PREMIER EN NOUVEAU THREAD.** Mis à jour le 11 novembre 2026.
