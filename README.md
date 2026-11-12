@@ -1,5 +1,14 @@
 # NEXUS — Second cerveau personnel (V0.21.5 · Santé Connect)
 
+## V0.21.11 — Agenda médical ↔ Santé (FORGE #25)
+
+**Synchronisation bidirectionnelle chiffrée en option** : l'Agenda Nexus sait désormais envoyer les rendez-vous médicaux vers le coffre Santé, recevoir leurs mises à jour et répercuter suppressions/restaurations. Les champs transmis se limitent aux **titre, date/heure et lieu**, identifiant et état de suppression ; aucune note, ordonnance, traitement ni contenu clinique n'est envoyé depuis Nexus. La liaison NXS1 existante est réutilisée.
+
+**Activation** : Nexus → Réglages → Applications connectées → Santé → « Activer la synchronisation ↔ ». Cela active aussi la réception automatique des rendez-vous Santé. Les événements déjà présents dont le titre est médicalement reconnaissable sont proposés ; un nouvel attribut explicite « Rendez-vous médical · synchroniser avec Santé » figure sur la fiche Agenda pour les titres ambigus. Dans Santé, déverrouiller (Face ID ou phrase), puis ⚙ → Nexus LINK → « Synchroniser les agendas ↔ » ; l'échange se déclenche aussi à l'ouverture des apps et après modifications. Il faut ouvrir successivement les deux PWAs pour recevoir : **pas de synchronisation en arrière-plan iOS**.
+
+**Sécurité** : identification stable et tombstones, fusion conservative des rendez-vous exactement identiques pour éviter les doublons, conflit signalé plutôt qu'un écrasement silencieux, traitement/vaccins inchangés, notifications de rendez-vous toujours gérées dans Nexus. Seul Santé chiffre son stockage local ; l'Agenda Nexus reste non chiffré au repos. Pas de migration des bases, ni reconnexion. Les tests automatisés ne remplacent pas une recette iPhone réelle.
+
+
 > **Reprise entre conversations : [PROJECT-HANDOFF.md](docs/PROJECT-HANDOFF.md)** — vision, architecture, roadmap, fichiers clés et état exact des versions. **Documentation de la V0.18 : [PULSE-V018.md](docs/PULSE-V018.md)**.
 >
 > La suite ci-dessous contient aussi des notes d'anciennes versions ; les sections V0.21.2 et le dossier de reprise font foi pour l'état actuel.
