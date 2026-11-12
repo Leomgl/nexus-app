@@ -190,3 +190,12 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Aperçu et dédoublonnage avant ajout ; salaire existant ignoré ; prêts et abonnements gardent les mêmes récurrences ; aucun ajout au Journal ou reprise des états CSV.
 - Dates et durées inconnues sont à compléter ; `schedulePending:true` empêche échéances, auto-écritures et notifications fictives. Après édition, `schedulePending:false`.
 - Tests : `tests/budget-import-v0216.test.cjs` ; version 0.21.6.
+
+
+## V0.21.7 — Réimportation explicite LINK → Budget
+
+- Référence : [LINK-REIMPORT-V0217.md](LINK-REIMPORT-V0217.md).
+- Réexaminer un pass Gaming payé après suppression de la dépense Budget permet de recréer une écriture avec un nouvel ID, en conservant l'ancienne dans la corbeille et en rapprochant la provenance de l'achat.
+- Si la transaction est déjà active (même `originApp` + `originSourceId`), une mise à jour est faite au lieu d'une nouvelle écriture.
+- Restaurer l'ancienne transaction (y compris dans une réinitialisation groupée) est bloqué en cas de doublon de provenance ; aucun élément du bundle n'est alors restauré.
+- Vérification durable du Journal et rollback en cas d'échec ; tests `tests/link-reimport-v0217.test.cjs`; version 0.21.7.
