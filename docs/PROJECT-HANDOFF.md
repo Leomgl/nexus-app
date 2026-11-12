@@ -202,3 +202,12 @@ Un autre thread a fait évoluer le pont NEXUS ↔ Rituel (notamment `nexus-trave
 - Si la transaction est déjà active (même `originApp` + `originSourceId`), une mise à jour est faite au lieu d'une nouvelle écriture.
 - Restaurer l'ancienne transaction (y compris dans une réinitialisation groupée) est bloqué en cas de doublon de provenance ; aucun élément du bundle n'est alors restauré.
 - Vérification durable du Journal et rollback en cas d'échec ; tests `tests/link-reimport-v0217.test.cjs`; version 0.21.7.
+
+## V0.21.10 — Prêts révisables et revenus variables (12/11/2026)
+
+- Référence détaillée : [BUDGET-FINANCE-V02110.md](BUDGET-FINANCE-V02110.md).
+- Prêts : simulation de remboursement anticipé avec capital dû et taux déclarés, scénarios mensualité réduite ou durée raccourcie, vérification et confirmation du versement, ajustement manuel ultérieur selon échéancier bancaire.
+- Données financières additives et locales : `loanScheduleRevisions[]` dans la récurrence de prêt, transaction distincte avec `loanExtraPaymentFor` ; aucun paiement bancaire, aucune donnée personnelle dans le code public. Les écritures passées restent intactes.
+- Calculs de prévision et notifications par `occurrence.amountCents`, y compris dernière mensualité partielle. Simulation nominale hors frais/assurance, non contractuelle.
+- Revenus réguliers : **Pause / Reprendre** ; reprise de l'automatisation sans rattrapage. Recettes variables CPAM/employeur saisies au Journal manuellement, sans récurrence ni estimation automatique.
+- Version 0.21.10, cache iOS `nexus-v0.21.10.0`, tests `tests/budget-finance-v02110.test.cjs`. Tests Node/Pages réussis à la livraison ; **recette Safari iPhone à faire**.
