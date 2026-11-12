@@ -8,15 +8,15 @@ const root=path.join(__dirname,'..');
 const deep=x=>JSON.parse(JSON.stringify(x));
 const paid=(id='inbox-1')=>({
  id,pairId:'pair-gaming',sourceKey:'a'.repeat(64),revision:1,scope:'pass_paid',
- status:'accepted',targetId:'old-pass',targetKind:'transactions',createdAt:'2026-11-06T15:00:00Z',
+ status:'accepted',targetId:'old-pass',targetKind:'transactions',createdAt:'2026-02-10T15:00:00Z',
  payload:{type:'gaming.proposal.v1',destination:'transactions',sourceApp:'gaming',
-  sourceId:'mw4-pass-1:paid',title:'Call of Duty MW4 · Saison 1 · Pass de combat',
-  game:'MW4',details:'Pass payé',priceCents:999,currency:'EUR',paymentDate:'2026-11-06',
+  sourceId:'fictional-pass:paid',title:'Pass de combat de démonstration',
+  game:'Jeu fictif',details:'Pass payé',priceCents:1234,currency:'EUR',paymentDate:'2026-02-10',
   time:'12:00'}
 });
 const deleted=()=>({
- id:'old-pass',title:'Pass supprimé',type:'expense',date:'2026-11-06',amountCents:999,
- originApp:'gaming',originSourceId:'mw4-pass-1:paid'
+ id:'old-pass',title:'Pass supprimé',type:'expense',date:'2026-02-10',amountCents:1234,
+ originApp:'gaming',originSourceId:'fictional-pass:paid'
 });
 function setup({grouped=false,failVerify=false,failLedger=false}={}){
  const original=deleted(),proposal=paid();
@@ -44,8 +44,8 @@ function setup({grouped=false,failVerify=false,failLedger=false}={}){
  return {api:context.window.NexusGamingImport,recycle:context.window.NexusRecycle,data,
   saved:()=>saved,toast,alerts,preview:()=>lastModal,writes:()=>writes};
 }
-const form={title:'Call of Duty MW4 · Saison 1 · Pass de combat',date:'2026-11-06',
- price:'9.99',projectId:'',details:'Pass payé'};
+const form={title:'Pass de combat de démonstration',date:'2026-02-10',
+ price:'12.34',projectId:'',details:'Pass payé'};
 test('a deleted accepted Gaming pass may be explicitly reimported without touching its trash',async()=>{
  const x=setup();
  x.api.review('inbox-1');
@@ -55,9 +55,9 @@ test('a deleted accepted Gaming pass may be explicitly reimported without touchi
  assert.equal(x.data.transactions.length,1);
  assert.equal(x.data.transactions[0].id,'new-1');
  assert.equal(x.data.transactions[0].originApp,'gaming');
- assert.equal(x.data.transactions[0].originSourceId,'mw4-pass-1:paid');
- assert.equal(x.data.transactions[0].amountCents,999);
- assert.equal(x.data.transactions[0].date,'2026-11-06');
+ assert.equal(x.data.transactions[0].originSourceId,'fictional-pass:paid');
+ assert.equal(x.data.transactions[0].amountCents,1234);
+ assert.equal(x.data.transactions[0].date,'2026-02-10');
  assert.equal(x.data.linkInbox[0].status,'accepted');
  assert.equal(x.data.linkInbox[0].targetId,'new-1');
  assert.equal(x.data.trash.length,1);
