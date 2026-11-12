@@ -71,7 +71,7 @@
    if(s!=='ok')return s;
    if(!window.NexusGamingImport?.synchronize)return 'unavailable';
    const result=await window.NexusGamingImport.synchronize();
-   return result?.busy?'unavailable':'ok';
+   return result?.busy?'unavailable':result?.invalid>0?'error':'ok';
   }
   return 'unavailable';
  }
