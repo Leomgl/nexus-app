@@ -91,7 +91,7 @@ async function create(){
 }
 
 const MEDICAL_RE=/médecin|docteur|dentiste|h[oô]pital|consultation|kin[eé]|ost[eé]o|radiolog|prise de sang|vaccin|psycholog|psychiatr|dermatol|cardiolog|ophtalmo|scanner|irm\b|laboratoire|gyn[eé]c|chirurg|infirmi|rendez-vous m[eé]dical|rdv m[eé]dical|\bpsy\b/i;
-const medical=e=>e?.healthSync===true||(e?.healthSync!==false&&(e?.originApp==="sante"&&e?.originSourceId?.startsWith("appointment:")||MEDICAL_RE.test(String(e?.title||""))));
+const medical=e=>!(e?.originApp==="sante"&&e?.originSourceId?.startsWith("vaccine:"))&&(e?.healthSync===true||(e?.healthSync!==false&&(e?.originApp==="sante"&&e?.originSourceId?.startsWith("appointment:")||MEDICAL_RE.test(String(e?.title||"")))));
 const isoStart=s=>{const d=new Date(s);return Number.isFinite(d.getTime())?d.toISOString():null;};
 const localStart=s=>{const d=new Date(s);if(!Number.isFinite(d.getTime()))return "";return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")+"T"+[String(d.getHours()).padStart(2,"0"),String(d.getMinutes()).padStart(2,"0")].join(":")+":00";};
 const keyOf=e=>e?.healthSyncId||(e?.originApp==="sante"&&e.originSourceId?.startsWith("appointment:")?e.originSourceId.slice(12):e?.id);
