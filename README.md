@@ -451,3 +451,11 @@ Les passkeys, l'inscription côté Cloudflare, l'API, les secrets, le coffre Ind
 **Tests :** `tests/passkey-ios-gesture.test.cjs` (enregistrement + authentification pendant le geste, retour d'erreur sans déverrouillage, coffre absent, cohérence cache). CI Nexus **85/85** https://github.com/Leomgl/nexus-app/actions/runs/43314341065 ; GitHub Pages **déployé** https://github.com/Leomgl/nexus-app/actions/runs/43314340452 .
 
 **Recette iPhone obligatoire :** fermer/réouvrir Nexus en ligne depuis son icône ; attendre « Préparation Face ID… », essayer la passkey existante. Si besoin, Réglages → Sécurité → Face ID / passkeys permet de réessayer l'inscription sans supprimer les anciennes clés. En cas d'échec, relever **uniquement le texte de l'erreur** et si la feuille biométrique iOS apparaît ; ne jamais partager secret, challenge ou clé de récupération. Suivi : FORGE #30, statut en cours jusqu'à confirmation tactile.
+
+## LINK V0.5 : diagnostic des événements côté Nexus (12/11/2026)
+
+Nexus → Réglages → Applications & connexions → Gaming → Propositions → **Vérifier les événements** produit à la demande un rapport `LDA1` limité aux messages Gaming déjà persistés dans `linkInbox`. Des empreintes temporaires HMAC, liées à la clé de paire et au jour UTC, permettent une comparaison de *présence et de révision* dans LINK avec l'Outbox Gaming, **sans exposer d'ID de paire/source, message, titre, montant ou seed**.
+
+L'export ne lance aucune synchronisation, ne modifie pas l'Inbox et ne crée pas d'ACK. L'action est facultative et manuelle ; le lien vers LINK utilise un fragment `#audit=`, sinon copie/collage. Les deux relevés doivent être générés le même jour UTC. La concordance n'est pas une attestation d'origine ni une preuve de livraison/ACK serveur ; les anciens mécanismes de jumelage et de réception restent inchangés.
+
+Scripts `link-audit.js?v=02115` et `link-import.js?v=02115` ajoutés/versionnés dans l'HTML et le cache PWA `nexus-v0.21.12.3`. Tests Nexus **90/90** réussis sur le parcours concerné : https://github.com/Leomgl/nexus-app/actions/runs/43316459101 . GitHub Pages deploy vert. Recette tactile V0.5 sur iPhone encore à faire.
