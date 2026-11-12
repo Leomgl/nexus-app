@@ -44,9 +44,25 @@ function calculate({principalCents,extraCents,aprPercent,mode,months,paymentCent
  if(mode==='reduce-term'&&(!Number.isSafeInteger(paymentCents)||paymentCents<=0))return null;
  let payment=paymentCents;
  if(mode==='reduce-payment'){
-  const raw=rate===0?balance/months:balance*rate/(1-Math.pow(1+rate,-months));
-  payment=Math.max(1,Math.ceil(raw-1e-10));
-  if(!Number.isSafeInteger(payment))return null;
+  // Theoretical annuity formulas alone can leave a few cents unpaid: compute
+  // the smallest *integer-cent* payment that actually amortises within the term.
+  const paysOff=guess=>{
+   let debt=balance;
+   for(let i=0;i<months;i++){
+    const interest=Math.ceil(debt*rate-1e-9);
+    if(guess<=interest)return false;
+    debt=Math.max(0,debt+interest-guess);
+    if(debt===0)return true;
+   }
+   return false;
+  };
+  let low=1,high=balance+Math.ceil(balance*rate-1e-9);
+  if(!Number.isSafeInteger(high))return null;
+  while(low<high){
+   const mid=Math.floor((low+high)/2);
+   if(paysOff(mid))high=mid;else low=mid+1;
+  }
+  payment=low;
  }
  let remaining=balance,total=0,last=0,count=0;
  for(let i=1;i<=600;i++){
