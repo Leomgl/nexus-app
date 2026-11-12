@@ -183,32 +183,32 @@ test('rendered directory alphabet sections always display A before M even with e
  }finally{global.document=priorDocument;}
 });
 
-test('UI and offline cache agree on version 0.21.9',()=>{
+test('UI and offline cache agree on version 0.21.10',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
  assert.match(html,/data-nexus-version/);
- assert.match(app,/NEXUS_VERSION='0\.21\.9'/);
+ assert.match(app,/NEXUS_VERSION='0\.21\.10'/);
  assert.match(html,/contacts-v017\.js\?v=0174/);
  assert.match(html,/pulse-v018\.js\?v=0215/);
  assert.match(html,/pulse-v018\.css\?v=0180/);
  assert.match(sw,/pulse-v018\.js\?v=0215/);
  assert.match(html,/https:\/\/api\.open-meteo\.com/);
  assert.match(html,/https:\/\/geocoding-api\.open-meteo\.com/);
- assert.match(html,/app\.js\?v=0219/);
+ assert.match(html,/app\.js\?v=02110/);
  assert.match(html,/settings-v0214\.js\?v=0215/);
  assert.match(html,/settings-v0214\.css\?v=0214/);
- assert.match(sw,/nexus-v0\.21\.9/);
+ assert.match(sw,/nexus-v0\.21\.10/);
  assert.match(sw,/contacts-v017\.js\?v=0174/);
  assert.match(html,/connect-v019\.js\?v=0191/);
  assert.match(sw,/connect-v019\.js\?v=0191/);
  assert.match(html,/link-import\.js\?v=0217/);
  const assets=[...html.matchAll(/(?:src|href)="(\.\/[^"]+\.(?:js|css)(?:\?v=[^"]+)?)"/g)].map(x=>x[1]);
  for(const asset of assets)assert.ok(sw.includes("'"+asset+"'"),'offline cache does not include '+asset);
- assert.match(html,/budget-v08\.js\?v=0216/);
- assert.match(html,/budget-v020\.js\?v=0216/);
- assert.match(html,/budget-v020\.css\?v=0216/);
- assert.match(sw,/budget-v020\.js\?v=0216/);
+ assert.match(html,/budget-v08\.js\?v=02110/);
+ assert.match(html,/budget-v020\.js\?v=02110/);
+ assert.match(html,/budget-v020\.css\?v=02110/);
+ assert.match(sw,/budget-v020\.js\?v=02110/);
  assert.match(sw,/recycle\.js\?v=0217/);
  assert.match(app,/savingsGoals:\[\]/);
  assert.match(html,/vestiaire-v021\.js\?v=0212/);
