@@ -1,6 +1,6 @@
 /* NEXUS V0.20 — Pulse + Connect + Budget advanced, local-first data model. */
 'use strict';
-const NEXUS_VERSION='0.21.7';
+const NEXUS_VERSION='0.21.8';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   notes:'<path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/><path d="M8 12h7M8 16h8M15 3l6 6M14 9l6-6"/>',
@@ -47,7 +47,7 @@ const ICONS = {
 };
 const svg = (name) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.file}</svg>`;
 const escapeHtml = (value='') => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[],travelOutbox:[],vestiaireCatalogs:[],vestiaireSelections:[],santeDaily:[],santeCalendars:[]};
+const data = {notes:[],events:[],tasks:[],contacts:[],projects:[],purchases:[],transactions:[],limits:[],recurrences:[],quickExpenses:[],budgetCategories:[],savingsGoals:[],trash:[],linkConnections:[],linkInbox:[],travelOutbox:[],vestiaireCatalogs:[],vestiaireTransfers:[],vestiaireSelections:[],santeDaily:[],santeCalendars:[]};
 let currentView='home', taskFilter='open', calendarMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
 let selectedDay = dateKey(new Date()), toastTimeout;
 let budgetMonth = dateKey(new Date()).slice(0,7), purchaseFilter = 'planned', projectFilter = 'active';
@@ -1160,7 +1160,7 @@ async function verifySante(kind,id,revision){
    kind==='calendar'?Array.isArray(saved?.santeCalendars)&&saved.santeCalendars.some(x=>x.pairId===id&&x.sourceRevision===revision):false;
  }catch{return false;}
 }
-async function verifyVestiaire(kind,id,revision){
+async function verifyVestiaire(kind,id,revision,pageIndex){
  try{
   let saved;
   if(dbHandle)saved=await new Promise((resolve,reject)=>{
@@ -1169,6 +1169,7 @@ async function verifyVestiaire(kind,id,revision){
   });else saved=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');
   if(kind==='pair')return Array.isArray(saved?.linkConnections)&&saved.linkConnections.some(p=>p.id===id&&p.sourceApp==='vestiaire');
   if(kind==='catalog')return Array.isArray(saved?.vestiaireCatalogs)&&saved.vestiaireCatalogs.some(x=>x.pairId===id&&x.revision===revision);
+  if(kind==='page')return Array.isArray(saved?.vestiaireTransfers)&&saved.vestiaireTransfers.some(x=>x.pairId===id&&x.revision===revision&&Array.isArray(x.pages?.[pageIndex]));
   if(kind==='selection')return Array.isArray(saved?.vestiaireSelections)&&saved.vestiaireSelections.some(x=>x.eventId===id&&x.lookId===revision);
   if(kind==='removedSelection')return Array.isArray(saved?.vestiaireSelections)&&!saved.vestiaireSelections.some(x=>x.eventId===id);
   return false;

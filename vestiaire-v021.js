@@ -32,6 +32,77 @@
    receivedAt:new Date().toISOString(),total:Math.max(looks.length,Number(x.total)||looks.length),
    omitted:Math.max(0,Number(x.omitted)||0)};
  }
+ // V2 keeps the v1 catalog compatible, while receiving a complete encrypted snapshot in pages.
+ function validPage(msg,p){
+  const x=msg?.payload;
+  if(!p||msg.invalid||msg.scope!==SCOPE||!Number.isSafeInteger(msg.revision)||msg.revision<1||
+     x?.type!=='vestiaire.catalog.page.v2'||x.sourceApp!=='vestiaire'||x.revision!==msg.revision||
+     typeof x.batchId!=='string'||!/^[a-f0-9-]{36}$/i.test(x.batchId)||
+     !Number.isSafeInteger(x.pageIndex)||!Number.isSafeInteger(x.pageCount)||
+     x.pageCount<1||x.pageCount>200||x.pageIndex<0||x.pageIndex>=x.pageCount||
+     !Number.isSafeInteger(x.total)||x.total<0||x.total>50000||
+     !Array.isArray(x.looks)||x.looks.length>24||x.looks.length>x.total||
+     !validISO(x.sharedAt))return null;
+  const record=validCatalog({...msg,payload:{...x,type:'vestiaire.catalog.v1',omitted:0}},p);
+  if(!record)return null;
+  return {pairId:p.id,revision:msg.revision,batchId:x.batchId,
+   pageIndex:x.pageIndex,pageCount:x.pageCount,total:x.total,sharedAt:x.sharedAt,
+   looks:record.looks};
+ }
+ function assembledTransfer(t){
+  if(!t||!Array.isArray(t.pages)||t.pageCount!==t.pages.length||
+   !t.pages.every(Array.isArray))return null;
+  const looks=t.pages.flat(),ids=new Set();
+  if(looks.length!==t.total)throw Error('Catalogue reçu incomplet ou total incorrect');
+  for(const row of looks){if(ids.has(row.id))throw Error('Doublon de tenue entre lots');ids.add(row.id);}
+  return {pairId:t.pairId,revision:t.revision,sourceKey:'catalog-v2',
+   looks,total:t.total,omitted:0,sharedAt:t.sharedAt,receivedAt:new Date().toISOString()};
+ }
+ async function activateTransfer(t){
+  const record=assembledTransfer(t);if(!record)return false;
+  const before=(db().vestiaireCatalogs||[]).slice(),oldTransfers=(db().vestiaireTransfers||[]).slice();
+  db().vestiaireCatalogs=[...before.filter(x=>x.pairId!==t.pairId),record];
+  db().vestiaireTransfers=oldTransfers.filter(x=>x.pairId!==t.pairId);
+  try{
+   await api.persist();
+   if(!await api.verify('catalog',t.pairId,t.revision))throw Error('Catalogue complet non confirmé en stockage');
+  }catch(err){
+   db().vestiaireCatalogs=before;db().vestiaireTransfers=oldTransfers;
+   try{await api.persist();}catch{}
+   throw err;
+  }
+  return true;
+ }
+ async function receivePage(msg,page,p){
+  const old=catalog(),transfers=db().vestiaireTransfers||[];
+  const newest=Math.max(old?.revision||0,0,...transfers.filter(x=>x.pairId===p.id).map(x=>x.revision));
+  if(page.revision<newest||old?.revision>=page.revision){await CORE().acknowledge(p,msg.id);return false;}
+  const previous=transfers.find(x=>x.pairId===p.id&&x.revision===page.revision);
+  if(previous&&(previous.batchId!==page.batchId||previous.pageCount!==page.pageCount||
+     previous.total!==page.total||previous.sharedAt!==page.sharedAt))
+   throw Error('Lots de catalogue incompatibles : une nouvelle synchronisation est nécessaire');
+  const next=previous?{...previous,pages:previous.pages.slice()}:
+   {pairId:p.id,revision:page.revision,batchId:page.batchId,
+    pageCount:page.pageCount,total:page.total,sharedAt:page.sharedAt,pages:Array(page.pageCount).fill(null)};
+  const prior=next.pages[page.pageIndex];
+  if(prior&&JSON.stringify(prior)!==JSON.stringify(page.looks))
+   throw Error('Lot contradictoire avec une copie déjà enregistrée');
+  next.pages[page.pageIndex]=page.looks;
+  const before=transfers.slice();
+  db().vestiaireTransfers=[...transfers.filter(x=>x.pairId!==p.id),next];
+  try{
+   await api.persist();
+   if(!await api.verify('page',p.id,page.revision,page.pageIndex))
+    throw Error('Lot non confirmé dans le stockage');
+  }catch(err){
+   db().vestiaireTransfers=before;
+   try{await api.persist();}catch{}
+   throw err;
+  }
+  await CORE().acknowledge(p,msg.id);
+  await activateTransfer(next); // leaves the prior complete snapshot intact until all pages arrive
+  return true;
+ }
  function context(event){
   const value=norm([event.title,event.details].filter(Boolean).join(' '));
   if(/\b(resto|restaurant|diner|dejeuner|brunch|bistrot|gastronomique)\b/.test(value))return 'Restaurant';
@@ -107,9 +178,10 @@
    <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-unselect" data-event="${esc(id)}">Retirer</button></div></div>`;
  }
  function settingsCard(){
-  const p=pair(),c=catalog();
+  const p=pair(),c=catalog(),pending=(db().vestiaireTransfers||[]).find(x=>x.pairId===p?.id);
+  const progress=pending?' · Réception en cours : '+pending.pages.filter(Array.isArray).length+'/'+pending.pageCount+' lots':'';
   return `<section class="preferences-panel nxv-settings"><div class="pref-heading">${svg('shirt')}<div><h2>Vestiaire · Tenues contextuelles</h2><p>Partager un catalogue résumé, chiffré et autorisé, sans exporter les photos.</p></div></div>
-  ${p?`<p class="pref-hint">Liaison privée active · ${c?.looks?.length||0} tenues reçues ${c?'· '+esc(c.sharedAt.slice(0,10)):''}. Ce code permet d'accéder à la connexion : garde-le confidentiel.</p>
+  ${p?`<p class="pref-hint">Liaison privée active · ${c?.looks?.length||0} tenues reçues ${c?'· '+esc(c.sharedAt.slice(0,10)):''}${progress}. Ce code permet d'accéder à la connexion : garde-le confidentiel.</p>
    <label class="field"><span>Code privé à importer dans Vestiaire → Réglages</span><textarea id="nxv-code" rows="3" readonly>${esc(CORE().invitation(p))}</textarea></label>
    <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="vestiaire-copy">Copier le code</button>
    <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-refresh">Recevoir</button>
@@ -144,25 +216,37 @@
   lastCheck=Date.now();running=true;
   let received=0,invalid=0;
   try{
+   // Recover a fully persisted batch if the app closed after its last page was acknowledged.
+   for(const t of (db().vestiaireTransfers||[]).filter(x=>x.pairId===p.id)){
+    if(assembledTransfer(t))await activateTransfer(t);
+   }
    const messages=await CORE().inbox(p);
-   for(const msg of messages.slice(0,35)){
+   for(const msg of messages.slice(0,50)){
+    const page=validPage(msg,p);
+    if(page){if(await receivePage(msg,page,p))received++;continue;}
     const record=validCatalog(msg,p);
     if(!record){invalid++;continue;}
-    const prev=catalog();
-    // Ignore older revisions, but acknowledge the already superseded message.
-    if(prev&&record.revision<=prev.revision){await CORE().acknowledge(p,msg.id);continue;}
-    const before=(db().vestiaireCatalogs||[]).slice();
+    const pending=db().vestiaireTransfers||[];
+    const newest=Math.max(catalog()?.revision||0,0,...pending.filter(x=>x.pairId===p.id).map(x=>x.revision));
+    if(record.revision<=newest){await CORE().acknowledge(p,msg.id);continue;}
+    const before=(db().vestiaireCatalogs||[]).slice(),oldPending=pending.slice();
     db().vestiaireCatalogs=[...before.filter(x=>x.pairId!==p.id),record];
-    await api.persist();
-    if(!await api.verify('catalog',p.id,record.revision)){
-     db().vestiaireCatalogs=before;try{await api.persist();}catch{}
-     throw Error('Sauvegarde du catalogue non confirmée');
+    db().vestiaireTransfers=pending.filter(x=>x.pairId!==p.id);
+    try{
+     await api.persist();
+     if(!await api.verify('catalog',p.id,record.revision))
+      throw Error('Sauvegarde du catalogue non confirmée');
+    }catch(err){
+     db().vestiaireCatalogs=before;db().vestiaireTransfers=oldPending;
+     try{await api.persist();}catch{}
+     throw err;
     }
-    await CORE().acknowledge(p,msg.id);
-    received++;
+    await CORE().acknowledge(p,msg.id);received++;
    }
    if(received)api.safeRender?.();
-   if(manual)api.toast(`${received} catalogue(s) mis à jour${invalid?' · '+invalid+' message(s) ignoré(s)':''}.`);
+   const waiting=(db().vestiaireTransfers||[]).find(x=>x.pairId===p.id);
+   const progress=waiting?' · '+waiting.pages.filter(Array.isArray).length+'/'+waiting.pageCount+' lots reçus':'';
+   if(manual)api.toast(received+' lot(s) reçu(s)'+progress+(invalid?' · '+invalid+' message(s) ignoré(s)':'')+'.');
    return {received,invalid};
   }catch(err){if(manual)api.toast('Réception impossible : '+String(err.message||err).slice(0,70));return {received,error:String(err.message||err)};}
   finally{running=false;}
@@ -195,6 +279,7 @@
    await CORE().revoke(p);
    db().linkConnections=db().linkConnections.filter(x=>x.id!==p.id);
    db().vestiaireCatalogs=db().vestiaireCatalogs.filter(x=>x.pairId!==p.id);
+   db().vestiaireTransfers=(db().vestiaireTransfers||[]).filter(x=>x.pairId!==p.id);
    db().vestiaireSelections=[];
    await api.persist();api.render();api.toast('Connexion et catalogues Vestiaire effacés de NEXUS.');
   }catch(err){api.toast('Révocation impossible : '+String(err?.message||err).slice(0,70))}
@@ -218,5 +303,5 @@
   window.setTimeout(()=>void receive(),2400);
  }
  function attach(value){api=value;}
- window.NexusVestiaire=Object.freeze({attach,init,widget,eventBadge,settingsCard,act,validCatalog,context,recommend,comingEvent,receive,pair});
+ window.NexusVestiaire=Object.freeze({attach,init,widget,eventBadge,settingsCard,act,validCatalog,validPage,assembledTransfer,context,recommend,comingEvent,receive,pair});
 })();
