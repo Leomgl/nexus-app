@@ -95,9 +95,9 @@ test('confirmed early repayment enters Journal once and rewrites the future cale
   amountCents:6000,loanInstallments:120,active:true,day:12,
   startDate:'2025-01-12',endDate:'2035-01-31',category:'Autres'});
  api.act('fin-loan-extra',{dataset:{id:'loan-a'}});
- assert.match(x.modal(),/Remboursement anticipé/);
+ assert.match(x.title(),/Remboursement anticipé/);
  x.submit('fin-extra',{date:x.today,extra:'500',balance:'1000',apr:'0',mode:'reduce-payment',payment:'60',months:'10'});
- assert.match(x.modal(),/Simulation/);
+ assert.match(x.title(),/Simulation/);
  assert.match(x.modal(),/50.00 €|50,00/);
  api.act('fin-loan-confirm',{dataset:{id:'loan-a'}});
  await new Promise(resolve=>setTimeout(resolve,0));
