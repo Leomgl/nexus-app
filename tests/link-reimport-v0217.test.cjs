@@ -18,7 +18,7 @@ const deleted=()=>({
  id:'old-pass',title:'Pass supprimé',type:'expense',date:'2026-11-06',amountCents:999,
  originApp:'gaming',originSourceId:'mw4-pass-1:paid'
 });
-function setup({grouped=false,failVerify=false}={}){
+function setup({grouped=false,failVerify=false,failLedger=false}={}){
  const original=deleted(),proposal=paid();
  const data={linkInbox:[proposal],transactions:[],projects:[],trash:[
   grouped?{id:'reset-budget',label:'Module Budget',items:[{key:'transactions',record:original},
@@ -36,6 +36,8 @@ function setup({grouped=false,failVerify=false}={}){
  context.window.NexusGamingImport.attach({
   state:()=>data,escape:context.escapeHtml,persist:context.persist,uid:context.uid,toast:context.toast,
   verify:async()=>!failVerify&&JSON.stringify(saved.linkInbox)===JSON.stringify(data.linkInbox),
+  verifyLedger:async(id,pairId,sourceKey)=>!failLedger&&saved.transactions.some(x=>x.id===id&&x.type==='expense'&&x.amountCents>0)&&
+   saved.linkInbox.some(x=>x.targetId===id&&x.pairId===pairId&&x.sourceKey===sourceKey&&x.status==='accepted'),
   modal:context.modal,render:context.render,today:()=> '2026-11-12'
  });
  vm.runInNewContext(fs.readFileSync(path.join(root,'recycle.js'),'utf8'),context,{filename:'recycle.js'});
@@ -100,4 +102,14 @@ test('failed persistence verification rolls back both the in-memory and durable 
  assert.equal(x.saved().linkInbox[0].targetId,'old-pass');
  assert.equal(x.writes(),2);
  assert.match(x.toast.at(-1),/Enregistrement refusé/);
+});
+
+test('an unverified Journal write also rolls back the persisted LINK transaction',async()=>{
+ const x=setup({failLedger:true});
+ await x.api.approve('inbox-1',form);
+ assert.equal(x.data.transactions.length,0);
+ assert.equal(x.saved().transactions.length,0);
+ assert.equal(x.data.linkInbox[0].targetId,'old-pass');
+ assert.equal(x.saved().linkInbox[0].targetId,'old-pass');
+ assert.equal(x.writes(),2);
 });
