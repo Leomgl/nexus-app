@@ -826,6 +826,7 @@ function eventDetail(id){
   ${e.location?`\\n${svg('pin')} ${escapeHtml(e.location)}`:''}
   ${person||e.personText?`\\n${svg('users')} ${escapeHtml(person?.name||e.personText)}`:''}
   ${e.details?`\\n\\n${escapeHtml(e.details)}`:''}</div>
+  ${e.healthConflict?`<div class="info-strip">⚠️ Deux modifications de ce rendez-vous sont en conflit entre Santé et Nexus. Ta version dans Nexus a été conservée ; vérifie-la également dans Santé avant une nouvelle modification.</div>`:""}
   <p class="muted-note">${svg('clock')} Rappels : ${escapeHtml(notificationLabel)}</p>
   <div class="form-actions" style="justify-content:flex-start">
    <button class="btn btn-soft btn-small" data-action="edit-event" data-id="${id}">${svg('edit')} Modifier</button>
