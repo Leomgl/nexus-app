@@ -29,7 +29,8 @@ function harness({lock=true,session=true,backendError=false}={}){
    if(tag!=='div')throw Error('unexpected element '+tag);
    return {
     id:'',innerHTML:'',
-    querySelector(selector){return element(selector.slice(1));}
+    querySelector(selector){return element(selector.slice(1));},
+    remove(){ids.delete(this.id);}
    };
   }
  };
