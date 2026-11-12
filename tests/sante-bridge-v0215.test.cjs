@@ -66,3 +66,46 @@ test('Optional hydration totals are validated and rendered only when shared',()=
  data.santeDaily=[{...api.validDaily(base),sharedAt:new Date().toISOString()}];
  assert.doesNotMatch(api.widget(),/Boissons du jour/);
 });
+
+test('Medical calendar projection only includes medical events and normalises the time in ISO',()=>{
+ const {api,data}=harness();
+ const medicalId='12345678-1234-4234-8234-123456789012';
+ data.events=[
+  {id:medicalId,title:'RDV chez le médecin',start:'2026-11-16T08:15:00',location:'Centre fictif'},
+  {id:'22345678-1234-4234-8234-123456789012',title:'Révision voiture',start:'2026-11-16T09:00:00',location:'Garage'},
+  {id:'32345678-1234-4234-8234-123456789012',title:'Contrôle',start:'2026-11-17T14:00:00',healthSync:true}
+ ];
+ const snapshot=api.outgoing();
+ assert.deepEqual(snapshot.map(e=>e.id),[medicalId,'32345678-1234-4234-8234-123456789012']);
+ assert.equal(snapshot[0].start,new Date('2026-11-16T08:15:00').toISOString());
+ assert.equal(snapshot[0].location,'Centre fictif');
+ assert.equal(snapshot[0].deleted,false);
+ assert.equal(snapshot[0].notes,undefined);
+});
+test('Nexus preserves original source ID and baseline when editing an appointment imported from Santé',async()=>{
+ const {api,data}=harness();
+ data.linkConnections=[{id:'pair',sourceApp:'sante'}];
+ const id='12345678-1234-4234-8234-123456789012';
+ data.santeCalendars=[{revision:1,events:[{id,kind:'appointment',title:'Consultation fictive',start:'2026-11-16T07:15:00Z',location:'Cabinet',deleted:false}]}];
+ await api.act('sante-import');
+ assert.equal(data.events.length,1);
+ const saved={...data.events[0]};
+ const edited={...saved,title:'Consultation déplacée'};
+ api.markChange(saved,edited);data.events[0]=edited;
+ const row=api.outgoing()[0];
+ assert.equal(row.id,id);
+ assert.equal(row.title,'Consultation déplacée');
+ assert.equal(row.base.title,'Consultation fictive');
+ assert.equal(data.santeNexusRevision,1);
+});
+test('Deleting a medical event generates one tombstone and restoring it removes the tombstone',()=>{
+ const {api,data}=harness();
+ const row={id:'12345678-1234-4234-8234-123456789012',title:'Dentiste',start:'2026-11-16T08:15:00'};
+ data.events=[row];
+ api.markDeleted(row);data.events=[];
+ assert.equal(api.outgoing().length,1);
+ assert.equal(api.outgoing()[0].deleted,true);
+ data.events=[row];api.markRestored(row);
+ assert.equal(api.outgoing().length,1);
+ assert.equal(api.outgoing()[0].deleted,false);
+});
