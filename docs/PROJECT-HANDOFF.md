@@ -1,3 +1,6 @@
+## ACTU — NEXUS V0.21.8, résumé Santé hydratation (12/11/2026)
+- Widget Santé Pulse complété avec total de boissons, eau, caféine et objectif seulement si Santé a explicitement autorisé le partage ; validDaily reste compatible avec l'ancienne projection traitements. Voir docs/SANTE-HYDRATATION-V0218.md. Code GitHub en branche feature/sante-consommations-v06 jusqu'à validation ; test iPhone à faire, cache v0.21.8.0.
+
 # NEXUS · REPRISE PROJET / NOTES POUR LES PROCHAINS THREADS
 
 > **LIRE CE FICHIER EN PREMIER EN NOUVEAU THREAD.** Mis à jour le 11 novembre 2026.
