@@ -20,7 +20,17 @@ function validDaily(v){
      typeof row.name!=="string"||row.name.length>110)return null;
   items.push({id:row.id,name:row.name,time:row.time,done:row.done});
  }
- return {day:v.day,total:v.total,done:v.done,remaining:v.total-v.done,activeCount:Math.min(100,Math.max(0,Number(v.activeCount)||0)),items,sharedAt:v.sharedAt||new Date().toISOString()};
+ let hydration=null;
+ if(v.hydration!==undefined){
+  const h=v.hydration;
+  if(!h||h.day!==v.day||!Number.isInteger(h.fluidMl)||h.fluidMl<0||h.fluidMl>400000||
+   !Number.isInteger(h.waterMl)||h.waterMl<0||h.waterMl>h.fluidMl||
+   !Number.isFinite(h.caffeineMg)||h.caffeineMg<0||h.caffeineMg>40000||
+   !Number.isInteger(h.entries)||h.entries<0||h.entries>20000||
+   !Number.isInteger(h.targetMl)||h.targetMl<250||h.targetMl>6000)return null;
+  hydration={day:h.day,fluidMl:h.fluidMl,waterMl:h.waterMl,caffeineMg:h.caffeineMg,entries:h.entries,targetMl:h.targetMl};
+ }
+ return {day:v.day,total:v.total,done:v.done,remaining:v.total-v.done,activeCount:Math.min(100,Math.max(0,Number(v.activeCount)||0)),items,hydration,sharedAt:v.sharedAt||new Date().toISOString()};
 }
 function validCalendar(v){
  if(!v||v.type!=="sante.calendar.v1"||v.sourceApp!=="sante"||!Array.isArray(v.events)||v.events.length>48||!Number.isSafeInteger(v.revision))return null;
@@ -35,7 +45,7 @@ function validCalendar(v){
 }
 function healthWidget(){
  const d=state().santeDaily?.[0],p=pair();
- const head=`<header class="nxp-widget-heading"><div><span class="nxp-kicker">SANTÉ · AUJOURD’HUI</span><h2>Mes traitements</h2></div>${svg("check")}</header>`;
+ const head=`<header class="nxp-widget-heading"><div><span class="nxp-kicker">SANTÉ · AUJOURD’HUI</span><h2>Santé au quotidien</h2></div>${svg("check")}</header>`;
  if(!p)return `<section class="nxp-widget nxsh-widget">${head}<p class="nxp-muted">Retrouve ici l'avancement de tes prises, synchronisé depuis Santé après ton autorisation.</p><button class="nxp-small-action" data-action="sante-open-settings">Connecter Santé</button></section>`;
  if(!d)return `<section class="nxp-widget nxsh-widget">${head}<p class="nxp-muted">Connexion créée. Ouvre Santé → ⚙️ → Nexus LINK, colle le code puis synchronise.</p><button class="nxp-small-action" data-action="sante-receive">Recevoir le suivi</button></section>`;
  if(d.day!==day())return `<section class="nxp-widget nxsh-widget">${head}<p class="nxp-muted">Dernier suivi reçu le ${esc(d.day)}. Pour les prises du jour, ouvre Santé puis synchronise.</p><button class="nxp-small-action" data-action="sante-receive">Actualiser</button></section>`;
@@ -44,6 +54,7 @@ function healthWidget(){
   <div class="nxsh-progress"><strong>${d.done}<span> / ${d.total}</span></strong><small>prises confirmées aujourd’hui</small></div>
   <div class="nxp-budget-track"><i style="width:${percent}%"></i></div>
   ${d.items.slice(0,5).map(v=>`<div class="nxsh-dose"><span>${esc(v.time)}</span><strong>${esc(v.name||"Traitement")}</strong><small class="${v.done?"is-done":""}">${v.done?"✓ Pris":"À confirmer"}</small></div>`).join("")}
+  ${d.hydration?`<div class="nxsh-hydration"><div class="nxsh-hydro-head"><b>💧 Boissons du jour</b><span>${d.hydration.fluidMl} / ${d.hydration.targetMl} ml</span></div><div class="nxp-budget-track"><i style="width:${Math.min(100,Math.round(100*d.hydration.fluidMl/d.hydration.targetMl))}%"></i></div><small>Eau : ${d.hydration.waterMl} ml · Caféine estimée : ${Math.round(d.hydration.caffeineMg)} mg</small></div>`:""}
   <p class="nxp-hint">Mise à jour depuis Santé · ${esc(new Date(d.sharedAt).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}))}. Les confirmations se font dans Santé.</p>
   <button class="nxp-small-action" data-action="sante-receive">Rafraîchir</button>
   <a class="nxp-small-action" href="${ORIGIN}" target="_blank" rel="noopener noreferrer">Ouvrir Santé</a>
@@ -51,10 +62,10 @@ function healthWidget(){
 }
 function settingsCard(){
  const p=pair(),calendar=state().santeCalendars?.[0],prefs=opt(),d=state().santeDaily?.[0];
- return `<section class="preferences-panel nxsh-settings"><div class="pref-heading">${svg("shield")}<div><h2>Santé ↔ Nexus</h2><p>Suivi de tes prises dans Pulse, notifications d’agenda pilotées par Nexus.</p></div></div>
+ return `<section class="preferences-panel nxsh-settings"><div class="pref-heading">${svg("shield")}<div><h2>Santé ↔ Nexus</h2><p>Suivi de tes prises dans Pulse et, sur autorisation depuis Santé, résumé des boissons. Notifications d’agenda pilotées par Nexus.</p></div></div>
  ${!p?`<div class="info-strip">🔐 Avec ton accord, Nexus stockera localement le résumé des prises et les rendez-vous importés. Ses données IndexedDB ne sont pas chiffrées au repos. Les échanges transitent chiffrés par un relais distinct.</div>
  <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="sante-create">Créer la connexion privée</button></div>`:
- `<div class="info-strip">Connexion active. Seules deux permissions sont accordées : progression des prises et calendrier Santé. Les documents, diagnostics et journaux ne sont pas transférés.</div>
+ `<div class="info-strip">Connexion active : progression des prises et calendrier Santé. Le résumé agrégé des boissons est envoyé uniquement après activation explicite dans Santé. Les journaux, bilans, documents et diagnostics ne sont pas transférés.</div>
  <label class="field"><span>Code de jumelage à coller dans Santé → ⚙️ → Nexus LINK</span><textarea id="nxsh-code" rows="3" readonly style="width:100%;overflow-wrap:anywhere">${esc(CORE().invitation(p))}</textarea></label>
  <div class="form-actions">
  <button class="btn btn-soft btn-small" data-action="sante-copy">Copier le code</button>
