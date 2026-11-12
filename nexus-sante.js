@@ -151,7 +151,7 @@ function reconcile(){
  for(const item of cal.events){
   const sourceId=item.kind+":"+item.id;
   const old=state().events.find(e=>e.originApp==="sante"&&e.originSourceId===sourceId)||
-   (item.kind==="appointment"?state().events.find(e=>medical(e)&&keyOf(e)===item.id):null);
+   (item.kind==="appointment"?state().events.find(e=>medical(e)&&(keyOf(e)===item.id||(!e.healthSyncId&&same(e,item)))):null);
   if(item.deleted){
    if(old&&item.kind==="appointment"&&!safeEvent(old)&&!same(old,item)){old.healthConflict=true;conflicts++;continue;}
    if(old){state().events=state().events.filter(x=>x!==old);changed++;}
