@@ -50,6 +50,7 @@
    if(rule){rule.skips=[...new Set([...(rule.skips||[]),record.occurrenceKey])];rule.updatedAt=new Date().toISOString();}
   }
   // Keep foreign-key references untouched so they reconnect upon restoration.
+  if(key==='events')window.NexusSanteBridge?.markDeleted?.(record);
   data[key]=data[key].filter(x=>x.id!==id);
   await persist();closeModal();render();
   if(notify)toastUndo('Déplacé dans la corbeille.',entry.id);
@@ -86,6 +87,7 @@
   }
   for(const x of items){
    data[x.key].push(clone(x.record));
+   if(x.key==='events')window.NexusSanteBridge?.markRestored?.(x.record);
    if(x.key==='transactions'&&x.record.autoRecorded===true&&x.record.recurrenceId&&x.record.occurrenceKey){
     const rule=data.recurrences.find(r=>r.id===x.record.recurrenceId);
     if(rule){rule.skips=(rule.skips||[]).filter(key=>key!==x.record.occurrenceKey);rule.updatedAt=new Date().toISOString();}
