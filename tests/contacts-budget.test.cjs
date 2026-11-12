@@ -202,7 +202,7 @@ test('UI and offline cache agree on version 0.21.12',()=>{
  assert.match(sw,/contacts-v017\.js\?v=0174/);
  assert.match(html,/connect-v019\.js\?v=0191/);
  assert.match(sw,/connect-v019\.js\?v=0191/);
- assert.match(html,/link-import\.js\?v=0217/);
+ assert.match(html,/link-import\.js\?v=02113/);
  const assets=[...html.matchAll(/(?:src|href)="(\.\/[^"]+\.(?:js|css)(?:\?v=[^"]+)?)"/g)].map(x=>x[1]);
  for(const asset of assets)assert.ok(sw.includes("'"+asset+"'"),'offline cache does not include '+asset);
  assert.match(html,/budget-v08\.js\?v=02110/);
