@@ -24,7 +24,7 @@ function harness({lock=true,session=true,backendError=false}={}){
  const doc={
   documentElement:{classList:{add(){},remove(){}}},
   body:{appendChild(value){ids.set(value.id,value);}},
-  getElementById:element,
+  getElementById:id=>id==='nexus-lock-overlay'?(ids.get(id)||null):element(id),
   createElement(tag){
    if(tag!=='div')throw Error('unexpected element '+tag);
    return {
