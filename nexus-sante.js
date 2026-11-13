@@ -2,7 +2,7 @@
 'use strict';
 const ORIGIN="https://sante-app.q9pfwtztsc.workers.dev/";
 const PREF="nexus_sante_link_v1";
-let api=null,busy=false,timer=null,hubTimer=null,hubAutoBusy=false,hubLifecycleBound=false,lastHubSync=0;
+let api=null,busy=false,timer=null,hubTimer=null,hubAutoBusy=false,hubLifecycleBound=false,lastHubSync=0,hiddenSince=0,forceHubScheduled=false;
 const CORE=()=>window.SanteLinkCore;
 const state=()=>api?.state?.()||{};
 const esc=s=>api?.escape?.(s)??String(s??"");
@@ -78,6 +78,9 @@ function settingsCard(){
  <button class="btn btn-danger btn-small" data-action="sante-revoke">Révoquer et effacer</button></div>
  <div class="settings-option"><div><strong>Agenda et notifications Santé</strong><p>${calendar?`${calendar.events.length} événements reçus`:"Aucun rendez-vous reçu"} · Les prises de traitement restent notifiées par Santé.</p></div>
  <button class="btn btn-soft btn-small" data-action="sante-toggle-auto">${prefs.autoEvents?"Import automatique activé":"Activer l'import auto"}</button></div>
+ <p class="pref-hint">${prefs.autoEvents
+  ?"✅ Import automatique autorisé : créations, modifications et suppressions Santé appliquées à l'ouverture de Nexus, sans mise à jour manuelle."
+  :"⚠️ Mode manuel : les messages Santé sont reçus, mais leurs changements ne sont appliqués qu'avec « Importer ou mettre à jour l’Agenda ». Active l'import auto pour synchroniser sans cette intervention."}</p>
  <div class="form-actions"><button class="btn btn-neutral btn-small" data-action="sante-import">Importer ou mettre à jour l’Agenda</button></div>
  <div class="settings-option"><div><strong>Agenda médical ↔ Santé</strong><p>Synchronise dans les deux sens les rendez-vous cochés « Médical », ainsi que les rendez-vous médicaux reconnaissables par leur titre. Le transfert est chiffré, sans notes cliniques. ${state().events.filter(e=>medical(e)).length} rendez-vous détecté(s).</p></div><button class="btn btn-soft btn-small" data-action="sante-toggle-send">${prefs.sendMedical?"Arrêter l’envoi vers Santé":"Activer la synchronisation ↔"}</button></div>
  <div class="form-actions"><button class="btn btn-neutral btn-small" data-action="sante-send">Envoyer l’agenda vers Santé</button></div>
@@ -491,14 +494,38 @@ async function runHubSync(force=false){
  }finally{hubAutoBusy=false}
 }
 function scheduleHubSync(force=false){
- clearTimeout(hubTimer);hubTimer=setTimeout(()=>void runHubSync(force),750);
+ // iOS dispatches focus after visibilitychange. Keep the strong foreground
+ // request instead of letting a throttled focus event cancel it.
+ if(force)forceHubScheduled=true;
+ clearTimeout(hubTimer);
+ hubTimer=setTimeout(()=>{
+  hubTimer=null;
+  const doForce=forceHubScheduled;
+  forceHubScheduled=false;
+  void runHubSync(doForce);
+ },750);
 }
 function init(){
  if(hubLifecycleBound)return;hubLifecycleBound=true;
  if(typeof window==="undefined"||typeof document==="undefined")return;
  window.addEventListener("online",()=>scheduleHubSync(true));
- window.addEventListener("focus",()=>scheduleHubSync(false));
- document.addEventListener("visibilitychange",()=>{if(!document.hidden) scheduleHubSync(false);});
+ window.addEventListener("blur",()=>{if(!hiddenSince)hiddenSince=Date.now();});
+ window.addEventListener("focus",()=>{
+  const resumed=hiddenSince>0&&Date.now()-hiddenSince>=1000;
+  if(resumed)hiddenSince=0;
+  scheduleHubSync(resumed);
+ });
+ window.addEventListener("pagehide",()=>{hiddenSince=Date.now();});
+ window.addEventListener("pageshow",event=>{
+  if(event?.persisted)hiddenSince=0;
+  if(event?.persisted)scheduleHubSync(true);
+ });
+ document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){if(!hiddenSince)hiddenSince=Date.now();return}
+  const resumed=hiddenSince>0&&Date.now()-hiddenSince>=1000;
+  hiddenSince=0;
+  scheduleHubSync(resumed);
+ });
  if(pair())scheduleHubSync(true);
 }
 function attach(adapter){api=adapter;}
