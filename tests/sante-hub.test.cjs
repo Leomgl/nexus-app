@@ -4,7 +4,10 @@ const read=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
 test("medical scopes keep explicit consent while LINK automates after opt-in",()=>{
  const src=read("nexus-sante.js");
  assert.match(src,/async function receiveHub\(/);
- assert.match(src,/async function sendHubCalendar\(/);\n assert.match(src,/interactive&&!confirm/);\n assert.match(src,/sendHubCalendar\(\{interactive:false,quiet:true\}\)/);\n assert.match(src,/function scheduleHubSync\(/);
+ assert.match(src,/async function sendHubCalendar\(/);
+ assert.match(src,/interactive&&!confirm/);
+ assert.match(src,/sendHubCalendar\(\{interactive:false,quiet:true\}\)/);
+ assert.match(src,/function scheduleHubSync\(/);
  assert.match(src,/confirm\("Envoyer à Santé via LINK/);
  assert.match(src,/contractId:"sante-summary-nexus"/);
  assert.match(src,/contractId:"sante-calendar-nexus"/);
