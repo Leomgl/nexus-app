@@ -64,6 +64,7 @@ function settingsCard(){
  const p=pair(),calendar=state().santeCalendars?.[0],prefs=opt(),d=state().santeDaily?.[0];
  return `<section class="preferences-panel nxsh-settings"><div class="pref-heading">${svg("shield")}<div><h2>Santé ↔ Nexus</h2><p>Suivi de tes prises dans Pulse et, sur autorisation depuis Santé, résumé des boissons. Notifications d’agenda pilotées par Nexus.</p></div></div>
  ${!p?`<div class="info-strip">🔐 La liaison Santé n'est pas présente dans les données locales de Nexus. Si Santé affiche « Jumelage chiffré installé », restaure <strong>la même connexion</strong> : pas de nouvelle clé, pas de suppression de rendez-vous. Nexus conserve les rendez-vous importés en local, sans chiffrement au repos.</div>
+ <div class="form-actions"><button type="button" class="btn btn-neutral btn-small" data-action="sante-recover-backup">Essayer de retrouver la liaison dans la sauvegarde locale</button></div>
  <label class="field"><span>Code de réparation du coffre Santé déverrouillé (NXS1…)</span><textarea id="nxsh-recover-code" rows="3" placeholder="NXS1.…" autocomplete="off" spellcheck="false" style="width:100%;overflow-wrap:anywhere"></textarea></label>
  <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="sante-recover">Restaurer la liaison existante</button></div>
  <p class="pref-hint">Dans Santé → Réglages → Nexus LINK, utilise « Copier le code de réparation », puis colle-le uniquement ici. Ce code est une clé privée : ne le partage jamais dans un chat.</p>
@@ -86,6 +87,50 @@ function settingsCard(){
  <p class="pref-hint">Dernier suivi : ${d?esc(d.day):"jamais"}. Synchronisation lorsque Santé publie et que Nexus reçoit ; pas en temps réel lorsque les apps sont fermées.</p>`}
  <p class="pref-hint"><a href="${ORIGIN}" target="_blank" rel="noopener noreferrer">Ouvrir Santé</a> · La fiche médicale complète ne quitte pas Santé.</p></section>`;
 }
+async function recoverLocalPair(){
+ if(pair()||busy)return false;
+ let candidate=null;
+ // Cloud auto-sync retains a pre-replacement snapshot at this exact local key.
+ // Read-only: never restore the whole snapshot or erase newer Nexus records.
+ if(typeof indexedDB!=="undefined"){
+  try{
+   const db=await new Promise((resolve,reject)=>{
+    const q=indexedDB.open("nexus-v0-1",1);
+    q.onupgradeneeded=()=>{try{q.transaction.abort()}catch{}};
+    q.onsuccess=()=>resolve(q.result);
+    q.onerror=()=>reject(q.error);
+   });
+   try{
+    if(db.objectStoreNames.contains("data")){
+     const previous=await new Promise((resolve,reject)=>{
+      const q=db.transaction("data","readonly").objectStore("data").get("cloud_last_autosync_backup_v1");
+      q.onsuccess=()=>resolve(q.result||null);
+      q.onerror=()=>reject(q.error);
+     });
+     candidate=previous?.data?.linkConnections?.find(v=>v.sourceApp==="sante")||null;
+    }
+   }finally{db.close()}
+  }catch{}
+ }
+ if(!candidate){
+  try{
+   const fallback=JSON.parse(localStorage.getItem("nexus_local_fallback_v1")||"null");
+   candidate=fallback?.linkConnections?.find(v=>v.sourceApp==="sante")||null;
+  }catch{}
+ }
+ if(!candidate){api.toast("Aucune ancienne liaison retrouvée ici. Récupère le code dans Santé.");return false;}
+ try{
+  const value=CORE().invitation(candidate);
+  const input=document.getElementById("nxsh-recover-code");
+  if(!input)throw Error("Panneau de réparation indisponible");
+  input.value=value;
+  return recoverExistingPair();
+ }catch(error){
+  api.toast("Sauvegarde locale inutilisable : "+String(error?.message||error).slice(0,80));
+  return false;
+ }
+}
+
 async function recoverExistingPair(){
  if(pair()||busy)return false;
  const raw=String(document.getElementById("nxsh-recover-code")?.value||"").trim();
@@ -389,6 +434,7 @@ async function revoke(){
 }
 async function act(kind){
  if(kind==="sante-open-settings"){api.openSettings?.();return true;}
+ if(kind==="sante-recover-backup")return recoverLocalPair();
  if(kind==="sante-recover")return recoverExistingPair();
  if(kind==="sante-create")return create();
  if(kind==="sante-copy"){const input=document.getElementById("nxsh-code");if(!input)return true;try{await navigator.clipboard.writeText(input.value);api.toast("Code copié.");}catch{input.select();api.toast("Sélectionne le code pour le copier.");}return true;}
