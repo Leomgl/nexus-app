@@ -1,10 +1,10 @@
 const test=require("node:test"),assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path");
 const read=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
-test("medical doses and calendar are separate scoped manual actions",()=>{
+test("medical scopes keep explicit consent while LINK automates after opt-in",()=>{
  const src=read("nexus-sante.js");
  assert.match(src,/async function receiveHub\(/);
- assert.match(src,/async function sendHubCalendar\(/);
+ assert.match(src,/async function sendHubCalendar\(/);\n assert.match(src,/interactive&&!confirm/);\n assert.match(src,/sendHubCalendar\(\{interactive:false,quiet:true\}\)/);\n assert.match(src,/function scheduleHubSync\(/);
  assert.match(src,/confirm\("Envoyer à Santé via LINK/);
  assert.match(src,/contractId:"sante-summary-nexus"/);
  assert.match(src,/contractId:"sante-calendar-nexus"/);
@@ -15,6 +15,6 @@ test("medical doses and calendar are separate scoped manual actions",()=>{
  assert.match(src,/await api\.persist\(\)/);
  assert.match(src,/nexus\.calendar\.v1/);
  assert.match(src,/return \{durable:true,status:"persisted"\}/);
- assert.match(read("index.html"),/nexus-sante\.js\?v=02112/);
- assert.match(read("sw.js"),/nexus-v0\.21\.13\.1/);
+ assert.match(read("index.html"),/nexus-sante\.js\?v=02113/);
+ assert.match(read("sw.js"),/nexus-v0\.21\.14\.1/);
 });
