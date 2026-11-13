@@ -15,7 +15,7 @@ test('Garage relay migration keeps existing pairs and encrypted events',()=>{
  assert.match(m,/CREATE INDEX idx_events_inbox/);
  assert.match(w,/garage:new Set\(\['rituel_catalog','rituel_location_request','garage_locations','trip_context'\]\)/);
  assert.match(w,/garage-app\.q9pfwtztsc\.workers\.dev/);
- assert.match(read('backend/src/index.js'),/garage-app\.q9pfwtztsc\.workers\.dev/);
+ assert.doesNotMatch(read('backend/src/index.js'),/LINK_RELAY|nexus-link-api/);
 });
 test('Nexus sends Garage trips independently of Rituel',()=>{
  const s=read('nexus-travel.js'),app=read('app.js');
