@@ -47,7 +47,7 @@ async function rig({failPersist=false}={}){
   }
  };
 }
-test('Santé calendar creates one event then preserves a locally edited appointment on conflict',async()=>{
+test('Santé tombstone removes locally edited event from active agenda while preserving a recoverable copy',async()=>{
  const h=await rig();
  await h.receive(calendar(1));
  assert.deepEqual(h.acks,[1]);
@@ -61,8 +61,13 @@ test('Santé calendar creates one event then preserves a locally edited appointm
  assert.equal(e.title,'Modification locale Nexus','local changes must not be overwritten');
  assert.equal(e.healthConflict,true);
  await h.receive(calendar(3,{deleted:true}));
- assert.equal(h.data.events.length,1,'remote deletion cannot destroy a locally edited record');
- assert.equal(e.healthConflict,true);
+ assert.equal(h.data.events.length,0,'explicit deletion must remove the event from active Nexus agenda');
+ assert.equal(h.data.trash.length,1,'locally edited copy remains recoverable in Nexus trash');
+ assert.equal(h.data.trash[0].record.title,'Modification locale Nexus');
+ assert.ok(!h.data.events.some(x=>x.healthSyncId===uuid),'deleted event cannot be published alive again');
+ await h.receive(calendar(2,{title:'Ancienne version'}));
+ assert.equal(h.data.events.length,0,'stale Santé revision must not resurrect deletion');
+ assert.deepEqual(h.acks,[1,2,3,2]);
 });
 test('Santé tombstone removes an unchanged imported appointment',async()=>{
  const h=await rig();

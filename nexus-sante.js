@@ -247,8 +247,25 @@ function reconcile(){
   const old=state().events.find(e=>e.originApp==="sante"&&e.originSourceId===sourceId)||
    (item.kind==="appointment"?state().events.find(e=>medical(e)&&(keyOf(e)===item.id||(!e.healthSyncId&&same(e,item)))):null);
   if(item.deleted){
-   if(old&&item.kind==="appointment"&&!safeEvent(old)&&!same(old,item)){old.healthConflict=true;conflicts++;continue;}
-   if(old){state().events=state().events.filter(x=>x!==old);changed++;}
+   // A Santé tombstone must not leave a locally edited event in the active
+   // Nexus agenda: its next outbound calendar would resurrect the deletion.
+   const matchingId=old&&(keyOf(old)===item.id||
+    old.originApp==="sante"&&old.originSourceId===sourceId);
+   if(matchingId){
+    if(item.kind==="appointment"&&!safeEvent(old)){
+     // Keep divergent edits recoverable, never silently discard them.
+     const d=state();
+     d.trash=Array.isArray(d.trash)?d.trash:[];
+     if(!d.trash.some(t=>t.reason==="sante-remote-deletion"&&
+      t.key==="events"&&t.record?.id===old.id)){
+      d.trash.push({id:api?.uid?.()||crypto.randomUUID(),key:"events",
+       record:JSON.parse(JSON.stringify(old)),label:String(old.title||"RDV Santé").slice(0,140),
+       deletedAt:new Date().toISOString(),reason:"sante-remote-deletion"});
+     }
+    }
+    state().events=state().events.filter(x=>x!==old);
+    changed++;
+   }
    continue;
   }
   const now=new Date().toISOString(),start=localStart(item.start);
