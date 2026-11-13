@@ -73,10 +73,10 @@
   }
   return true;
  }
- async function receivePage(msg,page,p){
+ async function receivePage(msg,page,p,skipAck=false){
   const old=catalog(),transfers=db().vestiaireTransfers||[];
   const newest=Math.max(old?.revision||0,0,...transfers.filter(x=>x.pairId===p.id).map(x=>x.revision));
-  if(page.revision<newest||old?.revision>=page.revision){await CORE().acknowledge(p,msg.id);return false;}
+  if(page.revision<newest||old?.revision>=page.revision){if(!skipAck)await CORE().acknowledge(p,msg.id);return false;}
   const previous=transfers.find(x=>x.pairId===p.id&&x.revision===page.revision);
   if(previous&&(previous.batchId!==page.batchId||previous.pageCount!==page.pageCount||
      previous.total!==page.total||previous.sharedAt!==page.sharedAt))
@@ -99,7 +99,7 @@
    try{await api.persist();}catch{}
    throw err;
   }
-  await CORE().acknowledge(p,msg.id);
+  if(!skipAck)await CORE().acknowledge(p,msg.id);
   await activateTransfer(next); // leaves the prior complete snapshot intact until all pages arrive
   return true;
  }
@@ -185,6 +185,7 @@
    <label class="field"><span>Code privé à importer dans Vestiaire → Réglages</span><textarea id="nxv-code" rows="3" readonly>${esc(CORE().invitation(p))}</textarea></label>
    <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="vestiaire-copy">Copier le code</button>
    <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-refresh">Recevoir</button>
+   <button type="button" class="btn btn-neutral btn-small" data-action="vestiaire-hub-receive">Recevoir via LINK</button>
    <button type="button" class="btn btn-danger btn-small" data-action="vestiaire-revoke">Révoquer et effacer</button></div>`:
    `<p class="pref-hint">Une autorisation crée une liaison chiffrée dédiée aux résumés de looks. Vestiaire ne voit ni ton agenda ni ta météo ; NEXUS ne reçoit ni photos ni la liste des vêtements.</p>
     <button type="button" class="btn btn-soft btn-small" data-action="vestiaire-create">Créer la connexion Vestiaire</button>`}
@@ -251,6 +252,28 @@
   }catch(err){if(manual)api.toast('Réception impossible : '+String(err.message||err).slice(0,70));return {received,error:String(err.message||err)};}
   finally{running=false;}
  }
+ async function receiveHub(){
+  const p=pair();
+  if(!p)throw Error("Jumelage Vestiaire/Nexus requis.");
+  if(!window.LinkHubBus)throw Error("Module LINK manquant.");
+  const result=await window.LinkHubBus.receive({pair:p,from:"vestiaire",
+   contractId:"vestiaire-nexus",scopes:["outfit_catalog"],limit:40,
+   persist:async opened=>{
+    const sourceKey=await CORE().sourceKey(p,opened.entityId);
+    const msg={id:opened.messageId,sourceKey,scope:opened.scope,
+     revision:opened.revision,payload:opened.payload};
+    const page=validPage(msg,p);
+    if(!page)throw Error("PAGE_VESTIAIRE_INVALIDE");
+    await receivePage(msg,page,p,true);
+    return {durable:true,status:"persisted"};
+   }});
+  const pending=(db().vestiaireTransfers||[]).find(x=>x.pairId===p.id);
+  const progress=pending?" · "+pending.pages.filter(Array.isArray).length+"/"+pending.pageCount+" lots":"";
+  api.toast(result.acknowledged+" lots reçus via LINK"+progress+
+   (result.failed?" · "+result.failed+" à réessayer":"")+".");
+  if(result.acknowledged>0)api.safeRender?.();
+  return result;
+ }
  async function select(eventId,lookId){
   const e=db().events?.find(x=>x.id===eventId),c=catalog();
   if(!e||!c?.looks?.some(x=>x.id===lookId&&x.available))return api.toast('Tenue ou événement indisponible.');
@@ -288,6 +311,7 @@
   if(kind==='vestiaire-create'){await create();return true;}
   if(kind==='vestiaire-copy'){await copy();return true;}
   if(kind==='vestiaire-refresh'){await receive(true);return true;}
+  if(kind==='vestiaire-hub-receive'){try{await receiveHub()}catch(e){api.toast("LINK : "+String(e.message||e).slice(0,90))}return true;}
   if(kind==='vestiaire-open-settings'){api.navTo('settings');return true;}
   if(kind==='vestiaire-select'){await select(target.dataset.event,target.dataset.look);return true;}
   if(kind==='vestiaire-unselect'){await unselect(target.dataset.event);return true;}
@@ -303,5 +327,5 @@
   window.setTimeout(()=>void receive(),2400);
  }
  function attach(value){api=value;}
- window.NexusVestiaire=Object.freeze({attach,init,widget,eventBadge,settingsCard,act,validCatalog,validPage,assembledTransfer,context,recommend,comingEvent,receive,pair});
+ window.NexusVestiaire=Object.freeze({attach,init,widget,eventBadge,settingsCard,act,validCatalog,validPage,assembledTransfer,context,recommend,comingEvent,receive,receiveHub,pair});
 })();
