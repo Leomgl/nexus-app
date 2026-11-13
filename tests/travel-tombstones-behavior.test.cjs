@@ -22,7 +22,12 @@ async function harness(){
    LinkHubBus:{publish:async message=>{sent.push(structuredClone(message));return {accepted:true}}}
   }
  };
- vm.createContext(context);vm.runInContext(source.replace(/\}\)\(\);\s*$/, 'window.__debugTravel=()=>({busy:hubAutoBusy,queue:[...hubAutoQueue],inflight:hubRequestDuringFlight});})();'),context);
+ // In production the timer intentionally discards the async return value.
+ // In this VM, await that value to model a completed transport transaction.
+ const instrumented=source.replace("setTimeout(()=>void flushAutoGarage(),700)",
+  "setTimeout(()=>flushAutoGarage(),700)")
+  .replace(/\}\)\(\);\s*$/, 'window.__debugTravel=()=>({busy:hubAutoBusy,queue:[...hubAutoQueue],inflight:hubRequestDuringFlight});})();');
+ vm.createContext(context);vm.runInContext(instrumented,context);
  context.window.NexusTravel.attach({state:()=>data,persist:async()=>{},render:()=>{},
    toast:()=>{},modal:()=>{},escape:x=>x});
  async function tick(expected){
