@@ -119,7 +119,7 @@ async function createGarage(){
   }catch(e){api.toast('Garage : envoi impossible : '+short(e.message,90));}
   finally{busy=false;}
  }
- let hubAutoTimer=null,hubAutoBusy=false,hubLifecycleBound=false;
+ let hubAutoTimer=null,hubAutoBusy=false,hubLifecycleBound=false,hubRequestDuringFlight=false;
  const hubAutoQueue=new Set();
  function hubGaragePayload(e,d){
   return {type:"nexus.travel.v1",destination:"garage",eventId:short(e.id,100),
@@ -176,10 +176,16 @@ async function createGarage(){
      console.warn("NEXUS LINK : synchronisation Garage différée",error?.message||error);
     }
    }
-  }finally{hubAutoBusy=false;}
+  }finally{
+   hubAutoBusy=false;
+   // Drain new user changes queued while a previous sync was in flight.
+   // Failed network publications stay queued until the next real wakeup.
+   if(hubRequestDuringFlight&&navigator.onLine){hubRequestDuringFlight=false;scheduleAutoGarage("");}
+  }
  }
  function scheduleAutoGarage(id="*"){
   if(id)hubAutoQueue.add(id);
+  if(hubAutoBusy){hubRequestDuringFlight=true;return;}
   clearTimeout(hubAutoTimer);
   hubAutoTimer=setTimeout(()=>void flushAutoGarage(),700);
  }
