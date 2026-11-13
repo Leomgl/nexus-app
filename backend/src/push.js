@@ -49,6 +49,8 @@ async function webPush(device,env,payload){
 }
 export const notificationsConfig=(env)=>({ok:true,ready:!!(env.VAPID_PUBLIC_KEY&&env.VAPID_PRIVATE_JWK),publicKey:env.VAPID_PUBLIC_KEY||null,intervalMinutes:5});
 export async function notificationAction(request,env,vault,path,json){
+  // EMERGENCY 2026-11-13: pause push scheduling to protect free D1 write quota.
+  if(path==='/api/v1/push/schedule')return json({ok:false,error:'PUSH_TEMPORARILY_PAUSED'},503);
   if(request.method==='GET'&&path==='/api/v1/push/config')return json(notificationsConfig(env));
   if(request.method!=='POST')return json({ok:false,error:'METHOD_NOT_ALLOWED'},405);
   let payload;
