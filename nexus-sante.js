@@ -262,7 +262,16 @@ async function receiveHub({quiet=false}={}){
  if(imported>0)api.safeRender?.();
  return {daily,calendar,imported,conflicts};
 }
-async function sendHubCalendar({interactive=true,quiet=false}={}){
+// Serialize explicit and automatic sends. A concurrent publish must not reserve
+// the same Hub revision with a different page payload or timestamp.
+let hubCalendarSendFlight=null;
+async function sendHubCalendar(options={}){
+ while(hubCalendarSendFlight){try{await hubCalendarSendFlight}catch{}}
+ const flight=sendHubCalendarOnce(options);
+ hubCalendarSendFlight=flight;
+ try{return await flight}finally{if(hubCalendarSendFlight===flight)hubCalendarSendFlight=null}
+}
+async function sendHubCalendarOnce({interactive=true,quiet=false}={}){
  const p=pair();
  if(!p||!window.LinkHubBus||!opt().sendMedical)
   throw Error("Active d’abord le partage d’agenda Santé dans Nexus.");
@@ -275,7 +284,7 @@ async function sendHubCalendar({interactive=true,quiet=false}={}){
  let ledger=state().santeHubCalendarOutbox;
  if(ledger?.fingerprint===digest&&ledger?.deliveredAt){if(!quiet)api.toast("Calendrier LINK déjà à jour.");return true}
  const fresh=!ledger?.pending||ledger?.pending.fingerprint!==digest;
- const pending=fresh?{
+ let pending=fresh?{
   fingerprint:digest,revision:Math.max(1,Number(state().santeNexusRevision)||1,
    Number(ledger?.revision||0)+1),
   pages,nextIndex:0,sharedAt:new Date().toISOString(),events
@@ -286,15 +295,30 @@ async function sendHubCalendar({interactive=true,quiet=false}={}){
   state().santeHubCalendarOutbox={fingerprint:digest,revision:pending.revision,pending};
   await api.persist();
  }
- for(let page=pending.nextIndex;page<pending.pages;page++){
-  await window.LinkHubBus.publish({pair:p,from:"nexus",to:"sante",
+ // A previously sealed Hub envelope is immutable. If local state was restored
+ // or an earlier attempt reserved this revision with another payload, advance
+ // monotonically instead of overwriting ciphertext or dropping the change.
+ let collisions=0;
+ for(let page=pending.nextIndex;page<pending.pages;){
+  try{await window.LinkHubBus.publish({pair:p,from:"nexus",to:"sante",
    contractId:"sante-calendar-nexus",scope:"health_calendar",revision:pending.revision,
    entityId:"nexus:calendar:"+page,schemaVersion:"nexus.calendar.v1",
    payload:{type:"nexus.calendar.v1",sourceApp:"nexus",revision:pending.revision,
     page,pages:pending.pages,events:pending.events.slice(page*12,(page+1)*12),
-    sharedAt:pending.sharedAt}});
+    sharedAt:pending.sharedAt}})}catch(error){
+   if(error?.message!=="MÊME_RÉVISION_DONNÉES_DIFFÉRENTES"||++collisions>16)throw error;
+   if(pending.revision>=1000000)throw Error("Limite des révisions atteinte.");
+   // Restart all pages as one coherent calendar version. An earlier page may
+   // already have been accepted by LINK at the now-abandoned revision.
+   pending={...pending,revision:pending.revision+1,nextIndex:0};
+   state().santeHubCalendarOutbox={fingerprint:digest,revision:pending.revision,pending};
+   await api.persist();
+   page=0;continue;
+  }
+  page++;
+  pending={...pending,nextIndex:page};
   state().santeHubCalendarOutbox={fingerprint:digest,revision:pending.revision,
-   pending:{...pending,nextIndex:page+1}};
+   pending};
   await api.persist();
  }
  state().santeHubCalendarOutbox={fingerprint:digest,revision:pending.revision,
