@@ -68,7 +68,7 @@ function settingsCard(){
  <label class="field"><span>Code de réparation du coffre Santé déverrouillé (NXS1…)</span><textarea id="nxsh-recover-code" rows="3" placeholder="NXS1.…" autocomplete="off" spellcheck="false" style="width:100%;overflow-wrap:anywhere"></textarea></label>
  <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="sante-recover">Restaurer la liaison existante</button></div>
  <p class="pref-hint">Dans Santé → Réglages → Nexus LINK, utilise « Copier le code de réparation », puis colle-le uniquement ici. Ce code est une clé privée : ne le partage jamais dans un chat.</p>
- <div class="form-actions"><button type="button" class="btn btn-neutral btn-small" data-action="sante-create">Créer une NOUVELLE connexion (dernier recours)</button></div>:
+ <div class="form-actions"><button type="button" class="btn btn-neutral btn-small" data-action="sante-create">Créer une NOUVELLE connexion (dernier recours)</button></div>`:
  `<div class="info-strip">Connexion active : progression des prises et calendrier Santé. Le résumé agrégé des boissons est envoyé uniquement après activation explicite dans Santé. Les journaux, bilans, documents et diagnostics ne sont pas transférés.</div>
  <label class="field"><span>Code de jumelage à coller dans Santé → ⚙️ → Nexus LINK</span><textarea id="nxsh-code" rows="3" readonly style="width:100%;overflow-wrap:anywhere">${esc(CORE().invitation(p))}</textarea></label>
  <div class="form-actions">
