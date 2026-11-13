@@ -511,8 +511,11 @@ function init(){
  window.addEventListener("online",()=>scheduleHubSync(true));
  window.addEventListener("blur",()=>{if(!hiddenSince)hiddenSince=Date.now();});
  window.addEventListener("focus",()=>{
-  const resumed=hiddenSince>0&&Date.now()-hiddenSince>=1000;
-  if(resumed)hiddenSince=0;
+  // A real app switch may last well under one second. Once the app was
+  // hidden, always perform one foreground pull; an ordinary focus stays
+  // subject to the existing 30-second throttle.
+  const resumed=hiddenSince>0;
+  hiddenSince=0;
   scheduleHubSync(resumed);
  });
  window.addEventListener("pagehide",()=>{hiddenSince=Date.now();});
@@ -522,7 +525,7 @@ function init(){
  });
  document.addEventListener("visibilitychange",()=>{
   if(document.hidden){if(!hiddenSince)hiddenSince=Date.now();return}
-  const resumed=hiddenSince>0&&Date.now()-hiddenSince>=1000;
+  const resumed=hiddenSince>0;
   hiddenSince=0;
   scheduleHubSync(resumed);
  });

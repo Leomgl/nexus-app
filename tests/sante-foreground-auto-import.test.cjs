@@ -59,12 +59,12 @@ function rig({autoEvents=true}={}){
  return {data,inbox,calls,flush,backgroundReturn,winEvents,docEvents,clock:(delta=0)=>{clock+=delta},
   prefs:()=>settings,renderCount:()=>rendered,bridge:window.NexusSanteBridge};
 }
-test('a genuine foreground return receives and applies Santé tombstones inside the 30-second focus window',async()=>{
+test('even sub-second iOS app switches apply new Santé events with auto-import enabled',async()=>{
  const h=rig({autoEvents:true});
  h.bridge.init();await h.flush();
  assert.equal(h.calls.length,2);
  h.inbox.push(deletedCalendar);
- h.backgroundReturn({seconds:2});
+ h.backgroundReturn({seconds:0.2});
  await h.flush();
  assert.equal(h.calls.length,4,'one foreground cycle uses one pair of Hub inbox reads');
  assert.equal(h.data.events.length,0,'authorized auto-import removes deleted appointment automatically');
@@ -75,7 +75,7 @@ test('focus and visibilitychange coalesce and do not create a polling loop',asyn
  h.bridge.init();await h.flush();
  h.winEvents.focus();await h.flush();
  assert.equal(h.calls.length,2,'plain focus remains throttled');
- h.backgroundReturn({seconds:2});await h.flush();
+ h.backgroundReturn({seconds:0.2});await h.flush();
  assert.equal(h.calls.length,4,'both iOS events coalesce into one foreground pull');
  await h.flush();
  assert.equal(h.calls.length,4,'idle app never polls Link');
