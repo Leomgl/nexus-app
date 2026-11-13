@@ -28,3 +28,14 @@ test("Nexus hub route only integrates after verified local save and explicit use
  assert.match(sw,/link-hub-adapter\.js\?v=02122/);
  assert.match(html,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev/);
 });
+
+test("Nexus accepts only Nexus-tagged invitations before contacting LINK",()=>{
+ let io=0;
+ const source=src("link-hub-adapter.js");
+ const scope=vm.createContext({window:{},navigator:{},console,TextEncoder,TextDecoder,fetch(){io++;throw Error("NETWORK")},indexedDB:{}});
+ vm.runInContext(source,scope);
+ const value="e".repeat(64);
+ assert.equal(vm.runInContext('readHubInvitation("LHI1.nexus.'+value+'")',scope),value);
+ assert.throws(()=>vm.runInContext('readHubInvitation("LHI1.gaming.'+value+'")',scope),/CODE_DESTINÉ_À_GAMING/);
+ assert.equal(io,0);
+});
