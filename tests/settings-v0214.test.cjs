@@ -78,7 +78,7 @@ test('application details are separate and only report actual pairing status',()
  open(api,'apps');
  const overview=api.view(env);
  assert.match(overview,/Gaming/);
- assert.match(overview,/Jumelage historique/);
+ assert.match(overview,/Clé LINK locale/);
  assert.match(overview,/À vérifier dans LINK/);
  assert.match(overview,/Gérer dans LINK/);
  assert.match(overview,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev\//);
@@ -119,9 +119,9 @@ test('settings assets and iOS offline cache stay in sync',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
- assert.match(html,/settings-v0214\.js\?v=0216/);
+ assert.match(html,/settings-v0214\.js\?v=0217/);
  assert.match(html,/settings-v0214\.css\?v=0214/);
- assert.match(sw,/settings-v0214\.js\?v=0216/);
+ assert.match(sw,/settings-v0214\.js\?v=0217/);
  assert.match(sw,/settings-v0214\.css\?v=0214/);
  assert.match(app,/NEXUS_VERSION='0\.21\.14'/);
  assert.match(app,/NexusSettings\?\.onInput/);
