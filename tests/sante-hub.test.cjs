@@ -1,0 +1,20 @@
+const test=require("node:test"),assert=require("node:assert/strict");
+const fs=require("node:fs"),path=require("node:path");
+const read=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
+test("medical doses and calendar are separate scoped manual actions",()=>{
+ const src=read("nexus-sante.js");
+ assert.match(src,/async function receiveHub\(/);
+ assert.match(src,/async function sendHubCalendar\(/);
+ assert.match(src,/confirm\("Envoyer à Santé via LINK/);
+ assert.match(src,/contractId:"sante-summary-nexus"/);
+ assert.match(src,/contractId:"sante-calendar-nexus"/);
+ assert.match(src,/validDaily\(payload\)/);
+ assert.match(src,/validCalendar\(payload\)/);
+ assert.match(src,/await api\.verify\("daily"/);
+ assert.match(src,/await api\.verify\("calendar"/);
+ assert.match(src,/await api\.persist\(\)/);
+ assert.match(src,/nexus\.calendar\.v1/);
+ assert.match(src,/return \{durable:true,status:"persisted"\}/);
+ assert.match(read("index.html"),/nexus-sante\.js\?v=02112/);
+ assert.match(read("sw.js"),/nexus-v0\.21\.12\.12/);
+});
