@@ -19,6 +19,6 @@ test('Nexus automatise les voyages autorisés vers Garage via LINK sans perdre l
  assert.match(app,/initAutoGarage\?\.\(\)/);
  assert.match(app,/La préparation d’un ensemble reste manuelle/);
  assert.match(src('index.html'),/nexus-travel\.js\?v=02114/);
- assert.match(src('index.html'),/app\.js\?v=02113/);
- assert.match(src('sw.js'),/nexus-v0\.21\.13\.1/);
+ assert.match(src('index.html'),/app\.js\?v=02114/);
+ assert.match(src('sw.js'),/nexus-v0\.21\.14\.1/);
 });
