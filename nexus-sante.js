@@ -73,7 +73,6 @@ function settingsCard(){
  <label class="field"><span>Code de jumelage à coller dans Santé → ⚙️ → Nexus LINK</span><textarea id="nxsh-code" rows="3" readonly style="width:100%;overflow-wrap:anywhere">${esc(CORE().invitation(p))}</textarea></label>
  <div class="form-actions">
  <button class="btn btn-soft btn-small" data-action="sante-copy">Copier le code</button>
- <button class="btn btn-soft btn-small" data-action="sante-receive">Recevoir</button>
  <button class="btn btn-soft btn-small" data-action="sante-hub-receive">Recevoir via LINK</button>
  <button class="btn btn-danger btn-small" data-action="sante-revoke">Révoquer et effacer</button></div>
  <div class="settings-option"><div><strong>Agenda et notifications Santé</strong><p>${calendar?`${calendar.events.length} événements reçus`:"Aucun rendez-vous reçu"} · Les prises de traitement restent notifiées par Santé.</p></div>
@@ -230,17 +229,7 @@ function outgoing(){
 }
 function queueSend(){clearTimeout(sendTimer);if(pair()&&opt().sendMedical)sendTimer=setTimeout(()=>{sendTimer=null;scheduleHubSync(true);},1700);}
 async function sendCalendar(){
- const p=pair();if(!p||!opt().sendMedical||sending)return false;
- sending=true;
- try{
-  const events=outgoing(),revision=Math.max(1,Number(state().santeNexusRevision)||1),pages=Math.max(1,Math.ceil(events.length/12));
-  for(let page=0;page<pages;page++)await CORE().publish(p,{
-   entityId:"nexus:calendar:"+page,revision,scope:"health_calendar",
-   payload:{type:"nexus.calendar.v1",sourceApp:"nexus",revision,page,pages,events:events.slice(page*12,(page+1)*12),sharedAt:new Date().toISOString()}
-  });
-  return true;
- }catch(e){api?.toast?.("Envoi Agenda → Santé indisponible : "+(e.message||"Connexion")) ;return false;}
- finally{sending=false;}
+ return sendHubCalendar({interactive:false,quiet:true}); // LINK only.
 }
 function reconcile(){
  const cal=state().santeCalendars?.[0];if(!cal)return {changed:0,conflicts:0};
@@ -299,30 +288,7 @@ function reconcile(){
  return {changed,conflicts};
 }
 async function receive(){
- const p=pair();if(!p||busy)return false;
- busy=true;let total=0,conflicts=0;
- try{
-  const list=await CORE().inbox(p);
-  for(const message of list){
-   if(message.invalid||!Number.isSafeInteger(message.revision)||message.revision<1)continue;
-   if(message.scope==="dose_summary"){
-    const d=validDaily(message.payload);if(!d)continue;
-    state().santeDaily=[{...d,sourceRevision:message.revision,pairId:p.id}];
-    await api.persist();
-    if(await api.verify("daily",p.id,message.revision)){await CORE().acknowledge(p,message.id);total++;}
-   }else if(message.scope==="health_calendar"){
-    const d=validCalendar(message.payload);if(!d)continue;
-    if((state().santeCalendars?.[0]?.sourceRevision||0)>message.revision){await CORE().acknowledge(p,message.id);continue;}
-    state().santeCalendars=[{...d,pairId:p.id,sourceRevision:message.revision}];
-    if(opt().autoEvents){const count=reconcile();conflicts+=count.conflicts;}
-    await api.persist();
-    if(await api.verify("calendar",p.id,message.revision)){await CORE().acknowledge(p,message.id);total++;}
-   }
-  }
-  if(total)api.safeRender?.();api.toast(total?`${total} information(s) Santé reçue(s)${conflicts?` · ${conflicts} divergence(s) à examiner`:""}`:"Santé : rien de nouveau à recevoir.");
-  return true;
- }catch(e){api.toast("Santé LINK indisponible : "+(e.message||"Erreur réseau"));return false;}
- finally{busy=false;}
+ return receiveHub({quiet:false}); // LINK is the only medical inbox.
 }
 async function receiveHub({quiet=false}={}){
  const p=pair();
@@ -458,14 +424,14 @@ async function act(kind){
  if(kind==="sante-recover")return recoverExistingPair();
  if(kind==="sante-create")return create();
  if(kind==="sante-copy"){const input=document.getElementById("nxsh-code");if(!input)return true;try{await navigator.clipboard.writeText(input.value);api.toast("Code copié.");}catch{input.select();api.toast("Sélectionne le code pour le copier.");}return true;}
- if(kind==="sante-receive")return receive();
+ if(kind==="sante-receive"){try{await receiveHub()}catch(e){api.toast("LINK : "+String(e.message||e).slice(0,90))}return true;}
  if(kind==="sante-hub-receive"){try{await receiveHub()}catch(e){api.toast("LINK : "+String(e.message||e).slice(0,90))}return true;}
  if(kind==="sante-hub-send"){try{await sendHubCalendar()}catch(e){api.toast("LINK : "+String(e.message||e).slice(0,90))}return true;}
  if(kind==="sante-import")return importCalendar();
  if(kind==="sante-send"){await sendCalendar();api.toast("Envoi vers Santé effectué ou déjà en attente.");return true;}
  if(kind==="sante-toggle-send"){
   const prefs=opt();if(!prefs.sendMedical&&!confirm("Synchroniser les rendez-vous médicaux de Nexus vers le coffre Santé par NEXUS LINK chiffré ? Seuls intitulé, date, heure et lieu seront partagés ; jamais les notes."))return true;
-  setOpt({...prefs,sendMedical:!prefs.sendMedical,autoEvents:!prefs.sendMedical?true:prefs.autoEvents});if(!prefs.sendMedical){state().santeNexusRevision=Math.max(1,Number(state().santeNexusRevision)||1);await api.persist();void sendCalendar();}api.render();return true;
+  setOpt({...prefs,sendMedical:!prefs.sendMedical,autoEvents:!prefs.sendMedical?true:prefs.autoEvents});if(!prefs.sendMedical){state().santeNexusRevision=Math.max(1,Number(state().santeNexusRevision)||1);await api.persist();void sendHubCalendar({interactive:false,quiet:true}).catch(e=>api.toast("LINK : "+String(e.message||e).slice(0,90)));}api.render();return true;
  }
  if(kind==="sante-toggle-auto"){
   const prefs=opt();
@@ -489,8 +455,7 @@ async function runHubSync(force=false){
   if(opt().sendMedical)await sendHubCalendar({interactive:false,quiet:true});
  }catch(error){
   console.warn("NEXUS LINK Santé Hub différé",error?.message||error);
-  try{await receive()}catch{}
-  if(opt().sendMedical)try{await sendCalendar()}catch{}
+  // No fallback to the retired medical relay. LINK retries on next wakeup.
  }finally{hubAutoBusy=false}
 }
 function scheduleHubSync(force=false){

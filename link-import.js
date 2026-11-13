@@ -151,7 +151,7 @@
    try{await receiveHub({quiet:true})}
    catch(error){
     console.warn("NEXUS LINK Gaming Hub différé",error?.message||error);
-    try{await synchronize()}catch{}
+    // LINK is the sole receiver. Keep any failed Hub envelope pending for retry.
    }finally{hubAutoBusy=false}
   },700);
  }
@@ -164,7 +164,7 @@
   scheduleHubReceive(true);
  }
  async function pull(){
-  try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
+  try{await receiveHub()}
   catch(e){api.toast('Réception Gaming : '+e.message.slice(0,80))}
  }
  const OBSERVER_LINK_URL='https://link-app.q9pfwtztsc.workers.dev/';

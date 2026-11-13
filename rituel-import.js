@@ -124,7 +124,7 @@
    try{await receiveHub({quiet:true})}
    catch(error){
     console.warn("NEXUS LINK Rituel Hub différé",error?.message||error);
-    try{await synchronize()}catch{}
+    // Only LINK receives new proposals; no legacy fallback.
    }finally{hubAutoBusy=false}
   },850);
  }
@@ -137,7 +137,7 @@
   scheduleHubReceive(true);
  }
  async function pull(){
-  try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
+  try{await receiveHub()}
   catch(e){api.toast('Réception RITUEL : '+e.message.slice(0,80))}
  }
  const counters=()=>{const p=connection(),rows=list().filter(x=>x.pairId===p?.id);return {
@@ -153,7 +153,7 @@
    <div class="info-strip">RITUEL chiffre les propositions. Rien n’est ajouté aux modules NEXUS sans ta validation. Une modification provenant de RITUEL sera examinée comme une nouvelle révision.</div>
    <div class="nx-gaming-stats"><div><strong>${totals.pending}</strong><small>À examiner</small></div>
     <div><strong>${totals.accepted}</strong><small>Acceptées</small></div><div><strong>${totals.rejected}</strong><small>Ignorées</small></div></div>
-   <div class="form-actions"><button class="btn" data-action="rituel-pull">Ancien relais</button>
+   <div class="form-actions"><button class="btn" data-action="rituel-pull">Recevoir via LINK</button>
     <button class="btn" data-action="rituel-hub-pull">Recevoir via LINK</button>
     <button class="btn btn-neutral" data-action="rituel-show-code">Code de jumelage</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">

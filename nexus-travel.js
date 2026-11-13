@@ -27,7 +27,7 @@
  function show(){
   if(!api)return;
   const p=pair(),pg=pairGarage(),trips=upcoming(),code=p?window.NexusLinkCore.invitation(p):'',garageCode=pg?window.NexusLinkCore.invitation(pg):'';
-  const rows=trips.map(e=>{const d=range(e);return `<div class="nx-link-scope" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><strong>${esc(short(e.title))}</strong><small>${d.start} → ${d.end} · ${d.nights} nuit(s)</small></div><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send" data-id="${esc(e.id)}" ${p?'':'disabled'}>Rituel</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-hub-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage via LINK</button></div>`;}).join('');
+  const rows=trips.map(e=>{const d=range(e);return `<div class="nx-link-scope" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><strong>${esc(short(e.title))}</strong><small>${d.start} → ${d.end} · ${d.nights} nuit(s)</small></div><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send" data-id="${esc(e.id)}" ${p?'':'disabled'}>Rituel via LINK</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-hub-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage via LINK</button></div>`;}).join('');
   api.modal('NEXUS · Préparer mes voyages',`<div class="nx-link-modal">
    <p class="muted-note">Connexion indépendante et chiffrée. Seuls les événements explicitement marqués « Voyage / week-end » peuvent être envoyés. Aucun contact, adresse ou invité n’est partagé.</p>
    ${p?`<div class="info-strip">Liaison voyage configurée (autorisation : contexte de séjour uniquement).</div>
@@ -60,23 +60,8 @@
   catch{document.getElementById('nexus-trip-code')?.select();api.toast('Sélectionne puis copie le code.')}
  }
  async function send(id){
-  if(busy)return;
-  const p=pair(),e=data().events?.find(x=>x.id===id),d=range(e);
-  if(!p||!d||d.end<today()){api.toast('Séjour ou connexion indisponible.');return}
-  if(!navigator.onLine){api.toast('Internet requis.');return}
-  if(!confirm('Envoyer à RITUEL « '+short(e.title)+' » du '+d.start+' au '+d.end+' ?'))return;
-  const payload={type:'nexus.travel.v1',destination:'rituel',eventId:short(e.id,100),title:short(e.title,100),
-   startDate:d.start,endDate:d.end,nights:d.nights};
-  const digest=await fingerprint(payload),ledger=outbox(),prev=ledger.find(x=>x.eventId===e.id);
-  if(prev?.fingerprint===digest){api.toast('Séjour déjà proposé sans modification.');return}
-  busy=true;try{
-   const revision=Math.min((prev?.revision||0)+1,1000000);
-   await window.NexusLinkCore.publish(p,{entityId:'nexus-trip:'+e.id,scope:'trip_context',revision,payload});
-   const entry={eventId:e.id,fingerprint:digest,revision,sentAt:new Date().toISOString()};
-   if(prev)Object.assign(prev,entry);else ledger.push(entry);
-   await api.persist();api.render();show();api.toast('Séjour envoyé. Ouvre RITUEL → Mes trousses.');
-  }catch(e){api.toast('Envoi impossible : '+short(e.message,90))}
-  finally{busy=false}
+  try{return await publishHubRituel(id,{interactive:true})}
+  catch(e){api.toast("LINK RITUEL : "+short(e.message,95));return {status:"error"}}
  }
  async function revoke(){
   const p=pair();if(!p||!confirm('Révoquer seulement la liaison voyage ? Le lien RITUEL → NEXUS reste inchangé.'))return;
@@ -100,30 +85,48 @@ async function createGarage(){
   try{await navigator.clipboard.writeText(window.NexusLinkCore.invitation(p));api.toast('Code Garage copié.');}
   catch{document.getElementById('nexus-garage-code')?.select();api.toast('Sélectionne puis copie le code.');}
  }
- async function sendGarage(id){
-  if(busy)return;
-  const p=pairGarage(),e=data().events?.find(x=>x.id===id),d=range(e);
-  if(!p||!d||d.end<today()){api.toast('Séjour ou connexion Garage indisponible.');return;}
-  if(!navigator.onLine){api.toast('Internet requis pour transmettre ce séjour.');return;}
-  if(!confirm('Proposer à Garage « '+short(e.title)+' » du '+d.start+' au '+d.end+' ?'))return;
-  const payload={type:'nexus.travel.v1',destination:'garage',eventId:short(e.id,100),title:short(e.title,100),
-   startDate:d.start,endDate:d.end,nights:d.nights};
-  const digest=await fingerprint(payload),ledger=garageOutbox(),prev=ledger.find(x=>x.eventId===e.id);
-  if(prev?.fingerprint===digest){api.toast('Séjour déjà proposé sans modification à Garage.');return;}
-  busy=true;try{
-   const revision=Math.min((prev?.revision||0)+1,1000000);
-   await window.NexusLinkCore.publish(p,{entityId:'nexus-garage-trip:'+e.id,scope:'trip_context',revision,payload});
-   const entry={eventId:e.id,fingerprint:digest,revision,sentAt:new Date().toISOString()};
-   if(prev)Object.assign(prev,entry);else ledger.push(entry);
-   await api.persist();api.render();show();api.toast('Séjour proposé. Ouvre Garage → Réglages → Voyages Nexus.');
-  }catch(e){api.toast('Garage : envoi impossible : '+short(e.message,90));}
-  finally{busy=false;}
- }
+ async function sendGarage(id){return sendHubGarage(id)}
  let hubAutoTimer=null,hubAutoBusy=false,hubLifecycleBound=false,hubRequestDuringFlight=false;
  const hubAutoQueue=new Set();
  function hubGaragePayload(e,d){
   return {type:"nexus.travel.v1",destination:"garage",eventId:short(e.id,100),
    title:short(e.title,100),startDate:d.start,endDate:d.end,nights:d.nights};
+ }
+ function rituelHubHistory(){
+  if(!Array.isArray(data().travelRituelHubOutbox))data().travelRituelHubOutbox=[];
+  return data().travelRituelHubOutbox;
+ }
+ async function publishHubRituel(id,{interactive=false}={}){
+  const p=pair(),e=data().events?.find(v=>v.id===id),d=range(e);
+  if(!p||!window.LinkHubBus)return {status:"unavailable"};
+  const history=rituelHubHistory(),prev=history.find(v=>v.eventId===id);
+  const deleted=!e||!d;
+  if(deleted&&!prev)return {status:"unavailable"};
+  if(!deleted&&d.end<today())return {status:"unavailable"};
+  if(!navigator.onLine)return {status:"deferred"};
+  if(interactive&&!confirm(deleted?
+   "Annuler la proposition de trousse RITUEL ?":
+   "Proposer ce séjour à RITUEL via LINK ? Rien ne sera préparé sans ton accord."))
+   return {status:"cancelled"};
+  const stamp=String(prev?.cancelledAt||prev?.sentAt||"2000-01-01").slice(0,10);
+  const day=/^\d{4}-\d{2}-\d{2}$/.test(stamp)?stamp:"2000-01-01";
+  const payload=deleted?{type:"nexus.travel.v1",destination:"rituel",eventId:short(id,100),
+   title:"Séjour annulé",startDate:day,endDate:day,nights:0,deleted:true}:
+   {type:"nexus.travel.v1",destination:"rituel",eventId:short(e.id,100),
+   title:short(e.title,100),startDate:d.start,endDate:d.end,nights:d.nights};
+  const fp=await fingerprint(payload);
+  if(prev?.fingerprint===fp)return {status:"unchanged",revision:prev.revision};
+  const revision=Math.min(1000000,(prev?.revision||0)+1);
+  const result=await window.LinkHubBus.publish({pair:p,from:"nexus",to:"rituel",
+   contractId:"nexus-rituel",scope:"trip_context",entityId:"nexus-trip:"+id,
+   revision,payload,schemaVersion:"nexus.travel.v1"});
+  if(!result.accepted)throw Error("PUBLICATION_LINK_NON_CONFIRMÉE");
+  const entry={eventId:id,revision,fingerprint:fp,sentAt:new Date().toISOString(),
+   ...(deleted?{cancelledAt:day}:{})};
+  data().travelRituelHubOutbox=prev?history.map(v=>v===prev?entry:v):[...history,entry];
+  await api.persist();
+  if(interactive)api.toast("Séjour transmis à RITUEL via LINK.");
+  return {status:"sent",revision};
  }
  async function publishHubGarage(id,{interactive=false}={}){
   const p=pairGarage(),e=data().events?.find(x=>x.id===id),d=range(e);
@@ -164,16 +167,18 @@ async function createGarage(){
  }
  async function flushAutoGarage(){
   if(hubAutoBusy||!navigator.onLine)return;
-  if(!pairGarage()||!window.LinkHubBus)return;
+  if((!pairGarage()&&!pair())||!window.LinkHubBus)return;
   hubAutoBusy=true;
   try{
    const requested=[...hubAutoQueue];hubAutoQueue.clear();
-   const ids=requested.includes("*")?[...upcoming().map(e=>e.id),...(data().travelGarageHubOutbox||[]).map(x=>x.eventId)]:requested;
+   const ids=requested.includes("*")?[...upcoming().map(e=>e.id),...(data().travelGarageHubOutbox||[]).map(x=>x.eventId),...(data().travelRituelHubOutbox||[]).map(x=>x.eventId)]:requested;
    for(const id of [...new Set(ids)].slice(0,30)){
-    try{await publishHubGarage(id,{interactive:false});}
-    catch(error){
-     hubAutoQueue.add(id);
-     console.warn("NEXUS LINK : synchronisation Garage différée",error?.message||error);
+    for(const [label,fn] of [["Garage",publishHubGarage],["RITUEL",publishHubRituel]]){
+     try{await fn(id,{interactive:false})}
+     catch(error){
+      hubAutoQueue.add(id);
+      console.warn("NEXUS LINK : synchronisation "+label+" différée",error?.message||error);
+     }
     }
    }
   }finally{

@@ -85,14 +85,14 @@
   function appsPage(){
     const vest=linked('vestiaire'),rit=linked('rituel'),gaming=linked('gaming');
     return '<div class="nx-set-stack">'+panel('LINK · Centre de contrôle','Permissions, état et diagnostic des connexions inter-applications.','link',
-      '<p class="pref-hint">Les synchronisations passent progressivement par LINK. Les jumelages historiques restent disponibles pour compatibilité et retour arrière.</p><a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Gérer dans LINK ↗</a>')+
-      panel('Paramètres des applications','Réglages métier et accès historiques conservés pendant la migration.','link',
+      '<p class="pref-hint">Les échanges chiffrés passent uniquement par LINK. Les clés sont générées localement, sans ancien relais.</p><a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Gérer dans LINK ↗</a>')+
+      panel('Paramètres des applications','Réglages métier et autorisations des applications connectées.','link',
       '<div class="nx-set-app-list">'+
-      link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Jumelage historique':'À vérifier dans LINK')+
-      link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Jumelage historique':'À vérifier dans LINK')+
-      link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Jumelage historique':'À vérifier dans LINK')+
-      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Jumelage historique':'À vérifier dans LINK')+
-      '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Les échanges chiffrés sont pilotés par LINK. Les anciennes commandes restent disponibles en secours.</p>')+
+      link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Clé LINK locale':'À vérifier dans LINK')+
+      link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Clé LINK locale':'À vérifier dans LINK')+
+      link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Clé LINK locale':'À vérifier dans LINK')+
+      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Clé LINK locale':'À vérifier dans LINK')+
+      '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Les échanges chiffrés sont pilotés par LINK. Aucun ancien relais n’est utilisé.</p>')+
       panel('Automatisations','Décide ce qui est reçu ou inscrit au Budget.','refresh',
         '<div class="nx-set-app-list">'+link('Connect 2.0','Réception et inscriptions budgétaires autorisées','sliders','apps-automation')+'</div>')+'</div>';
   }
