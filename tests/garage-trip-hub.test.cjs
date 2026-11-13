@@ -24,5 +24,5 @@ test('Nexus automatise les voyages autorisés vers Garage via LINK sans perdre l
  assert.match(app,/La préparation d’un ensemble reste manuelle/);
  assert.match(src('index.html'),/nexus-travel\.js\?v=02124/);
  assert.match(src('index.html'),/app\.js\?v=02127/);
- assert.match(src('sw.js'),/nexus-v0\.21\.14\.4-sante-deletion/);
+ assert.match(src('sw.js'),/nexus-v0\.21\.14\.5-health-foreground/);
 });
