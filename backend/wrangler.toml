@@ -9,15 +9,11 @@ database_name = "nexus-app-db"
 database_id = "b790938c-402e-4183-91e8-6e400ed28075"
 migrations_dir = "migrations"
 
-# Runs every five minutes. Delivery is best-effort, not guaranteed to the exact minute.
-[triggers]
-crons = ["*/5 * * * *"]
+# Notifications remain paused pending the centralized LINK notification redesign.
+# No cron trigger is configured.
 
 # The public VAPID key is not sensitive. The PRIVATE key stays in Cloudflare Secrets.
 [vars]
 VAPID_PUBLIC_KEY = "BLVUrNJfkVkwaEXQvQQTDBU1MZXHhcNhp4AoQHkVVBoVT46eMp_0KlFtzlOUZ8abkRv-erV4NpBHmzkU0L-ZcjU"
 
-# E2EE inter-app calls over Cloudflare internal service binding
-[[services]]
-binding = "LINK_RELAY"
-service = "nexus-link-api"
+# LINK Hub is managed independently; no legacy Worker service binding.
