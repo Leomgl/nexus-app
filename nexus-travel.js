@@ -27,7 +27,7 @@
  function show(){
   if(!api)return;
   const p=pair(),pg=pairGarage(),trips=upcoming(),code=p?window.NexusLinkCore.invitation(p):'',garageCode=pg?window.NexusLinkCore.invitation(pg):'';
-  const rows=trips.map(e=>{const d=range(e);return `<div class="nx-link-scope" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><strong>${esc(short(e.title))}</strong><small>${d.start} → ${d.end} · ${d.nights} nuit(s)</small></div><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send" data-id="${esc(e.id)}" ${p?'':'disabled'}>Rituel</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage</button></div>`;}).join('');
+  const rows=trips.map(e=>{const d=range(e);return `<div class="nx-link-scope" style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><strong>${esc(short(e.title))}</strong><small>${d.start} → ${d.end} · ${d.nights} nuit(s)</small></div><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send" data-id="${esc(e.id)}" ${p?'':'disabled'}>Rituel</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-send-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage</button><button type="button" class="btn btn-soft btn-small" data-action="nexus-trip-hub-garage" data-id="${esc(e.id)}" ${pg?'':'disabled'}>Garage via LINK</button></div>`;}).join('');
   api.modal('NEXUS · Préparer mes voyages',`<div class="nx-link-modal">
    <p class="muted-note">Connexion indépendante et chiffrée. Seuls les événements explicitement marqués « Voyage / week-end » peuvent être envoyés. Aucun contact, adresse ou invité n’est partagé.</p>
    ${p?`<div class="info-strip">Liaison voyage configurée (autorisation : contexte de séjour uniquement).</div>
@@ -119,6 +119,27 @@ async function createGarage(){
   }catch(e){api.toast('Garage : envoi impossible : '+short(e.message,90));}
   finally{busy=false;}
  }
+ async function sendHubGarage(id){
+  const p=pairGarage(),e=data().events?.find(x=>x.id===id),d=range(e);
+  if(!p||!d||d.end<today())throw Error("Séjour ou jumelage Garage indisponible.");
+  if(!window.LinkHubBus)throw Error("Module LINK indisponible.");
+  if(!confirm("Transmettre ce séjour à Garage via LINK ? Le déplacement d’objets restera manuel."))return;
+  const payload={type:"nexus.travel.v1",destination:"garage",eventId:short(e.id,100),
+   title:short(e.title,100),startDate:d.start,endDate:d.end,nights:d.nights};
+  const digest=await fingerprint(payload),history=data().travelGarageHubOutbox||[],
+   old=garageOutbox().find(x=>x.eventId===e.id),prev=history.find(x=>x.eventId===e.id);
+  if(prev?.fingerprint===digest){api.toast("Séjour déjà transmis via LINK sans modification.");return}
+  const base=old?(old.fingerprint===digest?old.revision:old.revision+1):1;
+  const revision=Math.min(prev?Math.max(base,prev.revision+1):base,1000000);
+  const result=await window.LinkHubBus.publish({pair:p,from:"nexus",to:"garage",
+   contractId:"nexus-garage",scope:"trip_context",entityId:"nexus-garage-trip:"+e.id,
+   revision,payload,schemaVersion:"nexus.travel.v1"});
+  if(result.accepted){
+   const entry={eventId:e.id,revision,fingerprint:digest,sentAt:new Date().toISOString()};
+   data().travelGarageHubOutbox=prev?history.map(x=>x===prev?entry:x):[...history,entry];
+   await api.persist();api.toast("Séjour chiffré transmis via LINK. Garage doit le recevoir et le confirmer.");
+  }
+ }
  async function revokeGarage(){
   const p=pairGarage();if(!p||!confirm('Révoquer uniquement les voyages Garage ?'))return;
   try{
@@ -137,6 +158,7 @@ async function createGarage(){
   else if(kind==='nexus-trip-create-garage')createGarage();
   else if(kind==='nexus-trip-copy-garage')copyGarage();
   else if(kind==='nexus-trip-send-garage')sendGarage(target.dataset.id);
+  else if(kind==='nexus-trip-hub-garage')sendHubGarage(target.dataset.id).catch(e=>api.toast("LINK : "+short(e.message,95)));
   else if(kind==='nexus-trip-revoke-garage')revokeGarage();
   return true;
  }
