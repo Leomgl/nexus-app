@@ -63,8 +63,11 @@ function healthWidget(){
 function settingsCard(){
  const p=pair(),calendar=state().santeCalendars?.[0],prefs=opt(),d=state().santeDaily?.[0];
  return `<section class="preferences-panel nxsh-settings"><div class="pref-heading">${svg("shield")}<div><h2>Santé ↔ Nexus</h2><p>Suivi de tes prises dans Pulse et, sur autorisation depuis Santé, résumé des boissons. Notifications d’agenda pilotées par Nexus.</p></div></div>
- ${!p?`<div class="info-strip">🔐 Avec ton accord, Nexus stockera localement le résumé des prises et les rendez-vous importés. Ses données IndexedDB ne sont pas chiffrées au repos. Les échanges transitent chiffrés par un relais distinct.</div>
- <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="sante-create">Créer la connexion privée</button></div>`:
+ ${!p?`<div class="info-strip">🔐 La liaison Santé n'est pas présente dans les données locales de Nexus. Si Santé affiche « Jumelage chiffré installé », restaure <strong>la même connexion</strong> : pas de nouvelle clé, pas de suppression de rendez-vous. Nexus conserve les rendez-vous importés en local, sans chiffrement au repos.</div>
+ <label class="field"><span>Code de réparation du coffre Santé déverrouillé (NXS1…)</span><textarea id="nxsh-recover-code" rows="3" placeholder="NXS1.…" autocomplete="off" spellcheck="false" style="width:100%;overflow-wrap:anywhere"></textarea></label>
+ <div class="form-actions"><button type="button" class="btn btn-soft btn-small" data-action="sante-recover">Restaurer la liaison existante</button></div>
+ <p class="pref-hint">Dans Santé → Réglages → Nexus LINK, utilise « Copier le code de réparation », puis colle-le uniquement ici. Ce code est une clé privée : ne le partage jamais dans un chat.</p>
+ <div class="form-actions"><button type="button" class="btn btn-neutral btn-small" data-action="sante-create">Créer une NOUVELLE connexion (dernier recours)</button></div>:
  `<div class="info-strip">Connexion active : progression des prises et calendrier Santé. Le résumé agrégé des boissons est envoyé uniquement après activation explicite dans Santé. Les journaux, bilans, documents et diagnostics ne sont pas transférés.</div>
  <label class="field"><span>Code de jumelage à coller dans Santé → ⚙️ → Nexus LINK</span><textarea id="nxsh-code" rows="3" readonly style="width:100%;overflow-wrap:anywhere">${esc(CORE().invitation(p))}</textarea></label>
  <div class="form-actions">
@@ -83,8 +86,52 @@ function settingsCard(){
  <p class="pref-hint">Dernier suivi : ${d?esc(d.day):"jamais"}. Synchronisation lorsque Santé publie et que Nexus reçoit ; pas en temps réel lorsque les apps sont fermées.</p>`}
  <p class="pref-hint"><a href="${ORIGIN}" target="_blank" rel="noopener noreferrer">Ouvrir Santé</a> · La fiche médicale complète ne quitte pas Santé.</p></section>`;
 }
+async function recoverExistingPair(){
+ if(pair()||busy)return false;
+ const raw=String(document.getElementById("nxsh-recover-code")?.value||"").trim();
+ if(!raw){api.toast("Colle le code de réparation affiché par Santé.");return false;}
+ busy=true;
+ try{
+  const recovered=CORE().readInvite(raw);
+  if(recovered.sourceApp!=="sante"||!recovered.scopes.includes("health_calendar")||
+     !recovered.scopes.includes("dose_summary"))throw Error("Permissions de la liaison incompatibles.");
+  const d=state(),existing=Array.isArray(d.linkConnections)?d.linkConnections:[];
+  if(existing.some(v=>v.sourceApp==="sante"))throw Error("Une liaison Santé existe déjà.");
+  // Imported appointments retain their original pair ID; never silently bind
+  // them to a different E2EE secret.
+  const priorIds=[...(d.santeCalendars||[]).map(v=>v.pairId),
+   ...(d.santeDaily||[]).map(v=>v.pairId),
+   ...(d.events||[]).filter(v=>v.originApp==="sante").map(v=>v.originPairId)]
+   .filter(Boolean);
+  if(priorIds.some(id=>id!==recovered.id))
+   throw Error("Ce code ne correspond pas à la liaison utilisée par les rendez-vous.");
+  const status=await CORE().status(recovered);
+  if(status?.connected!==true)throw Error("Le canal existant n'est plus valide.");
+  const before=[...existing];
+  d.linkConnections=[...before,recovered];
+  try{
+   await api.persist();
+   if(!await api.verify("pair",recovered.id,recovered.seed))
+    throw Error("La connexion n'a pas été enregistrée durablement.");
+  }catch(error){
+   d.linkConnections=before;
+   await api.persist().catch(()=>{});
+   throw error;
+  }
+  const input=document.getElementById("nxsh-recover-code");
+  if(input)input.value="";
+  api.render();
+  api.toast("Liaison Santé d'origine restaurée. Aucun rendez-vous remplacé.");
+  return true;
+ }catch(error){
+  api.toast("Restauration impossible : "+String(error?.message||error).slice(0,100));
+  return false;
+ }finally{busy=false}
+}
+
 async function create(){
  if(pair()||busy)return;
+ if(!confirm("Créer une NOUVELLE connexion Santé ? Si Santé affiche déjà un jumelage installé, annule et utilise « Restaurer la liaison existante » pour éviter de perdre les anciens identifiants. Une nouvelle connexion ne répare pas l'ancienne."))return;
  if(!confirm("Autoriser Nexus à recevoir un résumé de tes traitements et des rendez-vous Santé ? Ces données seront enregistrées en local dans Nexus, dont le stockage n'est pas chiffré au repos."))return;
  busy=true;
  try{const p=await CORE().createPair("sante",["dose_summary","health_calendar"]);state().linkConnections.push(p);await api.persist();api.render();api.toast("Connexion créée : copie le code dans Santé.");}
@@ -342,6 +389,7 @@ async function revoke(){
 }
 async function act(kind){
  if(kind==="sante-open-settings"){api.openSettings?.();return true;}
+ if(kind==="sante-recover")return recoverExistingPair();
  if(kind==="sante-create")return create();
  if(kind==="sante-copy"){const input=document.getElementById("nxsh-code");if(!input)return true;try{await navigator.clipboard.writeText(input.value);api.toast("Code copié.");}catch{input.select();api.toast("Sélectionne le code pour le copier.");}return true;}
  if(kind==="sante-receive")return receive();
