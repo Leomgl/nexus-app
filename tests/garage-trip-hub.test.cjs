@@ -11,5 +11,5 @@ test('Nexus sends only user-confirmed trip context through LINK, not expenses or
  assert.match(s,/api\.persist\(\)/);
  assert.match(s,/nexus-trip-hub-garage/);
  assert.match(src('index.html'),/nexus-travel\.js\?v=02113/);
- assert.match(src('sw.js'),/nexus-v0\.21\.12\.11/);
+ assert.match(src('sw.js'),/nexus-v0\.21\.12\.12/);
 });
