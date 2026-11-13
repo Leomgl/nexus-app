@@ -489,8 +489,7 @@ async function runHubSync(force=false){
   if(opt().sendMedical)await sendHubCalendar({interactive:false,quiet:true});
  }catch(error){
   console.warn("NEXUS LINK Santé Hub différé",error?.message||error);
-  try{await receive()}catch{}
-  if(opt().sendMedical)try{await sendCalendar()}catch{}
+  // No fallback to the retired medical relay. LINK retries on next wakeup.
  }finally{hubAutoBusy=false}
 }
 function scheduleHubSync(force=false){
