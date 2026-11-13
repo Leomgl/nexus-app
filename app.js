@@ -1163,6 +1163,8 @@ async function verifySante(kind,id,revision){
    const q=dbHandle.transaction(DB_STORE,'readonly').objectStore(DB_STORE).get('main');
    q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);
   });else saved=JSON.parse(localStorage.getItem(BACKUP_KEY)||'null');
+  return kind==='pair'?Array.isArray(saved?.linkConnections)&&saved.linkConnections.some(x=>
+    x.sourceApp==='sante'&&x.id===id&&x.seed===revision):
   return kind==='daily'?Array.isArray(saved?.santeDaily)&&saved.santeDaily.some(x=>x.pairId===id&&x.sourceRevision===revision):
    kind==='calendar'?Array.isArray(saved?.santeCalendars)&&saved.santeCalendars.some(x=>x.pairId===id&&x.sourceRevision===revision):false;
  }catch{return false;}
