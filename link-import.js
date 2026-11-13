@@ -1,7 +1,7 @@
 /* NEXUS LINK inbound Gaming proposals — explicit review, durable dedupe, no silent writes. */
 'use strict';
 (()=>{
- let api=null,working=false;
+ let api=null,working=false,hubAutoTimer=null,hubAutoBusy=false,hubLifecycleBound=false,lastHubPull=0;
  const esc=x=>api.escape(String(x??''));
  const clean=(x,n)=>String(x??'').trim().slice(0,n);
  const validDate=x=>{
@@ -124,6 +124,44 @@
    if(!(await api.verify()))throw Error('HUB_LOCAL_STORAGE_UNVERIFIED');
   }
   return {durable:true,status:'persisted'};
+ }
+ async function receiveHub({quiet=false}={}){
+  const pair=connection();
+  if(!pair)throw Error('Aucun jumelage Gaming enregistré.');
+  if(!window.LinkHubBus)throw Error('MODULE_LINK_INDISPONIBLE');
+  const result=await window.LinkHubBus.receive({pair,from:"gaming",contractId:"gaming-nexus",
+   scopes:pair.scopes.filter(x=>Object.keys(mapping).includes(x)),limit:30,
+   persist:async opened=>{
+    const sourceKey=await window.NexusLinkCore.sourceKey(pair,opened.entityId);
+    return ingestHubEnvelope({...opened,sourceKey});
+   }});
+  if(result.acknowledged>0)(api.safeRender||api.render)?.();
+  if(!quiet)api.toast(result.acknowledged+" proposition(s) Gaming confirmée(s) via LINK, "+result.failed+" à réessayer.");
+  return result;
+ }
+ function scheduleHubReceive(force=false){
+  if(!connection()||typeof navigator!=="undefined"&&navigator.onLine===false)return;
+  const now=Date.now();if(!force&&now-lastHubPull<30000)return;
+  clearTimeout(hubAutoTimer);
+  hubAutoTimer=setTimeout(async()=>{
+   if(hubAutoBusy)return;
+   if(typeof document!=="undefined"&&document.visibilityState==="hidden")return;
+   const stamp=Date.now();if(!force&&stamp-lastHubPull<30000)return;
+   lastHubPull=stamp;hubAutoBusy=true;
+   try{await receiveHub({quiet:true})}
+   catch(error){
+    console.warn("NEXUS LINK Gaming Hub différé",error?.message||error);
+    try{await synchronize()}catch{}
+   }finally{hubAutoBusy=false}
+  },700);
+ }
+ function initHubAuto(){
+  if(hubLifecycleBound)return;hubLifecycleBound=true;
+  if(typeof window==="undefined"||typeof document==="undefined")return;
+  window.addEventListener("online",()=>scheduleHubReceive(true));
+  window.addEventListener("focus",()=>scheduleHubReceive(false));
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleHubReceive(false)});
+  scheduleHubReceive(true);
  }
  async function pull(){
   try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
@@ -351,6 +389,6 @@
   if(kind==='link-reject'){reject(button.dataset.id);return true}
   return false;
  }
- function attach(model){api=model}
- window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe,auditSnapshot,auditPanel,ingestHubEnvelope});
+ function attach(model){api=model;initHubAuto()}
+ window.NexusGamingImport=Object.freeze({attach,synchronize,receiveHub,scheduleHubReceive,initHubAuto,panel,review,approve,act,valid,counters,observation,observe,auditSnapshot,auditPanel,ingestHubEnvelope});
 })();

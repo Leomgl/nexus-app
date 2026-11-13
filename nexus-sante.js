@@ -2,7 +2,7 @@
 'use strict';
 const ORIGIN="https://sante-app.q9pfwtztsc.workers.dev/";
 const PREF="nexus_sante_link_v1";
-let api=null,busy=false,timer=null;
+let api=null,busy=false,timer=null,hubTimer=null,hubAutoBusy=false,hubLifecycleBound=false,lastHubSync=0;
 const CORE=()=>window.SanteLinkCore;
 const state=()=>api?.state?.()||{};
 const esc=s=>api?.escape?.(s)??String(s??"");
@@ -133,7 +133,7 @@ function outgoing(){
  const unique=new Map([...current,...deleted].map(v=>[v.id,v]));
  return [...unique.values()].slice(0,96);
 }
-function queueSend(){clearTimeout(sendTimer);if(pair()&&opt().sendMedical)sendTimer=setTimeout(()=>{sendTimer=null;void sendCalendar();},1700);}
+function queueSend(){clearTimeout(sendTimer);if(pair()&&opt().sendMedical)sendTimer=setTimeout(()=>{sendTimer=null;scheduleHubSync(true);},1700);}
 async function sendCalendar(){
  const p=pair();if(!p||!opt().sendMedical||sending)return false;
  sending=true;
@@ -212,7 +212,7 @@ async function receive(){
  }catch(e){api.toast("Santé LINK indisponible : "+(e.message||"Erreur réseau"));return false;}
  finally{busy=false;}
 }
-async function receiveHub(){
+async function receiveHub({quiet=false}={}){
  const p=pair();
  if(!p||!window.LinkHubBus)throw Error("Configure le jumelage privé Santé/Nexus avant LINK.");
  let imported=0,conflicts=0;
@@ -256,24 +256,24 @@ async function receiveHub(){
    }
    imported++;return {durable:true,status:"persisted"};
   }});
- api.toast("LINK : "+(daily.acknowledged+calendar.acknowledged)+" message(s) Santé confirmés"+
+ if(!quiet)api.toast("LINK : "+(daily.acknowledged+calendar.acknowledged)+" message(s) Santé confirmés"+
   (conflicts?" · "+conflicts+" divergence(s) conservée(s)":"")+
   (daily.failed+calendar.failed?" · reprises nécessaires":"")+".");
  if(imported>0)api.safeRender?.();
  return {daily,calendar,imported,conflicts};
 }
-async function sendHubCalendar(){
+async function sendHubCalendar({interactive=true,quiet=false}={}){
  const p=pair();
  if(!p||!window.LinkHubBus||!opt().sendMedical)
   throw Error("Active d’abord le partage d’agenda Santé dans Nexus.");
- if(!confirm("Envoyer à Santé via LINK uniquement tes rendez-vous médicaux chiffrés, sans notes ni pièces jointes ?"))return false;
+ if(interactive&&!confirm("Envoyer à Santé via LINK uniquement tes rendez-vous médicaux chiffrés, sans notes ni pièces jointes ?"))return false;
  const events=outgoing(),pages=Math.max(1,Math.ceil(events.length/12));
  if(pages>8)throw Error("Trop de rendez-vous pour cette liaison.");
  const digest=[...new Uint8Array(await crypto.subtle.digest("SHA-256",
   new TextEncoder().encode(JSON.stringify(events))))]
   .map(v=>v.toString(16).padStart(2,"0")).join("");
  let ledger=state().santeHubCalendarOutbox;
- if(ledger?.fingerprint===digest&&ledger?.deliveredAt){api.toast("Calendrier LINK déjà à jour.");return true}
+ if(ledger?.fingerprint===digest&&ledger?.deliveredAt){if(!quiet)api.toast("Calendrier LINK déjà à jour.");return true}
  const fresh=!ledger?.pending||ledger?.pending.fingerprint!==digest;
  const pending=fresh?{
   fingerprint:digest,revision:Math.max(1,Number(state().santeNexusRevision)||1,
@@ -300,7 +300,7 @@ async function sendHubCalendar(){
  state().santeHubCalendarOutbox={fingerprint:digest,revision:pending.revision,
   deliveredAt:new Date().toISOString()};
  await api.persist();
- api.toast("Calendrier chiffré envoyé à LINK. Ouvre Santé et reçois les rendez-vous.");
+ if(!quiet)api.toast("Calendrier chiffré envoyé à LINK.");
  return true;
 }
 async function importCalendar(){
@@ -341,10 +341,31 @@ async function act(kind){
  if(kind==="sante-revoke")return revoke();
  return false;
 }
+async function runHubSync(force=false){
+ if(!pair()||hubAutoBusy||typeof navigator!=="undefined"&&navigator.onLine===false)return;
+ if(typeof document!=="undefined"&&document.visibilityState==="hidden")return;
+ const now=Date.now();if(!force&&now-lastHubSync<30000)return;
+ lastHubSync=now;hubAutoBusy=true;
+ try{
+  await receiveHub({quiet:true});
+  if(opt().sendMedical)await sendHubCalendar({interactive:false,quiet:true});
+ }catch(error){
+  console.warn("NEXUS LINK Santé Hub différé",error?.message||error);
+  try{await receive()}catch{}
+  if(opt().sendMedical)try{await sendCalendar()}catch{}
+ }finally{hubAutoBusy=false}
+}
+function scheduleHubSync(force=false){
+ clearTimeout(hubTimer);hubTimer=setTimeout(()=>void runHubSync(force),750);
+}
 function init(){
- if(pair())receive().then(()=>queueSend()).catch(()=>{});
- document.addEventListener("visibilitychange",()=>{if(!document.hidden&&pair())receive().then(()=>queueSend()).catch(()=>{});});
+ if(hubLifecycleBound)return;hubLifecycleBound=true;
+ if(typeof window==="undefined"||typeof document==="undefined")return;
+ window.addEventListener("online",()=>scheduleHubSync(true));
+ window.addEventListener("focus",()=>scheduleHubSync(false));
+ document.addEventListener("visibilitychange",()=>{if(!document.hidden) scheduleHubSync(false);});
+ if(pair())scheduleHubSync(true);
 }
 function attach(adapter){api=adapter;}
-window.NexusSanteBridge=Object.freeze({attach,init,widget:healthWidget,settingsCard,receive,receiveHub,act,validDaily,validCalendar,medical,markChange,markDeleted,markRestored,outgoing,sendCalendar,sendHubCalendar});
+window.NexusSanteBridge=Object.freeze({attach,init,scheduleHubSync,runHubSync,widget:healthWidget,settingsCard,receive,receiveHub,act,validDaily,validCalendar,medical,markChange,markDeleted,markRestored,outgoing,sendCalendar,sendHubCalendar});
 })();

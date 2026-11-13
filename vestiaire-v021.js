@@ -1,6 +1,6 @@
 (function nexusVestiaireV021(){
  'use strict';
- let api=null,running=false,lastCheck=0,timer=null,initialized=false;
+ let api=null,running=false,lastCheck=0,timer=null,initialized=false,hubLastCheck=0,hubAutoBusy=false;
  const CORE=()=>window.NexusLinkCore;
  const ORIGIN='https://vestiaire-app.q9pfwtztsc.workers.dev/';
  const SCOPE='outfit_catalog';
@@ -252,7 +252,7 @@
   }catch(err){if(manual)api.toast('Réception impossible : '+String(err.message||err).slice(0,70));return {received,error:String(err.message||err)};}
   finally{running=false;}
  }
- async function receiveHub(){
+ async function receiveHub(quiet=false){
   const p=pair();
   if(!p)throw Error("Jumelage Vestiaire/Nexus requis.");
   if(!window.LinkHubBus)throw Error("Module LINK manquant.");
@@ -269,7 +269,7 @@
    }});
   const pending=(db().vestiaireTransfers||[]).find(x=>x.pairId===p.id);
   const progress=pending?" · "+pending.pages.filter(Array.isArray).length+"/"+pending.pageCount+" lots":"";
-  api.toast(result.acknowledged+" lots reçus via LINK"+progress+
+  if(!quiet)api.toast(result.acknowledged+" lots reçus via LINK"+progress+
    (result.failed?" · "+result.failed+" à réessayer":"")+".");
   if(result.acknowledged>0)api.safeRender?.();
   return result;
@@ -318,14 +318,25 @@
   if(kind==='vestiaire-revoke'){await revoke();return true;}
   return false;
  }
+ async function autoReceive(force=false){
+  if(!pair()||hubAutoBusy||typeof navigator!=="undefined"&&navigator.onLine===false)return;
+  if(typeof document!=="undefined"&&document.visibilityState==="hidden")return;
+  const now=Date.now();if(!force&&now-hubLastCheck<30000)return;
+  hubLastCheck=now;hubAutoBusy=true;
+  try{await receiveHub(true)}
+  catch(error){
+   console.warn("NEXUS LINK Vestiaire Hub différé",error?.message||error);
+   await receive(false);
+  }finally{hubAutoBusy=false}
+ }
  function init(){
   if(initialized)return;initialized=true;
   if(typeof window==='undefined'||typeof document==='undefined')return;
-  window.addEventListener('online',()=>{void receive();});
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void receive();});
-  timer=window.setInterval(()=>{if(document.visibilityState==='visible')void receive();},3*60*1000);
-  window.setTimeout(()=>void receive(),2400);
+  window.addEventListener('online',()=>{void autoReceive(true);});
+  window.addEventListener('focus',()=>{void autoReceive(false);});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void autoReceive(false);});
+  window.setTimeout(()=>void autoReceive(true),1800);
  }
  function attach(value){api=value;}
- window.NexusVestiaire=Object.freeze({attach,init,widget,eventBadge,settingsCard,act,validCatalog,validPage,assembledTransfer,context,recommend,comingEvent,receive,receiveHub,pair});
+ window.NexusVestiaire=Object.freeze({attach,init,autoReceive,widget,eventBadge,settingsCard,act,validCatalog,validPage,assembledTransfer,context,recommend,comingEvent,receive,receiveHub,pair});
 })();

@@ -1,6 +1,6 @@
 /* NEXUS V0.20 — Pulse + Connect + Budget advanced, local-first data model. */
 'use strict';
-const NEXUS_VERSION='0.21.13';
+const NEXUS_VERSION='0.21.14';
 const ICONS = {
   home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
   notes:'<path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"/><path d="M8 12h7M8 16h8M15 3l6 6M14 9l6-6"/>',
