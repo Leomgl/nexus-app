@@ -310,7 +310,7 @@
  async function act(kind,target){
   if(kind==='vestiaire-create'){await create();return true;}
   if(kind==='vestiaire-copy'){await copy();return true;}
-  if(kind==='vestiaire-refresh'){await receive(true);return true;}
+  if(kind==='vestiaire-refresh'){try{await receiveHub()}catch(e){api.toast('LINK : '+String(e.message||e).slice(0,90))}return true;}
   if(kind==='vestiaire-hub-receive'){try{await receiveHub()}catch(e){api.toast("LINK : "+String(e.message||e).slice(0,90))}return true;}
   if(kind==='vestiaire-open-settings'){api.navTo('settings');return true;}
   if(kind==='vestiaire-select'){await select(target.dataset.event,target.dataset.look);return true;}
@@ -326,7 +326,7 @@
   try{await receiveHub(true)}
   catch(error){
    console.warn("NEXUS LINK Vestiaire Hub différé",error?.message||error);
-   await receive(false);
+   // Keep LINK inbox pending; retry on next foreground wakeup.
   }finally{hubAutoBusy=false}
  }
  function init(){
