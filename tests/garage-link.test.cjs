@@ -20,8 +20,8 @@ test('Garage relay migration keeps existing pairs and encrypted events',()=>{
 test('Nexus sends Garage trips independently of Rituel',()=>{
  const s=read('nexus-travel.js'),app=read('app.js');
  assert.match(s,/createPair\('garage',\['trip_context'\]\)/);
- assert.match(s,/destination:'garage'/);
- assert.match(s,/destination:'rituel'/);
+ assert.match(s,/destination:"garage"/);
+ assert.match(s,/destination:"rituel"/);
  assert.match(s,/data-action="nexus-trip-hub-garage"/);
  assert.match(s,/garageOutbox/);
  assert.match(app,/travelGarageOutbox:\[\]/);
