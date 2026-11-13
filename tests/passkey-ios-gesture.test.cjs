@@ -165,7 +165,7 @@ test('missing cloud session cannot silently unlock or leak recovery key',async()
 test('Face ID script must be cache-versioned in HTML and offline shell',()=>{
  assert.match(index,/passkey-client\.js\?v=02114/);
  assert.match(serviceWorker,/passkey-client\.js\?v=02114/);
- assert.match(serviceWorker,/nexus-v0\.21\.14\.6/);
+ assert.match(serviceWorker,/nexus-v0\.21\.14\.7/);
  assert.match(source,/const assertionPromise=navigator\.credentials\.get/);
  assert.match(source,/const credentialPromise=navigator\.credentials\.create/);
 });

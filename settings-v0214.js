@@ -4,7 +4,7 @@
   const CATEGORIES=[
     {id:'interface',label:'Apparence et interface',detail:'Thèmes, navigation, accueil Pulse',icon:'sliders',keywords:'widgets densité palette raccourcis home'},
     {id:'notifications',label:'Notifications',detail:'Alertes, rappels et échéances',icon:'clock',keywords:'push budget salaire prêt facture anniversaire agenda'},
-    {id:'apps',label:'Applications connectées',detail:'Gaming, Rituel, Vestiaire et Santé',icon:'link',keywords:'jumelage autorisations liens synchronisation connect'},
+    {id:'apps',label:'Applications connectées',detail:'LINK centralise les connexions et permissions',icon:'link',keywords:'jumelage autorisations liens synchronisation connect'},
     {id:'security',label:'Sécurité et confidentialité',detail:'Face ID, passkeys et protection',icon:'shield',keywords:'connexion verrouillage authentification'},
     {id:'data',label:'Données et sauvegardes',detail:'Coffre, export, import et corbeille',icon:'download',keywords:'restauration synchronisation réinitialiser suppression'},
     {id:'about',label:'À propos de Nexus',detail:'Version et mises à jour',icon:'info',keywords:'actualiser pwa maintenance'}
@@ -84,13 +84,15 @@
   }
   function appsPage(){
     const vest=linked('vestiaire'),rit=linked('rituel'),gaming=linked('gaming');
-    return '<div class="nx-set-stack">'+panel('Écosystème Nexus','Un centre unique pour les applications spécialisées.','link',
+    return '<div class="nx-set-stack">'+panel('LINK · Centre de contrôle','Permissions, état et diagnostic des connexions inter-applications.','link',
+      '<p class="pref-hint">Les synchronisations passent progressivement par LINK. Les jumelages historiques restent disponibles pour compatibilité et retour arrière.</p><a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Gérer dans LINK ↗</a>')+
+      panel('Paramètres des applications','Réglages métier et accès historiques conservés pendant la migration.','link',
       '<div class="nx-set-app-list">'+
-      link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Jumelé':'Non jumelé')+
-      link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Jumelé':'Non jumelé')+
-      link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Jumelé':'Non jumelé')+
-      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Jumelé':'Non jumelé')+
-      '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Seules les informations autorisées transitent par Nexus LINK.</p>')+
+      link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Jumelage historique':'À vérifier dans LINK')+
+      link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Jumelage historique':'À vérifier dans LINK')+
+      link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Jumelage historique':'À vérifier dans LINK')+
+      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Jumelage historique':'À vérifier dans LINK')+
+      '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Les échanges chiffrés sont pilotés par LINK. Les anciennes commandes restent disponibles en secours.</p>')+
       panel('Automatisations','Décide ce qui est reçu ou inscrit au Budget.','refresh',
         '<div class="nx-set-app-list">'+link('Connect 2.0','Réception et inscriptions budgétaires autorisées','sliders','apps-automation')+'</div>')+'</div>';
   }
@@ -110,7 +112,7 @@
       option('Face ID / passkeys','Configurer la protection de l’interface et ses méthodes de connexion.','passkey-settings','Configurer','sliders'))+
       panel('Confidentialité','Ce qui reste sur ton appareil.','info',
       '<div class="info-strip">'+ico('shield')+' Les données locales IndexedDB ne sont pas chiffrées au repos. Une passkey protège l’accès à l’interface, pas le stockage local. Les sauvegardes envoyées au coffre sont chiffrées côté appareil.</div>'+
-      '<p class="pref-hint">Ne partage jamais un code de jumelage ni une clé de récupération. Gère chaque autorisation dans Applications connectées.</p>')+'</div>';
+      '<p class="pref-hint">Ne partage jamais un code de jumelage ni une clé de récupération. Gère les autorisations inter-applications dans LINK.</p>')+'</div>';
   }
   function dataPage(){
     const trash=window.NexusRecycle?.counts?.().items||0;
