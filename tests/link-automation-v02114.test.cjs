@@ -29,7 +29,7 @@ test('Nexus automation assets are cache-versioned together',()=>{
  assert.match(html,/rituel-import\.js\?v=0194/);
  assert.match(html,/vestiaire-v021\.js\?v=0214/);
  assert.match(html,/nexus-sante\.js\?v=02130/);
- assert.match(sw,/nexus-v0\.21\.14\.6/);
+ assert.match(sw,/nexus-v0\.21\.14\.7/);
  for(const asset of ['app.js?v=02127','link-import.js?v=02121','rituel-import.js?v=0194','vestiaire-v021.js?v=0214','nexus-sante.js?v=02130'])
   assert.ok(sw.includes(asset),asset);
 });
