@@ -53,6 +53,7 @@
   if(key==='events')window.NexusSanteBridge?.markDeleted?.(record);
   data[key]=data[key].filter(x=>x.id!==id);
   await persist();closeModal();render();
+  if(key==='events')window.NexusTravel?.scheduleAutoGarage?.(id);
   if(notify)toastUndo('Déplacé dans la corbeille.',entry.id);
   return entry.id;
  }
@@ -94,7 +95,9 @@
    }
   }
   data.trash=data.trash.filter(x=>x.id!==id);
-  await persist();closeModal();render();toast(items.length>1?items.length+' éléments restaurés.':'Élément restauré.');
+  await persist();closeModal();render();
+  if(items.some(x=>x.key==='events'))window.NexusTravel?.scheduleAutoGarage?.("*");
+  toast(items.length>1?items.length+' éléments restaurés.':'Élément restauré.');
   return true;
  }
  const dateLabel=date=>{try{return new Date(date).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}catch{return '';}};

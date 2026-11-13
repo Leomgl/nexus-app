@@ -209,7 +209,7 @@ test('UI and offline cache agree on version 0.21.14',()=>{
  assert.match(html,/budget-v020\.js\?v=02110/);
  assert.match(html,/budget-v020\.css\?v=02110/);
  assert.match(sw,/budget-v020\.js\?v=02110/);
- assert.match(sw,/recycle\.js\?v=02111/);
+ assert.match(sw,/recycle\.js\?v=02124/);
  assert.match(app,/savingsGoals:\[\]/);
  assert.match(html,/vestiaire-v021\.js\?v=0214/);
  assert.match(html,/vestiaire-v021\.css\?v=0210/);
