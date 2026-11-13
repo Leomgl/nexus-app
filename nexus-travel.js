@@ -139,7 +139,7 @@ async function createGarage(){
   if(interactive&&!confirm((deleted?"Annuler la proposition Garage de ce séjour ?":
    "Transmettre ce séjour à Garage via LINK ? Le déplacement d’objets restera manuel.")))
    return {status:"cancelled"};
-  const cancelledAt=String(prev?.sentAt||"").slice(0,10);
+  const cancelledAt=String(prev?.cancelledAt||prev?.sentAt||"").slice(0,10);
   const stamp=/^\d{4}-\d{2}-\d{2}$/.test(cancelledAt)?cancelledAt:"2000-01-01";
   const payload=deleted?{type:"nexus.travel.v1",destination:"garage",eventId:short(id,100),
    title:"Séjour annulé",startDate:stamp,endDate:stamp,nights:0,deleted:true}:hubGaragePayload(e,d);
@@ -154,7 +154,7 @@ async function createGarage(){
    contractId:"nexus-garage",scope:"trip_context",entityId:"nexus-garage-trip:"+id,
    revision,payload,schemaVersion:"nexus.travel.v1"});
   if(result.accepted){
-   const entry={eventId:id,revision,fingerprint:digest,sentAt:new Date().toISOString()};
+   const entry={eventId:id,revision,fingerprint:digest,sentAt:new Date().toISOString(),...(deleted?{cancelledAt:stamp}:{})};
    data().travelGarageHubOutbox=prev?history.map(x=>x===prev?entry:x):[...history,entry];
    await api.persist();
    if(interactive)api.toast("Séjour chiffré transmis via LINK.");
