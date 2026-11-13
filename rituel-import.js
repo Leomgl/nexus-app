@@ -130,7 +130,7 @@
  }
  function initHubAuto(){
   if(hubLifecycleBound)return;hubLifecycleBound=true;
-  if(typeof window==="undefined"||typeof document==="undefined")return;
+  if(typeof window==="undefined"||typeof document==="undefined"||typeof window.addEventListener!=="function"||typeof document.addEventListener!=="function")return;
   window.addEventListener("online",()=>scheduleHubReceive(true));
   window.addEventListener("focus",()=>scheduleHubReceive(false));
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleHubReceive(false)});
