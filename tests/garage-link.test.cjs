@@ -22,7 +22,7 @@ test('Nexus sends Garage trips independently of Rituel',()=>{
  assert.match(s,/createPair\('garage',\['trip_context'\]\)/);
  assert.match(s,/destination:'garage'/);
  assert.match(s,/destination:'rituel'/);
- assert.match(s,/data-action="nexus-trip-send-garage"/);
+ assert.match(s,/data-action="nexus-trip-hub-garage"/);
  assert.match(s,/garageOutbox/);
  assert.match(app,/travelGarageOutbox:\[\]/);
  assert.match(read('link-core.js'),/'garage'/);
