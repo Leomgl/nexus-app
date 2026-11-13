@@ -75,6 +75,43 @@
    return {received,invalid,acked};
   }finally{working=false}
  }
+ async function ingestHubEnvelope(message){
+  const pair=connection();
+  if(!pair||!api||!valid(message,pair))throw Error("PROPOSITION_RITUEL_NON_VERIFIÉE");
+  const original=list().slice();
+  const existing=original.find(x=>x.pairId===pair.id&&x.sourceKey===message.sourceKey);
+  if(existing&&existing.revision===message.revision&&
+    JSON.stringify(existing.payload)!==JSON.stringify(message.payload))
+   throw Error("CONFLIT_DE_RÉVISION_RITUEL");
+  if(!existing||message.revision>existing.revision){
+   const now=new Date().toISOString();
+   const next=existing?original.map(x=>x===existing?{...existing,revision:message.revision,
+    payload:message.payload,scope:message.scope,status:"pending",updatedAt:now}:x):
+    [...original,{id:api.uid(),pairId:pair.id,sourceKey:message.sourceKey,revision:message.revision,
+    scope:message.scope,payload:message.payload,status:"pending",createdAt:now,updatedAt:now,
+    targetId:"",targetKind:""}];
+   api.state().linkInbox=next;
+   try{await persistVerified()}
+   catch(e){api.state().linkInbox=original;throw e}
+  }else if(!(await api.verify()))throw Error("SAUVEGARDE_EXISTANTE_NON_VERIFIÉE");
+  return {durable:true,status:"persisted"};
+ }
+ async function receiveHub(){
+  const pair=connection();
+  if(!pair)throw Error("Liaison Rituel/Nexus absente");
+  if(!window.LinkHubBus)throw Error("MODULE_LINK_INDISPONIBLE");
+  const result=await window.LinkHubBus.receive({pair,from:"rituel",contractId:"rituel-nexus",
+   scopes:pair.scopes.filter(x=>Object.keys(mapping).includes(x)),
+   persist:async opened=>{
+    const sourceKey=await window.NexusLinkCore.sourceKey(pair,opened.entityId);
+    return ingestHubEnvelope({...opened,sourceKey});
+   },limit:30});
+  if(result.acknowledged>0)(api.safeRender||api.render)?.();
+  api.toast(result.acknowledged+" proposition(s) Rituel confirmée(s) via LINK, "+result.failed+" à réessayer.");
+  if(result.failed>0)throw Error("Réception partielle : messages non accusés, nouvelle tentative possible");
+  panel();
+  return result;
+ }
  async function pull(){
   try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
   catch(e){api.toast('Réception RITUEL : '+e.message.slice(0,80))}
@@ -92,7 +129,8 @@
    <div class="info-strip">RITUEL chiffre les propositions. Rien n’est ajouté aux modules NEXUS sans ta validation. Une modification provenant de RITUEL sera examinée comme une nouvelle révision.</div>
    <div class="nx-gaming-stats"><div><strong>${totals.pending}</strong><small>À examiner</small></div>
     <div><strong>${totals.accepted}</strong><small>Acceptées</small></div><div><strong>${totals.rejected}</strong><small>Ignorées</small></div></div>
-   <div class="form-actions"><button class="btn" data-action="rituel-pull">Recevoir depuis RITUEL</button>
+   <div class="form-actions"><button class="btn" data-action="rituel-pull">Ancien relais</button>
+    <button class="btn" data-action="rituel-hub-pull">Recevoir via LINK</button>
     <button class="btn btn-neutral" data-action="rituel-show-code">Code de jumelage</button></div>
    <div class="nx-gaming-proposals">${mine.length?mine.map(x=>`<div class="nx-gaming-proposal">
     <div class="nx-gaming-proposal-head"><strong>${esc(x.payload.title)}</strong><span class="nx-proposal-state">${x.status==='pending'?'À examiner':x.status==='accepted'?'Acceptée':'Ignorée'}</span></div>
@@ -199,10 +237,11 @@
  function act(kind,button){
   if(kind==='rituel-proposals'){panel();return true}
   if(kind==='rituel-pull'){pull();return true}
+  if(kind==='rituel-hub-pull'){receiveHub().catch(e=>api.toast("LINK : "+e.message.slice(0,90)));return true}
   if(kind==='rituel-review'){review(button.dataset.id);return true}
   if(kind==='rituel-reject'){reject(button.dataset.id);return true}
   return false;
  }
  function attach(model){api=model}
- window.NexusRituelImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters});
+ window.NexusRituelImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,receiveHub,ingestHubEnvelope});
 })();
