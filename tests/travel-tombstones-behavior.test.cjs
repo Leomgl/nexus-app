@@ -28,7 +28,12 @@ async function harness(){
  async function tick(expected){
   for(let round=0;round<35;round++){
    while(timers.length){await timers.shift()()}
-   if(sent.length>=expected)return;
+   if(sent.length>=expected){
+    // Publishing the envelope precedes the durable local ledger write.
+    // Do not advance the fictitious user clock before the async commit ends.
+    for(let i=0;i<4;i++)await new Promise(resolve=>setImmediate(resolve));
+    return;
+   }
    await new Promise(resolve=>setImmediate(resolve));
   }
   throw Error('Missing publication '+expected+'; actual '+sent.length);
