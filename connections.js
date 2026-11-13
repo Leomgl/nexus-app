@@ -62,7 +62,7 @@
   const linked=ownPairs(id).length>0;
   modal('Connexion · '+app.name,
    '<div class="nx-link-modal"><p class="muted-note">'+
-   (linked?'Connexion chiffrée active. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle cette application à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
+   (linked?'Clé chiffrée locale configurée. Les permissions sont fixées au jumelage : pour les modifier, révoque la connexion puis jumelle cette application à nouveau.':'Choisis les flux à autoriser. Les propositions seront à valider individuellement dans NEXUS.')+'</p>'+
    '<div class="nx-link-scopes">'+app.scopes.map(([key,label,destination])=>
      '<label class="nx-link-scope"><input type="checkbox" data-connector-scope="'+key+
      '" data-connector-app="'+app.id+'" '+(linked?'disabled ':'')+((linked?ownPairs(id)[0].scopes.includes(key):cfg.grants[id][key])?'checked':'')+'>'+
@@ -87,11 +87,11 @@
  function pairingPanel(pair){
   const code=window.NexusLinkCore.invitation(pair);
   modal('Code de jumelage '+(pair.sourceApp==='rituel'?'RITUEL':'Gaming'),`<div class="nx-link-modal">
-   <p class="muted-note">Code privé à usage personnel : copie-le dans l’app correspondante → Réglages → NEXUS LINK. Ne le communique pas dans un chat : il donne accès à cette connexion chiffrée.</p>
+   <p class="muted-note">Clé E2EE générée sur cet appareil : copie-la dans l’app correspondante → Réglages → LINK. Ne le communique pas dans un chat : il donne accès à cette connexion chiffrée.</p>
    <div class="field"><label for="nx-link-code">Code de jumelage</label>
    <textarea id="nx-link-code" rows="5" readonly style="width:100%;overflow-wrap:anywhere;word-break:break-all">${escape(code)}</textarea></div>
    <div class="form-actions"><button class="btn btn-neutral" data-action="link-copy" data-app="${escape(pair.sourceApp)}">Copier le code</button><button class="btn btn-ghost" data-action="link-revoke" data-id="${escape(pair.id)}">Révoquer</button>
-   <button class="btn" data-action="link-inbox" data-app="${escape(pair.sourceApp)}">Messages reçus</button></div></div>`);
+   </div></div>`);
  }
  async function createPairing(appId='gaming'){
   const core=window.NexusLinkCore;
