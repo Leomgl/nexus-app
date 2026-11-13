@@ -6,7 +6,7 @@ const path=require("node:path");
 const src=name=>fs.readFileSync(path.join(__dirname,"..",name),"utf8");
 test("Nexus LINK hub script is dormant until user operates existing LINK screen",()=>{
  let queries=0,requests=0;
- const globals={window:{},navigator:{},console,
+ const globals={window:{},navigator:{},console,TextEncoder,TextDecoder,
   indexedDB:{open(){queries++;throw Error("UNEXPECTED_DB")}},
   fetch(){requests++;throw Error("UNEXPECTED_NETWORK")}};
  vm.runInNewContext(src("link-hub-adapter.js"),globals);
