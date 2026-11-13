@@ -16,5 +16,5 @@ test("medical doses and calendar are separate scoped manual actions",()=>{
  assert.match(src,/nexus\.calendar\.v1/);
  assert.match(src,/return \{durable:true,status:"persisted"\}/);
  assert.match(read("index.html"),/nexus-sante\.js\?v=02112/);
- assert.match(read("sw.js"),/nexus-v0\.21\.12\.12/);
+ assert.match(read("sw.js"),/nexus-v0\.21\.13\.1/);
 });
