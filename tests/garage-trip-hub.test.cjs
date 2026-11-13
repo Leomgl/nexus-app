@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const src=n=>fs.readFileSync(path.join(__dirname,'..',n),'utf8');
 
-test('Nexus automatise les voyages autorisés vers Garage via LINK sans perdre le fallback manuel',()=>{
+test('Nexus automatise les voyages autorisés vers Garage via LINK sans aucun relais historique',()=>{
  const s=src('nexus-travel.js'),app=src('app.js');
  assert.match(s,/async function publishHubGarage\(/);
  assert.match(s,/function scheduleAutoGarage\(/);
@@ -19,6 +19,8 @@ test('Nexus automatise les voyages autorisés vers Garage via LINK sans perdre l
  assert.match(s,/destination:"garage"/);
  assert.match(s,/travelGarageHubOutbox/);
  assert.match(s,/nexus-trip-hub-garage/);
+ assert.doesNotMatch(s,/data-action="nexus-trip-send-garage"/);
+ assert.match(s,/contractId:"nexus-rituel"/);
  assert.match(app,/scheduleAutoGarage\?\.\(base\.id\)/);
  assert.match(app,/initAutoGarage\?\.\(\)/);
  assert.match(app,/La préparation d’un ensemble reste manuelle/);
