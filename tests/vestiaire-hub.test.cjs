@@ -12,6 +12,6 @@ test('Nexus accepts authenticated encrypted Vestiaire pages only after validated
  assert.match(s,/if\(!skipAck\)await CORE\(\)\.acknowledge/);
  assert.match(s,/contractId:"vestiaire-nexus"/);
  assert.match(s,/vestiaire-hub-receive/);
- assert.match(source('sw.js'),/nexus-v0\.21\.14\.6/);
+ assert.match(source('sw.js'),/nexus-v0\.21\.14\.7/);
  assert.match(source('index.html'),/vestiaire-v021\.js\?v=0214/);
 });
