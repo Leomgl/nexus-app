@@ -119,16 +119,26 @@ async function createGarage(){
   }catch(e){api.toast('Garage : envoi impossible : '+short(e.message,90));}
   finally{busy=false;}
  }
- async function sendHubGarage(id){
-  const p=pairGarage(),e=data().events?.find(x=>x.id===id),d=range(e);
-  if(!p||!d||d.end<today())throw Error("Séjour ou jumelage Garage indisponible.");
-  if(!window.LinkHubBus)throw Error("Module LINK indisponible.");
-  if(!confirm("Transmettre ce séjour à Garage via LINK ? Le déplacement d’objets restera manuel."))return;
-  const payload={type:"nexus.travel.v1",destination:"garage",eventId:short(e.id,100),
+ let hubAutoTimer=null,hubAutoBusy=false,hubLifecycleBound=false;
+ const hubAutoQueue=new Set();
+ function hubGaragePayload(e,d){
+  return {type:"nexus.travel.v1",destination:"garage",eventId:short(e.id,100),
    title:short(e.title,100),startDate:d.start,endDate:d.end,nights:d.nights};
+ }
+ async function publishHubGarage(id,{interactive=false}={}){
+  const p=pairGarage(),e=data().events?.find(x=>x.id===id),d=range(e);
+  if(!p||!d||d.end<today())return {status:"unavailable"};
+  if(!window.LinkHubBus)return {status:"unavailable"};
+  if(!navigator.onLine)return {status:"deferred"};
+  if(interactive&&!confirm("Transmettre ce séjour à Garage via LINK ? Le déplacement d’objets restera manuel."))
+   return {status:"cancelled"};
+  const payload=hubGaragePayload(e,d);
   const digest=await fingerprint(payload),history=data().travelGarageHubOutbox||[],
    old=garageOutbox().find(x=>x.eventId===e.id),prev=history.find(x=>x.eventId===e.id);
-  if(prev?.fingerprint===digest){api.toast("Séjour déjà transmis via LINK sans modification.");return}
+  if(prev?.fingerprint===digest){
+   if(interactive)api.toast("Séjour déjà transmis via LINK sans modification.");
+   return {status:"unchanged",revision:prev.revision};
+  }
   const base=old?(old.fingerprint===digest?old.revision:old.revision+1):1;
   const revision=Math.min(prev?Math.max(base,prev.revision+1):base,1000000);
   const result=await window.LinkHubBus.publish({pair:p,from:"nexus",to:"garage",
@@ -137,8 +147,44 @@ async function createGarage(){
   if(result.accepted){
    const entry={eventId:e.id,revision,fingerprint:digest,sentAt:new Date().toISOString()};
    data().travelGarageHubOutbox=prev?history.map(x=>x===prev?entry:x):[...history,entry];
-   await api.persist();api.toast("Séjour chiffré transmis via LINK. Garage doit le recevoir et le confirmer.");
+   await api.persist();
+   if(interactive)api.toast("Séjour chiffré transmis via LINK.");
+   return {status:"sent",revision};
   }
+  return {status:"not-accepted"};
+ }
+ async function flushAutoGarage(){
+  if(hubAutoBusy||!navigator.onLine)return;
+  if(!pairGarage()||!window.LinkHubBus)return;
+  hubAutoBusy=true;
+  try{
+   const requested=[...hubAutoQueue];hubAutoQueue.clear();
+   const ids=requested.includes("*")?upcoming().map(e=>e.id):requested;
+   for(const id of [...new Set(ids)].slice(0,30)){
+    try{await publishHubGarage(id,{interactive:false});}
+    catch(error){
+     hubAutoQueue.add(id);
+     console.warn("NEXUS LINK : synchronisation Garage différée",error?.message||error);
+    }
+   }
+  }finally{hubAutoBusy=false;}
+ }
+ function scheduleAutoGarage(id="*"){
+  if(id)hubAutoQueue.add(id);
+  clearTimeout(hubAutoTimer);
+  hubAutoTimer=setTimeout(()=>void flushAutoGarage(),700);
+ }
+ function initAutoGarage(){
+  if(!hubLifecycleBound){
+   hubLifecycleBound=true;
+   window.addEventListener("online",()=>scheduleAutoGarage("*"));
+   window.addEventListener("focus",()=>scheduleAutoGarage("*"));
+   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")scheduleAutoGarage("*");});
+  }
+  scheduleAutoGarage("*");
+ }
+ async function sendHubGarage(id){
+  return publishHubGarage(id,{interactive:true});
  }
  async function revokeGarage(){
   const p=pairGarage();if(!p||!confirm('Révoquer uniquement les voyages Garage ?'))return;
@@ -162,5 +208,5 @@ async function createGarage(){
   else if(kind==='nexus-trip-revoke-garage')revokeGarage();
   return true;
  }
- window.NexusTravel=Object.freeze({attach:ctx=>{api=ctx},settingsCard,act,range,eligible:upcoming});
+ window.NexusTravel=Object.freeze({attach:ctx=>{api=ctx},settingsCard,act,range,eligible:upcoming,scheduleAutoGarage,initAutoGarage});
 })();
