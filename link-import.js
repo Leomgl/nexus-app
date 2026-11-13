@@ -96,6 +96,35 @@
    return {received,invalid,acked};
   }finally{working=false}
  }
+ // LINK Hub pilot: decrypted + authenticated Gaming message from the shared
+ // envelope adapter. Keeps existing validation, local dedupe and approval UI.
+ // Never ACK an event to LINK before the Nexus encrypted backup is durable.
+ async function ingestHubEnvelope(message){
+  const pair=connection();
+  if(!pair||!api)throw Error('Jumelage NEXUS Gaming absent.');
+  if(!valid(message,pair))throw Error('HUB_PROPOSAL_REJECTED');
+  const records=list();
+  const existing=records.find(x=>x.pairId===pair.id&&x.sourceKey===message.sourceKey);
+  if(existing&&message.revision===existing.revision&&
+     JSON.stringify(existing.payload)!==JSON.stringify(message.payload))
+   throw Error('HUB_REVISION_CONFLICT');
+  if(!existing){
+   records.push({id:api.uid(),pairId:pair.id,sourceKey:message.sourceKey,
+    revision:message.revision,scope:message.scope,payload:message.payload,
+    status:'pending',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),
+    targetId:'',targetKind:''});
+   await persistVerified();
+  }else if(message.revision>existing.revision){
+   existing.revision=message.revision;existing.scope=message.scope;
+   existing.payload=message.payload;existing.status='pending';
+   existing.updatedAt=new Date().toISOString();
+   await persistVerified();
+  }else{
+   // Existing revision has already been stored: verify before ACK replay.
+   if(!(await api.verify()))throw Error('HUB_LOCAL_STORAGE_UNVERIFIED');
+  }
+  return {durable:true,status:'persisted'};
+ }
  async function pull(){
   try{const stats=await synchronize();api.toast(stats.received+' proposition(s) reçue(s).');panel()}
   catch(e){api.toast('Réception Gaming : '+e.message.slice(0,80))}
@@ -210,7 +239,13 @@
     <div class="form-actions"><button class="btn btn-soft btn-small" data-action="link-review" data-id="${esc(x.id)}">${x.status==='pending'?'Examiner':'Voir / réexaminer'}</button></div>
    </div>`).join(''):'<p class="muted-note">Aucune proposition pour le moment. Lance l’envoi depuis Gaming, puis appuie sur « Recevoir ».</p>'}</div>
    <p class="muted-note">Les propositions acceptées restent tracées dans ta sauvegarde chiffrée. Les éléments créés restent indépendants et peuvent être modifiés normalement dans NEXUS.</p>
+   <div id="nexus-link-hub-controls"></div>
    </div>`);
+  window.LinkHubAdapter?.attach?.({
+   pair:()=>connection(),ingest:ingestHubEnvelope,
+   onReceived:()=>panel()
+  });
+  window.LinkHubAdapter?.mount?.(document.getElementById('nexus-link-hub-controls'));
  }
  function review(id){
   const item=list().find(x=>x.id===id);if(!item)return;
@@ -317,5 +352,5 @@
   return false;
  }
  function attach(model){api=model}
- window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe,auditSnapshot,auditPanel});
+ window.NexusGamingImport=Object.freeze({attach,synchronize,panel,review,approve,act,valid,counters,observation,observe,auditSnapshot,auditPanel,ingestHubEnvelope});
 })();
