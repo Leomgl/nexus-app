@@ -22,7 +22,7 @@ async function harness(){
    LinkHubBus:{publish:async message=>{sent.push(structuredClone(message));return {accepted:true}}}
   }
  };
- vm.createContext(context);vm.runInContext(source,context);
+ vm.createContext(context);vm.runInContext(source.replace(/\}\)\(\);\s*$/, 'window.__debugTravel=()=>({busy:hubAutoBusy,queue:[...hubAutoQueue],inflight:hubRequestDuringFlight});})();'),context);
  context.window.NexusTravel.attach({state:()=>data,persist:async()=>{},render:()=>{},
    toast:()=>{},modal:()=>{},escape:x=>x});
  async function tick(expected){
@@ -36,7 +36,7 @@ async function harness(){
    }
    await new Promise(resolve=>setImmediate(resolve));
   }
-  throw Error('Missing publication '+expected+'; actual '+sent.length);
+  throw Error('Missing publication '+expected+'; actual '+sent.length+'; state '+JSON.stringify(context.window.__debugTravel())+'; ledger '+JSON.stringify(data.travelGarageHubOutbox));
  }
  function flush(id='*'){context.window.NexusTravel.scheduleAutoGarage(id)}
  return {data,sent,flush,tick,ctx:context};
