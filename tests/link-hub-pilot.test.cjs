@@ -24,7 +24,7 @@ test("Nexus hub route only integrates after verified local save and explicit use
  assert.match(importer,/status:'pending'/);
  assert.match(importer,/LinkHubAdapter\?\.mount/);
  assert.match(html,/link-hub-adapter\.js\?v=02122/);
- assert.match(sw,/nexus-v0\.21\.12\.9/);
+ assert.match(sw,/nexus-v0\.21\.12\.10/);
  assert.match(sw,/link-hub-adapter\.js\?v=02122/);
  assert.match(html,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev/);
 });
