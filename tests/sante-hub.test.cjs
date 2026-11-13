@@ -19,5 +19,5 @@ test("medical scopes keep explicit consent while LINK automates after opt-in",()
  assert.match(src,/nexus\.calendar\.v1/);
  assert.match(src,/return \{durable:true,status:"persisted"\}/);
  assert.match(read("index.html"),/nexus-sante\.js\?v=02130/);
- assert.match(read("sw.js"),/nexus-v0\.21\.14\.6/);
+ assert.match(read("sw.js"),/nexus-v0\.21\.14\.7/);
 });
