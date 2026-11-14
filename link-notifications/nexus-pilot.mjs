@@ -133,20 +133,16 @@ async function configureStagingCredential(value){
 async function forgetStagingCredential(){
  await write("stagingCredential",null);
 }
-async function transmit(key,target){
+async function deliverDelta(key,target){
  const old=await read(key)||emptyEntityNotificationState();
  const planned=await planEntityNotifications({
   secret:await secret(),appId:"nexus",entityId:target.entityId,
   schedule:target.schedule,eventAt:target.eventAt,
   category:target.category,previous:old
  });
- // Persist epochs before any network request, also for zero-delta changes.
  let state=planned.state;
- await write(key,state);
- if(!planned.changes.length){
-  await write("pending:"+key,null);
-  return {status:"unchanged",writes:0};
- }
+ await write(key,state); // persist epochs BEFORE any request
+ if(!planned.changes.length)return {status:"unchanged",writes:0};
  const token=await credential();
  if(!token)return {status:"local-only",pending:planned.changes.length};
  const client=createLinkNotificationClient({
@@ -156,8 +152,24 @@ async function transmit(key,target){
   state=applyEntityNotificationAck(state,change);
   await write(key,state);
  }});
- await write("pending:"+key,null);
  return {status:"synced",writes:planned.changes.length};
+}
+async function transmit(key,target){
+ let next=target;
+ if(next.resetFirst){
+  // A previous cancellation might have succeeded server-side while its
+  // ACK was lost. Finish/ACK that cancellation BEFORE restoring an item;
+  // otherwise the identical old ID may remain terminal on LINK.
+  const reset=await deliverDelta(key,{
+   ...next,schedule:emptyNotificationSchedule(),resetFirst:false
+  });
+  if(reset.status==="local-only")return {status:"local-only",phase:"cancel-first"};
+  next={...next,resetFirst:false};
+  await write("pending:"+key,next);
+ }
+ const result=await deliverDelta(key,next);
+ if(result.status!=="local-only")await write("pending:"+key,null);
+ return result;
 }
 async function sync(item,kind,{removed=false}={}){
  if(!pilot())return {status:"disabled"};
@@ -165,12 +177,17 @@ async function sync(item,kind,{removed=false}={}){
  const key=idOf(item,kind);
  return serial(key,async()=>{
   const raw=removed?emptyNotificationSchedule():enabledSchedule(item,kind);
+  const schedule=kind==="task"&&item.done?{...raw,enabled:false}:raw;
+  const previousPending=await read("pending:"+key);
   const target={
    entityId:item.id,
    kind,
-   schedule:kind==="task"&&item.done?{...raw,enabled:false}:raw,
+   schedule,
    eventAt:eventAt(item,kind),
-   category:kind==="event"?"appointment":"reminder"
+   category:kind==="event"?"appointment":"reminder",
+   resetFirst:schedule.enabled===true&&(
+    previousPending?.resetFirst===true||
+    previousPending?.schedule?.enabled===false)
   };
   // A private local outbox records the most recent desired state, not a
   // business title, content, or push subscription. It is retried only on
