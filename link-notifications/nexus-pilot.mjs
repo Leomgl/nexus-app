@@ -164,7 +164,29 @@ async function resumeInflight(key){
  });
  let state=await read(key)||emptyEntityNotificationState();
  for(let i=outstanding.index;i<outstanding.changes.length;i++){
-  const change=outstanding.changes[i];
+  let change=outstanding.changes[i];
+  // A lost HTTP ACK can strand an older upsert in the durable outbox.
+  // After its delivery window has passed, replaying that upsert would now
+  // be rejected by LINK (INTENT_OUT_OF_WINDOW) on EVERY reconnection and
+  // prevent the cancellation/next version behind it from proceeding.
+  //
+  // Instead, replace the command DURABLY with a higher-revision cancel.
+  // This works whether LINK originally saw the upsert (cancel existing)
+  // or never saw it (server creates a tombstone). Never send stale pushes.
+  if(change.operation==="upsert"&&
+     Date.parse(change.item.dueAt)<Date.now()-5*60*1000){
+   if(change.item.revision>=1000000)throw Error("REVISION_EXHAUSTED");
+   const revision=change.item.revision+1;
+   change={
+    operation:"cancel",item:{id:change.item.id,revision},
+    journalEntry:{...change.journalEntry,revision,status:"cancelled"}
+   };
+   outstanding={
+    ...outstanding,
+    changes:outstanding.changes.map((entry,n)=>n===i?change:entry)
+   };
+   await write("inflight:"+key,outstanding);
+  }
   await client.submit(change);
   // A successful server write and a lost client ACK are both retried with
   // the same opaque ID/revision. The server is idempotent.
