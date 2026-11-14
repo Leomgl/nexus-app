@@ -13,7 +13,7 @@ L'adaptateur \`link-notifications/nexus-pilot.mjs\` :
 - Conserve **seulement** un secret HMAC, le journal de livraison et une file de changements à rejouer dans une IndexedDB locale séparée \`nexus-link-notifications-pilot-v1\`.
 - Ne transmet à LINK que \`id\` opaque HMAC, \`dueAt\`, \`category\`, \`revision\`, \`operation\`. Les titres, lieux, personnes, notes, montants et autres données métier restent dans Nexus.
 - Cible **l'élément modifié**, jamais une reconstruction de toutes les notifications. Sans changement, 0 appel au serveur et 0 écriture D1.
-- Persiste l'identifiant de chaque règle avant toute requête réseau. Les ACK sont écrits individuellement après validation serveur ; le reste se retente sans inventer de nouveaux IDs.
+- Persiste l'identifiant de chaque règle **et la commande exacte** dans une outbox `inflight:` AVANT toute requête. Les ACK sont écrits individuellement après validation serveur ; si la réponse HTTP est perdue après un succès serveur, le même ID + la même révision sont rejoués sans doublon. Une suppression/restauration attend d'abord la résolution des commandes précédentes.
 - Enregistre les changements non acquittés dans une file d'attente locale. Un événement \`online\`, une remise au premier plan ou un nouveau changement les retente, **sans intervalle ni polling Cloudflare**.
 - Annule l'intention quand l'élément est supprimé ou la tâche terminée. Une restauration ou réactivation renouvelle l'époque de la règle après l'ACK d'annulation, car l'identifiant antérieur est terminal.
 - Reste *local-only* tant qu'aucun client staging autorisé n'a été enrôlé. Ne récupère JAMAIS le token Hub de production.
@@ -49,6 +49,7 @@ Il serait donc incorrect d'annoncer que Nexus peut déjà déclencher automatiqu
 Le workflow GitHub Actions \`.github/workflows/link-notifications-pilot.yml\` exécute sous Node 22 :
 - Analyse syntaxique Nexus \`app.js\` et tous les modules de pilotage ;
 - Tests du sélecteur, des règles J/H/min/date fixe, UTC/DST, des identifiants HMAC, des révisions et du SDK sans réseau.
+- Test d'intégration **mock du réseau et d'IndexedDB** `tests/link-notification-pilot-outbox.test.mjs` : un upsert appliqué côté serveur mais sans ACK côté client, retry identique, suppression, restauration sous nouvel ID et 100 sauvegardes inchangées sans nouvel appel. Cette preuve est **simulée**, elle ne remplace pas le test iPhone.
 
 Références :
 - [Nexus PR #24](https://github.com/Leomgl/nexus-app/pull/24)
