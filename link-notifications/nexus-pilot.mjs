@@ -15,12 +15,25 @@ import {
  planEntityNotifications,applyEntityNotificationAck
 } from "./notification-entity-bridge.mjs";
 
-const PILOT_QUERY="linkNotificationsPilot";
+const PILOT_QUERY="linkNotificationsPilot",LIVE_QUERY="linkNotificationsLive";
 const STAGING="https://link-notifications-staging.q9pfwtztsc.workers.dev";
-const STORE="nexus-link-notifications-pilot-v1";
+const LIVE="https://link-app.q9pfwtztsc.workers.dev";
+const mode=()=>{
+ const url=new URL(location.href);
+ if(url.searchParams.get(PILOT_QUERY)==="1"&&
+    url.origin==="https://nexus-link-notifications-test.pages.dev")return "staging";
+ if(url.searchParams.get(LIVE_QUERY)==="1"&&
+    url.origin==="https://leomgl.github.io"&&
+    url.pathname.startsWith("/nexus-app/"))return "live";
+ return null;
+};
+const MODE=mode();
+const STORE=MODE==="live"?"nexus-link-notifications-live-canary-v1":
+ "nexus-link-notifications-pilot-v1";
+const ENDPOINT=MODE==="live"?LIVE:STAGING;
 const DB_TABLE="kv";
 const queues=new Map();
-const pilot=()=>new URL(location.href).searchParams.get(PILOT_QUERY)==="1";
+const pilot=()=>MODE!==null;
 const idOf=(item,kind)=>"entity:"+kind+":"+item.id;
 const localIso=(date,time)=>{
  if(!date||!time)return null;
@@ -43,7 +56,9 @@ const enabledSchedule=(item,kind)=>{
   try{return validateNotificationSchedule(item.linkNotificationSchedule)}
   catch(err){console.warn("LINK pilot: invalid saved schedule",err);return emptyNotificationSchedule()}
  }
- if(kind!=="event")return emptyNotificationSchedule();
+ // Never silently migrate historic live Nexus reminders into the canary:
+ // only notifications explicitly selected by the user are published.
+ if(MODE==="live"||kind!=="event")return emptyNotificationSchedule();
  const mins=Array.isArray(item.reminderMinutes)?item.reminderMinutes:[60];
  const unique=[...new Set(mins.filter(n=>Number.isInteger(n)&&n>0&&n<=129600))].slice(0,5);
  return {
@@ -117,11 +132,27 @@ function serial(key,callback){
  return next;
 }
 async function credential(){
+ if(MODE!=="staging")return null;
  const value=await read("stagingCredential");
  return typeof value==="string"&&/^[a-f0-9]{64}$/i.test(value)?value:null;
 }
+async function linked(){
+ if(MODE==="live")return Boolean(await window.LinkHubAdapter?.notificationEnrollmentActive?.());
+ return Boolean(await credential());
+}
+function createClient(token){
+ if(MODE==="live"){
+  if(typeof window.LinkHubAdapter?.notificationCapability!=="function")return null;
+  return createLinkNotificationClient({
+   endpoint:LIVE,capabilityProvider:()=>window.LinkHubAdapter.notificationCapability()
+  });
+ }
+ return createLinkNotificationClient({
+  endpoint:STAGING,credentialProvider:async()=>token
+ });
+}
 async function configureStagingCredential(value){
- if(!pilot())throw Error("LINK_PILOT_DISABLED");
+ if(MODE!=="staging")throw Error("LINK_STAGING_ONLY");
  if(typeof value!=="string"||!/^[a-f0-9]{64}$/i.test(value))
   throw Error("INVALID_LINK_STAGING_CREDENTIAL");
  // A separate staging-only Hub enrollment is REQUIRED. Do not import the
@@ -136,7 +167,7 @@ async function forgetStagingCredential(){
 /** One-use invitation created by LINK Test after owner Face ID. No prod Hub
  * token or independent push permission is needed in Nexus. */
 async function enrollStagingInvitation(value){
- if(!pilot())throw Error("PILOT_DISABLED");
+ if(MODE!=="staging")throw Error("LINK_STAGING_ONLY");
  const invitation=String(value||"").trim().toLowerCase();
  if(!/^[a-f0-9]{64}$/.test(invitation))throw Error("CODE_TEST_INVALIDE");
  const response=await fetch(STAGING+"/api/v2/hub/enroll",{
@@ -157,11 +188,10 @@ async function enrollStagingInvitation(value){
 async function resumeInflight(key){
  let outstanding=await read("inflight:"+key);
  if(!outstanding)return {status:"clear"};
- const token=await credential();
- if(!token)return {status:"local-only",phase:"inflight"};
- const client=createLinkNotificationClient({
-  endpoint:STAGING,credentialProvider:async()=>token
- });
+ const token=MODE==="live"?null:await credential();
+ if(!await linked())return {status:"local-only",phase:"inflight"};
+ const client=createClient(token);
+ if(!client)return {status:"local-only",phase:"adapter"};
  let state=await read(key)||emptyEntityNotificationState();
  for(let i=outstanding.index;i<outstanding.changes.length;i++){
   let change=outstanding.changes[i];
@@ -256,7 +286,7 @@ async function sync(item,kind,{removed=false}={}){
  });
 }
 async function retryPending(){
- if(!pilot()||!await credential())return {retried:0};
+ if(!pilot()||!await linked())return {retried:0};
  let retried=0;
  for(const pendingKey of await pendingKeys()){
   const key=pendingKey.slice("pending:".length);
@@ -296,7 +326,7 @@ function readFromForm(form){
  return picker?validateNotificationSchedule(picker.value):null;
 }
 const adapter=Object.freeze({
- active:pilot,mount,readFromForm,
+ active:pilot,mode:()=>MODE,mount,readFromForm,
  onEntityChanged,onEntityRemoved,
  configureStagingCredential,forgetStagingCredential,enrollStagingInvitation,
  retryEntity:onEntityChanged,retryPending
@@ -315,10 +345,11 @@ document.addEventListener("visibilitychange",()=>{
 function showStagingPilotPanel(){
  if(!pilot()||typeof document.createElement!=="function"||!document.body)return;
  const host=document.createElement("aside");
- host.setAttribute("aria-label","Pilote notifications LINK staging");
+ host.setAttribute("aria-label",MODE==="live"?
+  "Pilote notifications LINK réel":"Pilote notifications LINK staging");
  host.style.cssText="position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 15px);z-index:99999;max-width:min(390px,calc(100vw - 24px));font:14px system-ui,sans-serif;color:#f7f7fb;";
  const toggle=document.createElement("button");
- toggle.textContent="🔗 LINK · Test";
+ toggle.textContent=MODE==="live"?"🔗 LINK · Réel (test)":"🔗 LINK · Test";
  toggle.type="button";
  toggle.style.cssText="font:inherit;color:white;background:#be241d;border:0;border-radius:12px;padding:12px 16px;min-height:44px;font-weight:700;box-shadow:0 5px 25px #0006;";
  host.append(toggle);
@@ -326,9 +357,12 @@ function showStagingPilotPanel(){
  body.hidden=true;
  body.style.cssText="background:#10141f;border:1px solid #3d4251;border-radius:14px;padding:16px;margin-top:8px;box-shadow:0 5px 30px #0008;";
  const heading=document.createElement("strong");
- heading.textContent="Notifications via LINK Test";
+ heading.textContent=MODE==="live"?
+  "Notifications via le vrai LINK":"Notifications via LINK Test";
  const note=document.createElement("p");
- note.textContent="Pilote isolé. Dans LINK Test → Face ID → Raccorder Nexus, crée une invitation valable 15 minutes et colle-la ici.";
+ note.textContent=MODE==="live"?
+  "Canary limité aux rendez-vous/rappels que tu modifies dans ce mode. LINK envoie sur ton iPhone déjà inscrit ; aucun nouvel abonnement Push ni code d’invitation.":
+  "Pilote isolé. Dans LINK Test → Face ID → Raccorder Nexus, crée une invitation valable 15 minutes et colle-la ici.";
  note.style.lineHeight="1.5";
  const label=document.createElement("label");
  label.textContent="Invitation unique de LINK Test";
@@ -344,10 +378,10 @@ function showStagingPilotPanel(){
  status.setAttribute("role","status");
  const refresh=async()=>{
   try{
-   const [known,pending]=await Promise.all([credential(),pendingKeys()]);
+   const [known,pending]=await Promise.all([linked(),pendingKeys()]);
    status.textContent=(known?
-    "Liaison de test inscrite. LINK reste le seul distributeur Web Push.":
-    "Non inscrit : aucune intention n'est envoyée au staging.")+
+    (MODE==="live"?"Connexion Nexus ↔ LINK détectée.":"Liaison de test inscrite. LINK reste le seul distributeur Web Push."):
+    (MODE==="live"?"Connexion Hub Nexus absente. Raccorde d'abord Nexus au LINK réel.":"Non inscrit : aucune intention n'est envoyée au staging."))+
     "\nFile locale : "+pending.length+(pending.length===1?
      " changement en attente.":" changements en attente.")+
     (pending.length>=128?" (au moins 128 ; limite d'affichage)":"");
@@ -385,7 +419,8 @@ function showStagingPilotPanel(){
    status.textContent="LINK staging : "+String(error?.message||"connexion indisponible").slice(0,90);
   }finally{connect.disabled=false}
  });
- body.append(heading,note,label,input,connect,status,retry);
+ if(MODE==="staging")body.append(heading,note,label,input,connect,status,retry);
+ else body.append(heading,note,status,retry);
  host.append(body);document.body.append(host);
 }
 if(typeof document.createElement==="function"&&pilot()){
