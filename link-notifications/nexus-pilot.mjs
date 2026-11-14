@@ -133,37 +133,53 @@ async function configureStagingCredential(value){
 async function forgetStagingCredential(){
  await write("stagingCredential",null);
 }
+async function resumeInflight(key){
+ const outstanding=await read("inflight:"+key);
+ if(!outstanding)return {status:"clear"};
+ const token=await credential();
+ if(!token)return {status:"local-only",phase:"inflight"};
+ const client=createLinkNotificationClient({
+  endpoint:STAGING,credentialProvider:async()=>token
+ });
+ let state=await read(key)||emptyEntityNotificationState();
+ for(let i=outstanding.index;i<outstanding.changes.length;i++){
+  const change=outstanding.changes[i];
+  await client.submit(change);
+  // A successful server write and a lost client ACK are both retried with
+  // the same opaque ID/revision. The server is idempotent.
+  state=applyEntityNotificationAck(state,change);
+  await write(key,state);
+  await write("inflight:"+key,{changes:outstanding.changes,index:i+1});
+ }
+ await write("inflight:"+key,null);
+ return {status:"synced",writes:outstanding.changes.length};
+}
 async function deliverDelta(key,target){
+ // NEVER plan a newer desired state before replaying any unresolved write:
+ // an upsert may have reached LINK even if our local journal missed its ACK.
+ const oldInflight=await resumeInflight(key);
+ if(oldInflight.status==="local-only")return oldInflight;
  const old=await read(key)||emptyEntityNotificationState();
  const planned=await planEntityNotifications({
   secret:await secret(),appId:"nexus",entityId:target.entityId,
   schedule:target.schedule,eventAt:target.eventAt,
   category:target.category,previous:old
  });
- let state=planned.state;
- await write(key,state); // persist epochs BEFORE any request
+ await write(key,planned.state); // persist epochs BEFORE any request
  if(!planned.changes.length)return {status:"unchanged",writes:0};
- const token=await credential();
- if(!token)return {status:"local-only",pending:planned.changes.length};
- const client=createLinkNotificationClient({
-  endpoint:STAGING,credentialProvider:async()=>token
- });
- await client.flush({changes:planned.changes,onAck:async change=>{
-  state=applyEntityNotificationAck(state,change);
-  await write(key,state);
- }});
- return {status:"synced",writes:planned.changes.length};
+ // Crash-safe durable command outbox is written before the first fetch.
+ await write("inflight:"+key,{changes:planned.changes,index:0});
+ return resumeInflight(key);
 }
 async function transmit(key,target){
  let next=target;
  if(next.resetFirst){
-  // A previous cancellation might have succeeded server-side while its
-  // ACK was lost. Finish/ACK that cancellation BEFORE restoring an item;
-  // otherwise the identical old ID may remain terminal on LINK.
+  // A previous cancellation may have reached LINK without local ACK.
+  // Replay it, then finish cancellation before minting fresh IDs.
   const reset=await deliverDelta(key,{
    ...next,schedule:emptyNotificationSchedule(),resetFirst:false
   });
-  if(reset.status==="local-only")return {status:"local-only",phase:"cancel-first"};
+  if(reset.status==="local-only")return reset;
   next={...next,resetFirst:false};
   await write("pending:"+key,next);
  }
