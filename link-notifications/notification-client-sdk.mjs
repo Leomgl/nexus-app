@@ -113,10 +113,14 @@ export function applyAppNotificationAcknowledgement(journal,change){
  * Hub credential against the isolated staging Worker.
  */
 export function createLinkNotificationClient({
- endpoint,credentialProvider,fetchImpl=fetch
+ endpoint,credentialProvider,capabilityProvider,fetchImpl=fetch
 }={}){
- if(!URLS.has(endpoint)||typeof credentialProvider!=="function"||
-    typeof fetchImpl!=="function")throw fail("INVALID_CLIENT_CONFIG");
+ if(!URLS.has(endpoint)||typeof fetchImpl!=="function"||
+    (!credentialProvider&&!capabilityProvider)||
+    (credentialProvider&&typeof credentialProvider!=="function")||
+    (capabilityProvider&&typeof capabilityProvider!=="function")||
+    (capabilityProvider&&endpoint!=="https://link-app.q9pfwtztsc.workers.dev"))
+  throw fail("INVALID_CLIENT_CONFIG");
  let capability=null,expiresAt=0;
  async function request(path,token,body){
   const response=await fetchImpl(endpoint+path,{
@@ -130,10 +134,17 @@ export function createLinkNotificationClient({
  }
  async function getCapability(){
   if(capability&&Date.now()<expiresAt-10000)return capability;
-  const credential=await credentialProvider();
-  if(typeof credential!=="string"||!/^[a-f0-9]{64}$/i.test(credential))
-   throw fail("NOTIFICATION_HUB_NOT_ENROLLED");
-  const value=await request("/api/v2/notifications/capability",credential);
+  let value;
+  if(capabilityProvider){
+   // Live Nexus delegates just the short-lived notification capability to
+   // its existing Hub adapter, never the underlying long-lived Hub token.
+   value=await capabilityProvider();
+  }else{
+   const credential=await credentialProvider();
+   if(typeof credential!=="string"||!/^[a-f0-9]{64}$/i.test(credential))
+    throw fail("NOTIFICATION_HUB_NOT_ENROLLED");
+   value=await request("/api/v2/notifications/capability",credential);
+  }
   if(value.schema!=="link.notification.capability.v1"||
      typeof value.token!=="string"||!Number.isFinite(Date.parse(value.expiresAt)))
    throw fail("INVALID_CAPABILITY_RESPONSE");
