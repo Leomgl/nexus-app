@@ -8,7 +8,7 @@ const original={
  location:globalThis.location,fetch:globalThis.fetch
 };
 const kv=new Map(),trace=[];
-let created=false,loseFirstAck=true;
+let created=false,loseFirstAck=true,offline=false;
 const fakeDB={
  objectStoreNames:{contains:()=>created},
  createObjectStore(){created=true},
@@ -43,6 +43,7 @@ const json=(obj,status=200)=>new Response(JSON.stringify(obj),{
  status,headers:{"content-type":"application/json"}
 });
 globalThis.fetch=async(url,init)=>{
+ if(offline)throw Error("iPhone offline: fetch unavailable");
  if(url.endsWith("/api/v2/notifications/capability")){
   trace.push({operation:"capability"});
   return json({schema:"link.notification.capability.v1",token:"staging-capability-test",
@@ -180,6 +181,49 @@ test("late offline upsert is durably replaced with a higher-revision tombstone",
  assert.equal(commands[1].dueAt,new Date(Date.parse(nextHour)-60000).toISOString());
  assert.ok(!kv.has("inflight:"+key));
  assert.ok(!kv.has("pending:"+key));
+});
+
+
+test("real offline mode: moving an appointment persists one delta and replays it once after reconnect",async()=>{
+ const start=new Date(Date.now()+6*3600000).toISOString();
+ const meeting={
+  id:"offline-moving-fixture",start,
+  title:"PRIVATE: NEVER IN PUSH INTENT",
+  linkNotificationSchedule:{schema:"link.notification.schedule.v1",
+   enabled:true,rules:[{
+    id:"00000000-0000-4000-8000-00000000000b",
+    kind:"relative",unit:"minutes",value:20
+   }]}
+ };
+ const first=trace.length;
+ assert.equal((await pilot.onEntityChanged(meeting,"event")).status,"synced");
+ const initial=trace.slice(first).filter(x=>x.operation==="upsert");
+ assert.equal(initial.length,1);
+ const moved={...meeting,start:new Date(Date.parse(start)+15*60000).toISOString()};
+ const beforeOffline=trace.length;
+ offline=true;
+ let result;
+ try{
+  result=await pilot.onEntityChanged(moved,"event");
+  assert.equal(result.status,"deferred");
+  assert.ok(kv.has("pending:entity:event:"+meeting.id));
+  assert.ok(kv.has("inflight:entity:event:"+meeting.id));
+  assert.equal(trace.length,beforeOffline);
+ }finally{offline=false}
+ const beforeRecover=trace.length;
+ const replay=await pilot.retryPending();
+ assert.equal(replay.retried,1);
+ const sent=trace.slice(beforeRecover).filter(x=>x.operation==="upsert");
+ assert.equal(sent.length,1);
+ assert.equal(sent[0].id,initial[0].id);
+ assert.equal(sent[0].revision,2);
+ assert.equal(sent[0].dueAt,new Date(Date.parse(moved.start)-20*60000).toISOString());
+ assert.ok(!kv.has("pending:entity:event:"+meeting.id));
+ assert.ok(!kv.has("inflight:entity:event:"+meeting.id));
+ const after=trace.length;
+ assert.equal((await pilot.retryPending()).retried,0);
+ assert.equal(trace.length,after);
+ assert.ok(!JSON.stringify(sent).includes("PRIVATE"));
 });
 
 test.after(()=>{
