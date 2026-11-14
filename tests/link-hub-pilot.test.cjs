@@ -26,7 +26,14 @@ test("Nexus hub route only integrates after verified local save and explicit use
  assert.match(html,/link-hub-adapter\.js\?v=02122/);
  assert.match(sw,/nexus-v0\.21\.15\.0/);
  assert.match(sw,/link-hub-adapter\.js\?v=02122/);
- assert.match(html,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev/);
+ const csp=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1]||"";
+ if(html.includes('NEXUS TEST')){
+  // Preview intentionally blocks production LINK, Nexus Cloud and Santé.
+  assert.doesNotMatch(csp,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev/);
+  assert.match(csp,/https:\/\/link-notifications-staging\.q9pfwtztsc\.workers\.dev/);
+ }else{
+  assert.match(csp,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev/);
+ }
 });
 
 test("Nexus rejects Gaming-tagged invitations before any network request",async()=>{
