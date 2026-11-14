@@ -825,9 +825,13 @@ function eventDetail(id){
  const person=data.contacts.find(p=>p.id===e.personId);
  const note=data.notes.find(n=>n.id===e.noteId);
  const project=data.projects.find(p=>p.id===e.projectId);
- const notificationLabel=Array.isArray(e.reminderMinutes)?
-  (normalizeEventReminders(e.reminderMinutes).map(m=>eventReminderLabel(m)).join(', ')||'Aucune notification')+' avant':
-  'Anciennes préférences de notification';
+ const notificationLabel=window.NexusLinkNotifyPilot?.active?.()&&e.linkNotificationSchedule?
+  (e.linkNotificationSchedule.enabled?
+   e.linkNotificationSchedule.rules.length+' notification(s) personnalisée(s) via LINK':
+   'Notifications LINK désactivées'):
+  Array.isArray(e.reminderMinutes)?
+   (normalizeEventReminders(e.reminderMinutes).map(m=>eventReminderLabel(m)).join(', ')||'Aucune notification')+' avant':
+   'Anciennes préférences de notification';
  modal('Rendez-vous',`<div class="eyebrow">AGENDA</div><div class="detail-head"><h2>${escapeHtml(e.title)}</h2></div>
   <div class="detail-content">${svg('calendar')} ${formatDate(e.start,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${escapeHtml(e.start?.slice(11,16)||'')}
   ${e.location?`\\n${svg('pin')} ${escapeHtml(e.location)}`:''}
