@@ -344,12 +344,33 @@ function showStagingPilotPanel(){
  status.setAttribute("role","status");
  const refresh=async()=>{
   try{
-   const known=await credential();
-   status.textContent=known?
+   const [known,pending]=await Promise.all([credential(),pendingKeys()]);
+   status.textContent=(known?
     "Liaison de test inscrite. LINK reste le seul distributeur Web Push.":
-    "Non inscrit : aucune intention n'est envoyée au staging.";
+    "Non inscrit : aucune intention n'est envoyée au staging.")+
+    "\nFile locale : "+pending.length+(pending.length===1?
+     " changement en attente.":" changements en attente.")+
+    (pending.length>=128?" (au moins 128 ; limite d'affichage)":"");
   }catch{status.textContent="Stockage privé indisponible."}
  };
+ const retry=document.createElement("button");
+ retry.type="button";
+ retry.textContent="Relancer la synchronisation";
+ retry.style.cssText="border:1px solid #4f5669;background:#263047;color:white;"+
+  "font:inherit;border-radius:10px;min-height:44px;padding:10px;width:100%;margin-top:6px";
+ retry.addEventListener("click",async()=>{
+  retry.disabled=true;
+  status.textContent="Reprise des changements locaux…";
+  try{
+   const result=await retryPending();
+   await refresh();
+   status.textContent+="\n"+result.retried+" élément(s) traité(s) lors de cette reprise.";
+  }catch(error){
+   await refresh();
+   status.textContent+="\nConnexion indisponible : changements conservés. "+
+    String(error?.message||"Réessaie après reconnexion.").slice(0,80);
+  }finally{retry.disabled=false}
+ });
  toggle.addEventListener("click",()=>{
   body.hidden=!body.hidden;
   if(!body.hidden)void refresh();
@@ -364,7 +385,7 @@ function showStagingPilotPanel(){
    status.textContent="LINK staging : "+String(error?.message||"connexion indisponible").slice(0,90);
   }finally{connect.disabled=false}
  });
- body.append(heading,note,label,input,connect,status);
+ body.append(heading,note,label,input,connect,status,retry);
  host.append(body);document.body.append(host);
 }
 if(typeof document.createElement==="function"&&pilot()){
