@@ -96,6 +96,13 @@
   }
   data.trash=data.trash.filter(x=>x.id!==id);
   await persist();closeModal();render();
+  // Restored reminders must acquire fresh opaque IDs after a server-side
+  // cancellation; cancelled notification IDs are terminal in LINK.
+  if(window.NexusLinkNotifyPilot?.active?.())for(const x of items){
+   if(x.key==='events'||x.key==='tasks')
+    void window.NexusLinkNotifyPilot.onEntityChanged(x.record,
+     x.key==='events'?'event':'task');
+  }
   if(items.some(x=>x.key==='events'))window.NexusTravel?.scheduleAutoGarage?.("*");
   toast(items.length>1?items.length+' éléments restaurés.':'Élément restauré.');
   return true;
