@@ -133,6 +133,27 @@ async function configureStagingCredential(value){
 async function forgetStagingCredential(){
  await write("stagingCredential",null);
 }
+/** One-use invitation created by LINK Test after owner Face ID. No prod Hub
+ * token or independent push permission is needed in Nexus. */
+async function enrollStagingInvitation(value){
+ if(!pilot())throw Error("PILOT_DISABLED");
+ const invitation=String(value||"").trim().toLowerCase();
+ if(!/^[a-f0-9]{64}$/.test(invitation))throw Error("CODE_TEST_INVALIDE");
+ const response=await fetch(STAGING+"/api/v2/hub/enroll",{
+  method:"POST",cache:"no-store",
+  headers:{"content-type":"application/json"},
+  body:JSON.stringify({appId:"nexus",invitation})
+ });
+ const valueJSON=await response.json().catch(()=>null);
+ if(!response.ok)throw Error(valueJSON?.error||"INSCRIPTION_STAGING_INDISPONIBLE");
+ if(valueJSON?.appId!=="nexus"||!valueJSON?.transportEnabled||
+    !/^[a-f0-9]{64}$/.test(valueJSON?.credential||"")||
+    !(Date.parse(valueJSON?.expiresAt)>Date.now()))
+  throw Error("INSCRIPTION_STAGING_INVALIDE");
+ await configureStagingCredential(valueJSON.credential);
+ return {enrolled:true,expiresAt:valueJSON.expiresAt};
+}
+
 async function resumeInflight(key){
  const outstanding=await read("inflight:"+key);
  if(!outstanding)return {status:"clear"};
@@ -255,7 +276,7 @@ function readFromForm(form){
 const adapter=Object.freeze({
  active:pilot,mount,readFromForm,
  onEntityChanged,onEntityRemoved,
- configureStagingCredential,forgetStagingCredential,
+ configureStagingCredential,forgetStagingCredential,enrollStagingInvitation,
  retryEntity:onEntityChanged,retryPending
 });
 window.NexusLinkNotifyPilot=adapter;
@@ -265,3 +286,67 @@ window.addEventListener("online",()=>void retryPending().catch(()=>{}));
 document.addEventListener("visibilitychange",()=>{
  if(!document.hidden)void retryPending().catch(()=>{});
 });
+
+/** Deliberately small lab control surface, visible ONLY with opt-in URL.
+ * Never asks for an Apple Push subscription or touches production LINK.
+ */
+function showStagingPilotPanel(){
+ if(!pilot()||typeof document.createElement!=="function"||!document.body)return;
+ const host=document.createElement("aside");
+ host.setAttribute("aria-label","Pilote notifications LINK staging");
+ host.style.cssText="position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 15px);z-index:99999;max-width:min(390px,calc(100vw - 24px));font:14px system-ui,sans-serif;color:#f7f7fb;";
+ const toggle=document.createElement("button");
+ toggle.textContent="🔗 LINK · Test";
+ toggle.type="button";
+ toggle.style.cssText="font:inherit;color:white;background:#be241d;border:0;border-radius:12px;padding:12px 16px;min-height:44px;font-weight:700;box-shadow:0 5px 25px #0006;";
+ host.append(toggle);
+ const body=document.createElement("div");
+ body.hidden=true;
+ body.style.cssText="background:#10141f;border:1px solid #3d4251;border-radius:14px;padding:16px;margin-top:8px;box-shadow:0 5px 30px #0008;";
+ const heading=document.createElement("strong");
+ heading.textContent="Notifications via LINK Test";
+ const note=document.createElement("p");
+ note.textContent="Pilote isolé. Dans LINK Test → Face ID → Raccorder Nexus, crée une invitation valable 15 minutes et colle-la ici.";
+ note.style.lineHeight="1.5";
+ const label=document.createElement("label");
+ label.textContent="Invitation unique de LINK Test";
+ const input=document.createElement("input");
+ input.type="password";input.placeholder="Coller le code à usage unique";
+ input.setAttribute("autocomplete","off");input.setAttribute("spellcheck","false");
+ input.style.cssText="width:100%;box-sizing:border-box;padding:12px;border:1px solid #4f5669;border-radius:9px;background:#1c2332;color:white;margin:8px 0;min-height:44px;font:inherit";
+ const connect=document.createElement("button");
+ connect.type="button";connect.textContent="Inscrire Nexus au staging";
+ connect.style.cssText="border:0;border-radius:10px;background:#cf2a23;color:white;font:inherit;font-weight:700;min-height:44px;padding:12px;width:100%;margin-top:7px";
+ const status=document.createElement("p");
+ status.style.cssText="color:#c2c7d5;white-space:normal;font-size:12px;line-height:1.5";
+ status.setAttribute("role","status");
+ const refresh=async()=>{
+  try{
+   const known=await credential();
+   status.textContent=known?
+    "Liaison de test inscrite. LINK reste le seul distributeur Web Push.":
+    "Non inscrit : aucune intention n'est envoyée au staging.";
+  }catch{status.textContent="Stockage privé indisponible."}
+ };
+ toggle.addEventListener("click",()=>{
+  body.hidden=!body.hidden;
+  if(!body.hidden)void refresh();
+ });
+ connect.addEventListener("click",async()=>{
+  connect.disabled=true;status.textContent="Validation de l'invitation…";
+  try{
+   await enrollStagingInvitation(input.value);
+   input.value="";
+   await refresh();
+  }catch(error){
+   status.textContent="LINK staging : "+String(error?.message||"connexion indisponible").slice(0,90);
+  }finally{connect.disabled=false}
+ });
+ body.append(heading,note,label,input,connect,status);
+ host.append(body);document.body.append(host);
+}
+if(typeof document.createElement==="function"&&pilot()){
+ if(document.readyState==="loading")
+  document.addEventListener("DOMContentLoaded",showStagingPilotPanel,{once:true});
+ else showStagingPilotPanel();
+}
