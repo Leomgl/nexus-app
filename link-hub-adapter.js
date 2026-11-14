@@ -333,30 +333,6 @@ function mount(el){
  syncButton.textContent=APP_ID==="gaming"?"Envoyer le résumé test vers Nexus":"Recevoir les propositions via LINK";
  syncButton.style.marginLeft="5px";
  wrapper.append(heading,intro,status,input,enrollButton,syncButton);
- // An explicit *same-origin installed Nexus* canary switch. No live
- // notification is created by merely showing the switch.
- if(APP_ID==="nexus"&&location.origin==="https://leomgl.github.io"&&
-    location.pathname.startsWith("/nexus-app/")){
-  const canary=new URL(location.href).searchParams.get("linkNotificationsLive")==="1";
-  const canaryButton=document.createElement("button");
-  canaryButton.type="button";canaryButton.className=selectClasses;
-  canaryButton.style.cssText="display:block;margin-top:12px;width:100%";
-  canaryButton.textContent=canary?
-   "Quitter le test des notifications LINK":
-   "Tester les notifications via le vrai LINK";
-  const canaryNote=document.createElement("p");
-  canaryNote.style.fontSize="12px";
-  canaryNote.textContent=canary?
-   "MODE TEST LINK : utilise un rendez-vous neuf. Les anciens jobs Push ne sont pas reconstruits pendant ce mode.":
-   "Test optionnel, sans réinscription et sans migration des anciens rappels. Aucun envoi tant que tu ne choisis pas Me notifier.";
-  canaryButton.addEventListener("click",()=>{
-   const target=new URL(location.href);
-   if(canary)target.searchParams.delete("linkNotificationsLive");
-   else target.searchParams.set("linkNotificationsLive","1");
-   location.assign(target.pathname+target.search+target.hash);
-  });
-  wrapper.append(canaryButton,canaryNote);
- }
  el.append(wrapper);
  const refresh=async()=>{
   const c=await credential().catch(()=>null);

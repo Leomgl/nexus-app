@@ -20,13 +20,15 @@ function setup(){
  return {api:context.window.NexusSettings,context,env:adapter()};
 }
 function open(api,page){assert.equal(api.act('settings-open',{dataset:{page}}),true);}
-test('settings overview groups all six destinations without importing private data',()=>{
+test('settings overview exposes a single LINK section instead of two separate destinations',()=>{
  const {api,env}=setup();
  const markup=api.view(env);
- for(const title of ['Apparence et interface','Notifications','Applications connectées','Sécurité et confidentialité','Données et sauvegardes','À propos de Nexus'])
+ for(const title of ['Apparence et interface','LINK','Sécurité et confidentialité','Données et sauvegardes','À propos de Nexus'])
   assert.ok(markup.includes(title),title);
  assert.match(markup,/nx-settings-search/);
- assert.match(markup,/data-page="apps"/);
+ assert.match(markup,/data-page="link"/);
+ assert.doesNotMatch(markup,/data-page="apps"/);
+ assert.doesNotMatch(markup,/data-page="notifications"/);
  assert.doesNotMatch(markup,/data-pref-slot/,'controls are inside subpages');
  assert.doesNotMatch(markup,/nexus.*secret/i);
 });
@@ -38,7 +40,7 @@ test('search is accent-insensitive and links to the correct destination without 
  assert.equal(api.onInput({id:'nx-settings-search',value:'securite'}),true);
  assert.match(results.innerHTML,/data-page="security"/);
  assert.equal(api.onInput({id:'nx-settings-search',value:'salaire'}),true);
- assert.match(results.innerHTML,/data-page="notifications"/);
+ assert.match(results.innerHTML,/data-page="link"/);
  assert.equal(api.onInput({id:'nx-settings-search',value:'totallymissing'}),true);
  assert.match(results.innerHTML,/Aucun réglage/);
  assert.equal(api.onInput({id:'unrelated',value:'x'}),false);
@@ -75,12 +77,12 @@ test('application details are separate and only report actual pairing status',()
  context.window.NexusVestiaire={settingsCard:()=>'<section id="wardrobe"></section>'};
  context.window.NexusConnect2={settingsCard:()=>'<section id="connect"></section>'};
  env.data.linkConnections=[{sourceApp:'rituel',scopes:['restock_task']},{sourceApp:'vestiaire',scopes:['outfit_catalog']}];
- open(api,'apps');
+ open(api,'link');
  const overview=api.view(env);
  assert.match(overview,/Gaming/);
  assert.match(overview,/Clé LINK locale/);
  assert.match(overview,/À vérifier dans LINK/);
- assert.match(overview,/Gérer dans LINK/);
+ assert.match(overview,/Ouvrir LINK/);
  assert.match(overview,/https:\/\/link-app\.q9pfwtztsc\.workers\.dev\//);
  open(api,'app:rituel');
  const ritual=api.view(env);
@@ -98,10 +100,10 @@ test('application details are separate and only report actual pairing status',()
  open(api,'app:health');
  assert.match(api.view(env),/Module en chargement/);
 });
-test('notifications, security, data and about retain existing action names',()=>{
+test('LINK, security, data and about retain existing action names',()=>{
  const {api,env}=setup();
  for(const [route,actions] of [
-  ['notifications',['push-settings']],
+  ['link',['push-settings']],
   ['security',['passkey-settings']],
   ['data',['cloud-vault','export','restore','trash-panel']],
   ['data-advanced',['trash-reset-center']],
@@ -129,7 +131,7 @@ test('settings assets and iOS offline cache stay in sync',()=>{
  assert.match(app,/legacySettingsView/);
 });
 
-test('true Nexus settings show the LINK canary from Notifications and Applications, without hidden Gaming modal',()=>{
+test('true Nexus settings show the LINK canary only in the unified LINK page',()=>{
  const {api,env,context}=setup();
  const routesVisited=[];
  context.URL=URL;
@@ -138,13 +140,19 @@ test('true Nexus settings show the LINK canary from Notifications and Applicatio
   href:'https://leomgl.github.io/nexus-app/index.html',
   assign(value){routesVisited.push(value);}
  };
- for(const route of ['notifications','apps']){
-  open(api,route);
-  const markup=api.view(env);
-  assert.match(markup,/LINK · Notifications centralisées/);
-  assert.match(markup,/Tester les notifications via le vrai LINK/);
-  assert.match(markup,/data-action="settings-link-notifications-toggle"/);
- }
+ open(api,'link');
+ const markup=api.view(env);
+ assert.match(markup,/LINK · Centre technique/);
+ assert.match(markup,/Notifications · Moteur LINK/);
+ assert.match(markup,/Tester les notifications via le vrai LINK/);
+ assert.match(markup,/data-action="settings-link-notifications-toggle"/);
+ assert.match(markup,/data-action="push-settings"/);
+ assert.match(markup,/data-page="apps-automation"/);
+ // Historic actions/deep links remain compatible, without a second tab.
+ open(api,'notifications');
+ assert.match(api.view(env),/LINK · Centre technique/);
+ open(api,'apps');
+ assert.match(api.view(env),/LINK · Centre technique/);
  assert.equal(api.act('settings-link-notifications-toggle',{dataset:{}}),true);
  assert.equal(routesVisited.length,1);
  assert.equal(new URL(routesVisited[0]).searchParams.get('linkNotificationsLive'),'1');
@@ -160,9 +168,11 @@ test('live LINK canary settings are reversible, and cannot be activated outside 
   href:'https://leomgl.github.io/nexus-app/index.html?linkNotificationsLive=1',
   assign(value){calls.push(value);}
  };
- open(api,'notifications');
+ open(api,'link');
  assert.match(api.view(env),/Quitter le test LINK/);
- assert.match(api.view(env),/Activé pour ce Nexus uniquement/);
+ assert.match(api.view(env),/Activé · notifications programmées/);
+ assert.match(api.view(env),/data-action="settings-link-notifications-status"/);
+ assert.match(api.view(env),/data-action="settings-link-notifications-retry"/);
  api.act('settings-link-notifications-toggle',{dataset:{}});
  assert.equal(new URL(calls[0]).searchParams.has('linkNotificationsLive'),false);
  context.window.location={
@@ -179,6 +189,26 @@ test('installed iOS settings scripts use the same cache-busted version',()=>{
  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
  for(const file of [html,sw])
-  assert.match(file,/settings-v0214\.js\?v=0217-linknotif2/);
- assert.match(sw,/link-live-canary2/);
+  assert.match(file,/settings-v0214\.js\?v=0217-linkunified3/);
+ assert.match(sw,/link-unified3/);
+});
+
+test('single LINK section keeps nested application and automation back-navigation',()=>{
+ const {api,env}=setup();
+ for(const route of ['app:gaming','app:rituel','app:health','app:vestiaire','apps-automation']){
+  open(api,route);
+  const markup=api.view(env);
+  assert.match(markup,/data-page="link"/,route);
+  assert.match(markup,/>LINK</,route);
+ }
+});
+
+test('only staging can render the floating notification laboratory widget',()=>{
+ const pilot=fs.readFileSync(path.join(root,'link-notifications/nexus-pilot.mjs'),'utf8');
+ const hub=fs.readFileSync(path.join(root,'link-hub-adapter.js'),'utf8');
+ assert.match(pilot,/document\.createElement==="function"&&MODE==="staging"/);
+ assert.match(pilot,/async function status\(\)/);
+ assert.match(pilot,/mode:\(\)=>MODE,status,mount/);
+ assert.doesNotMatch(hub,/Tester les notifications via le vrai LINK/);
+ assert.doesNotMatch(hub,/location\.searchParams\.set\("linkNotificationsLive"/);
 });
