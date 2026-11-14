@@ -1,14 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {webcrypto} from "node:crypto";
 
 const original={
- crypto:globalThis.crypto,indexedDB:globalThis.indexedDB,
+ indexedDB:globalThis.indexedDB,
  HTMLElement:globalThis.HTMLElement,customElements:globalThis.customElements,
  window:globalThis.window,document:globalThis.document,
  location:globalThis.location,fetch:globalThis.fetch
 };
-globalThis.crypto=webcrypto;
 const kv=new Map(),trace=[];
 let created=false,loseFirstAck=true;
 const fakeDB={
