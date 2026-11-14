@@ -68,8 +68,32 @@
       '<div class="widget-settings">'+widgetRows+'</div>'+action("Retrouver l'interface par défaut",'reset-ui','refresh','btn btn-neutral btn-small'));
     return '<div class="nx-set-stack">'+navigation+appearance+pulse+'</div>';
   }
+  function liveCanaryAvailable(){
+    const l=window.location;
+    return l?.origin==='https://leomgl.github.io'&&
+      l.pathname?.startsWith('/nexus-app/');
+  }
+  function liveCanaryActive(){
+    return liveCanaryAvailable()&&
+      new URL(window.location.href).searchParams.get('linkNotificationsLive')==='1';
+  }
+  function linkNotificationsCanaryPanel(){
+    if(!liveCanaryAvailable())return '';
+    const active=liveCanaryActive();
+    return panel('LINK · Notifications centralisées',
+      'Test des rendez-vous et rappels par le moteur du vrai LINK.','link',
+      '<div class="nx-set-info-row"><strong>Mode de test</strong><small>'+
+      (active?'Activé pour ce Nexus uniquement':'Désactivé · aucun nouvel événement transmis à LINK')+
+      '</small></div>'+
+      action(active?'Quitter le test LINK':'Tester les notifications via le vrai LINK',
+        'settings-link-notifications-toggle','clock','btn btn-neutral btn-small')+
+      '<p class="pref-hint">'+(active?
+        'Crée un nouveau rendez-vous et configure Me notifier. Les événements existants ne sont pas migrés.':
+        'Activation volontaire, sans nouvelle inscription ni transfert de tes données. Les alertes déjà programmées ne sont pas modifiées.')+
+      '</p>');
+  }
   function notificationsPage(){
-    return '<div class="nx-set-stack">'+panel('Notifications iPhone','Toutes les alertes de Nexus au même endroit.','clock',
+    return '<div class="nx-set-stack">'+linkNotificationsCanaryPanel()+panel('Notifications iPhone','Toutes les alertes de Nexus au même endroit.','clock',
       option('Gérer les notifications','Autorisation iOS, test push, confidentialité et catégories actives.','push-settings','Configurer','sliders')+
       '<p class="pref-hint">Les notifications push fonctionnent sur la PWA installée, avec ton autorisation. Les alertes déjà programmées peuvent arriver après une modification hors connexion.</p>')+
       panel('Catégories','Personnalise les alertes selon leur origine.','layers',
@@ -84,7 +108,7 @@
   }
   function appsPage(){
     const vest=linked('vestiaire'),rit=linked('rituel'),gaming=linked('gaming');
-    return '<div class="nx-set-stack">'+panel('LINK · Centre de contrôle','Permissions, état et diagnostic des connexions inter-applications.','link',
+    return '<div class="nx-set-stack">'+linkNotificationsCanaryPanel()+panel('LINK · Centre de contrôle','Permissions, état et diagnostic des connexions inter-applications.','link',
       '<p class="pref-hint">Les échanges chiffrés passent uniquement par LINK. Les clés sont générées localement, sans ancien relais.</p><a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Gérer dans LINK ↗</a>')+
       panel('Paramètres des applications','Réglages métier et autorisations des applications connectées.','link',
       '<div class="nx-set-app-list">'+
@@ -162,6 +186,17 @@
       body+'<p class="nx-set-footer">NEXUS · V'+e(env.version)+'</p></div>';
   }
   function act(kind,target){
+    if(kind==='settings-link-notifications-toggle'){
+      // Only canonical Nexus may opt into the real LINK canary. This changes
+      // the URL mode, never the private Hub credential or an iOS subscription.
+      if(!liveCanaryAvailable())return true;
+      const next=new URL(window.location.href);
+      if(liveCanaryActive())next.searchParams.delete('linkNotificationsLive');
+      else next.searchParams.set('linkNotificationsLive','1');
+      next.searchParams.delete('linkNotificationsPilot');
+      window.location.assign(next.href);
+      return true;
+    }
     if(kind==='settings-theme'){
       const value=target?.dataset?.theme;
       if(['sage','slate'].includes(value)){env.UI.theme=value;env.saveUI?.();}
