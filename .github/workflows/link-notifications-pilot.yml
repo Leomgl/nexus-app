@@ -1,0 +1,32 @@
+name: Nexus LINK notifications pilot (isolated)
+on:
+  pull_request:
+    paths:
+      - 'link-notifications/**'
+      - 'tests/link-notification-*.test.mjs'
+      - 'app.js'
+      - 'index.html'
+      - '.github/workflows/link-notifications-pilot.yml'
+  push:
+    branches:
+      - feat/nexus-link-notifications-pilot
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse Nexus and LINK pilot modules
+        run: |
+          node --check app.js
+          node --check link-notifications/notification-schedule-config.mjs
+          node --check link-notifications/notification-schedule-picker.mjs
+          node --check link-notifications/notification-client-sdk.mjs
+          node --check link-notifications/notification-entity-bridge.mjs
+          node --check link-notifications/nexus-pilot.mjs
+      - name: Unit tests for shared rule editor, stable ids and zero-churn SDK
+        run: node --test tests/link-notification-*.test.mjs
