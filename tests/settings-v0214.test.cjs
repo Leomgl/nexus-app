@@ -128,3 +128,57 @@ test('settings assets and iOS offline cache stay in sync',()=>{
  assert.match(app,/NexusSettings\?\.act/);
  assert.match(app,/legacySettingsView/);
 });
+
+test('true Nexus settings show the LINK canary from Notifications and Applications, without hidden Gaming modal',()=>{
+ const {api,env,context}=setup();
+ const routesVisited=[];
+ context.URL=URL;
+ context.window.location={
+  origin:'https://leomgl.github.io',pathname:'/nexus-app/index.html',
+  href:'https://leomgl.github.io/nexus-app/index.html',
+  assign(value){routesVisited.push(value);}
+ };
+ for(const route of ['notifications','apps']){
+  open(api,route);
+  const markup=api.view(env);
+  assert.match(markup,/LINK · Notifications centralisées/);
+  assert.match(markup,/Tester les notifications via le vrai LINK/);
+  assert.match(markup,/data-action="settings-link-notifications-toggle"/);
+ }
+ assert.equal(api.act('settings-link-notifications-toggle',{dataset:{}}),true);
+ assert.equal(routesVisited.length,1);
+ assert.equal(new URL(routesVisited[0]).searchParams.get('linkNotificationsLive'),'1');
+ assert.equal(env.data.linkConnections.length,0,'not re-enrolled or mutated');
+});
+
+test('live LINK canary settings are reversible, and cannot be activated outside Nexus origin',()=>{
+ const {api,env,context}=setup();
+ context.URL=URL;
+ const calls=[];
+ context.window.location={
+  origin:'https://leomgl.github.io',pathname:'/nexus-app/index.html',
+  href:'https://leomgl.github.io/nexus-app/index.html?linkNotificationsLive=1',
+  assign(value){calls.push(value);}
+ };
+ open(api,'notifications');
+ assert.match(api.view(env),/Quitter le test LINK/);
+ assert.match(api.view(env),/Activé pour ce Nexus uniquement/);
+ api.act('settings-link-notifications-toggle',{dataset:{}});
+ assert.equal(new URL(calls[0]).searchParams.has('linkNotificationsLive'),false);
+ context.window.location={
+  origin:'https://evil.example',pathname:'/nexus-app/index.html',
+  href:'https://evil.example/nexus-app/index.html',
+  assign(){throw Error('must never navigate')}
+ };
+ assert.doesNotMatch(api.view(env),/settings-link-notifications-toggle/);
+ assert.equal(api.act('settings-link-notifications-toggle',{dataset:{}}),true);
+ assert.equal(calls.length,1);
+});
+
+test('installed iOS settings scripts use the same cache-busted version',()=>{
+ const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+ const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+ for(const file of [html,sw])
+  assert.match(file,/settings-v0214\.js\?v=0217-linknotif2/);
+ assert.match(sw,/link-live-canary2/);
+});
