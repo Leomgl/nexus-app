@@ -35,7 +35,7 @@ globalThis.HTMLElement=class{};
 const registrations=new Map();
 globalThis.customElements={get:name=>registrations.get(name),
  define:(name,cls)=>registrations.set(name,cls)};
-globalThis.location={href:"https://leomgl.github.io/nexus-app/?linkNotificationsPilot=1"};
+globalThis.location={href:"https://nexus-link-notifications-test.pages.dev/index.html?linkNotificationsPilot=1"};
 const callbacks={};
 globalThis.window={addEventListener:(type,cb)=>{callbacks[type]=cb}};
 globalThis.document={addEventListener:(type,cb)=>{callbacks[type]=cb},hidden:false};
@@ -111,6 +111,77 @@ test("local queue is empty after an acknowledged run, so visibility retry sends 
  assert.equal(result.retried,0);
  assert.equal(trace.length,before);
 });
+
+test("moving an appointment only revises relative alerts, never its fixed calendar alert",async()=>{
+ const hour=Date.now()+60*60*1000;
+ const absolute=new Date(Date.now()+2*60*60*1000).toISOString();
+ const meeting={
+  id:"moving-meeting-fixture",start:new Date(hour).toISOString(),
+  linkNotificationSchedule:{schema:"link.notification.schedule.v1",enabled:true,rules:[
+   {id:"00000000-0000-4000-8000-000000000008",kind:"relative",unit:"minutes",value:2},
+   {id:"00000000-0000-4000-8000-000000000009",kind:"fixed",at:absolute}
+  ]}
+ };
+ let offset=trace.length;
+ assert.equal((await pilot.onEntityChanged(meeting,"event")).status,"synced");
+ const initial=trace.slice(offset).filter(x=>x.operation==="upsert");
+ assert.equal(initial.length,2);
+ const relative=initial.find(x=>x.dueAt!==absolute);
+ const fixed=initial.find(x=>x.dueAt===absolute);
+ assert.ok(relative);assert.ok(fixed);
+ offset=trace.length;
+ const moved={...meeting,start:new Date(hour+15*60000).toISOString()};
+ assert.equal((await pilot.onEntityChanged(moved,"event")).status,"synced");
+ const changed=trace.slice(offset).filter(x=>x.operation==="upsert");
+ assert.equal(changed.length,1);
+ assert.equal(changed[0].id,relative.id);
+ assert.equal(changed[0].revision,2);
+ assert.equal(changed[0].dueAt,new Date(hour+13*60000).toISOString());
+ assert.notEqual(changed[0].id,fixed.id);
+ offset=trace.length;
+ assert.equal((await pilot.onEntityRemoved(moved,"event")).status,"synced");
+ const cancelled=trace.slice(offset).filter(x=>x.operation==="cancel");
+ assert.equal(cancelled.length,2);
+ assert.deepEqual(new Set(cancelled.map(x=>x.id)),new Set([relative.id,fixed.id]));
+ const before=trace.length;
+ assert.equal((await pilot.retryPending()).retried,0);
+ assert.equal(trace.length,before);
+});
+test("late offline upsert is durably replaced with a higher-revision tombstone",async()=>{
+ const nextHour=new Date(Date.now()+3600000).toISOString();
+ const meeting={
+  id:"late-offline-fixture",start:nextHour,
+  linkNotificationSchedule:{schema:"link.notification.schedule.v1",enabled:true,
+   rules:[{id:"00000000-0000-4000-8000-00000000000a",
+    kind:"relative",unit:"minutes",value:1}]}
+ };
+ let offset=trace.length;
+ assert.equal((await pilot.onEntityChanged(meeting,"event")).status,"synced");
+ const original=trace.slice(offset).find(x=>x.operation==="upsert");
+ assert.ok(original);
+ const key="entity:event:"+meeting.id;
+ const stale=new Date(Date.now()-11*60000).toISOString();
+ // Model a crashed client which had durably queued an update while offline.
+ // It has since expired; the server may or may not have accepted it.
+ kv.set("inflight:"+key,{index:0,changes:[{
+  operation:"upsert",
+  item:{id:original.id,dueAt:stale,category:"appointment",revision:2},
+  journalEntry:{id:original.id,dueAt:stale,category:"appointment",
+   revision:2,status:"pending"}
+ }]});
+ offset=trace.length;
+ assert.equal((await pilot.onEntityChanged(meeting,"event")).status,"synced");
+ const commands=trace.slice(offset).filter(x=>x.operation!=="capability");
+ assert.deepEqual(commands.map(x=>x.operation),["cancel","upsert"]);
+ assert.equal(commands[0].id,original.id);
+ assert.equal(commands[0].revision,3);
+ assert.notEqual(commands[1].id,original.id);
+ assert.equal(commands[1].revision,1);
+ assert.equal(commands[1].dueAt,new Date(Date.parse(nextHour)-60000).toISOString());
+ assert.ok(!kv.has("inflight:"+key));
+ assert.ok(!kv.has("pending:"+key));
+});
+
 test.after(()=>{
  for(const [k,v] of Object.entries(original))
   if(v===undefined)delete globalThis[k];else globalThis[k]=v;
