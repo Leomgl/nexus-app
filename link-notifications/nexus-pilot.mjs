@@ -325,8 +325,13 @@ function readFromForm(form){
  const picker=form.querySelector("link-notify-picker");
  return picker?validateNotificationSchedule(picker.value):null;
 }
+async function status(){
+ if(!pilot())return {active:false,mode:null,linked:false,pending:0};
+ const [isLinked,keys]=await Promise.all([linked(),pendingKeys()]);
+ return {active:true,mode:MODE,linked:isLinked,pending:keys.length};
+}
 const adapter=Object.freeze({
- active:pilot,mode:()=>MODE,mount,readFromForm,
+ active:pilot,mode:()=>MODE,status,mount,readFromForm,
  onEntityChanged,onEntityRemoved,
  configureStagingCredential,forgetStagingCredential,enrollStagingInvitation,
  retryEntity:onEntityChanged,retryPending
@@ -423,7 +428,9 @@ function showStagingPilotPanel(){
  else body.append(heading,note,status,retry);
  host.append(body);document.body.append(host);
 }
-if(typeof document.createElement==="function"&&pilot()){
+// The real Nexus uses its normal Settings > LINK page. The floating lab
+// control is deliberately retained ONLY on the isolated staging origin.
+if(typeof document.createElement==="function"&&MODE==="staging"){
  if(document.readyState==="loading")
   document.addEventListener("DOMContentLoaded",showStagingPilotPanel,{once:true});
  else showStagingPilotPanel();
