@@ -84,7 +84,14 @@ export async function planEntityNotifications({
  for(const rule of resolved){
   let epoch=epochs[rule.ruleId]||crypto.randomUUID();
   let id=await opaqueNotificationId({secret,appId,entityId,ruleId:rule.ruleId,epoch,occurrenceId});
-  if(journal[id]?.status==="cancelled"){
+  const old=journal[id];
+  // Once the last scheduled instant has passed, LINK may have closed that
+  // occurrence as "sent" after Apple's one-shot acceptance. A later edit
+  // must mint a FRESH opaque ID, not try to reopen a terminal server row.
+  // Still preserve the same ID for every edit performed BEFORE its due time.
+  if(old?.status==="cancelled"||
+     (old?.status==="pending"&&old.dueAt!==rule.dueAt&&
+      Date.parse(old.dueAt)<=Date.parse(now))){
    epoch=crypto.randomUUID();
    id=await opaqueNotificationId({secret,appId,entityId,ruleId:rule.ruleId,epoch,occurrenceId});
   }
@@ -107,7 +114,13 @@ export function applyEntityNotificationAck(state,change){
  // forgetting the locally cancelled ID, so a later re-enable is a NEW
  // occurrence and cannot resurrect an old delivered/cancelled notification.
  if(ruleId){
-  epochs[ruleId]=crypto.randomUUID();
+  // When the parent event was moved AFTER an earlier delivery, another
+  // occurrence of this SAME rule may already have been planned and ACKed.
+  // Cancelling the old ID must not rotate the replacement's current epoch:
+  // otherwise the next save would allocate a THIRD ID / duplicate push.
+  const replacementExists=Object.entries(ids).some(([other,rid])=>
+   other!==id&&rid===ruleId);
+  if(!replacementExists)epochs[ruleId]=crypto.randomUUID();
   delete ids[id];
  }
  delete journal[id];
