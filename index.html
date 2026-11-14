@@ -11,7 +11,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="./icons/icon-192.png">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://nexus-app-api.q9pfwtztsc.workers.dev https://api.open-meteo.com https://geocoding-api.open-meteo.com https://sante-nexus-link.q9pfwtztsc.workers.dev https://link-app.q9pfwtztsc.workers.dev; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://nexus-app-api.q9pfwtztsc.workers.dev https://api.open-meteo.com https://geocoding-api.open-meteo.com https://sante-nexus-link.q9pfwtztsc.workers.dev https://link-app.q9pfwtztsc.workers.dev https://link-notifications-staging.q9pfwtztsc.workers.dev; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <script src="./lock-boot.js"></script>
   <link rel="stylesheet" href="./styles.css?v=02116">
   <link rel="stylesheet" href="./pulse-v018.css?v=0180">
@@ -83,6 +83,8 @@
   <script src="./cloud.js" defer></script>
   <script src="./push-context-v0213.js?v=02110" defer></script>
   <script src="./push-client.js?v=0213" defer></script>
+  <!-- Explicit staging pilot: inactive without ?linkNotificationsPilot=1 -->
+  <script type="module" src="./link-notifications/nexus-pilot.mjs?v=pilot1"></script>
   <script src="./passkey-client.js?v=02114" defer></script>
 <script src="./link-bridge.js?v=02117" defer></script>
 </body>
