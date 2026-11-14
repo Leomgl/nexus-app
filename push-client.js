@@ -31,6 +31,9 @@
   }
   let scheduleTimer=null,active=false;
   async function scheduleNow(){
+    // LINK staging pilot owns all reminder scheduling in this isolated mode.
+    // Never rebuild the legacy D1 schedule concurrently (quota + duplicates).
+    if(new URL(location.href).searchParams.get('linkNotificationsPilot')==='1')return;
     const state=await read();
     if(!state?.enabled||!state.deviceId)return;
     const {jobs,contexts}=await scheduledJobs(state);
