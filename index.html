@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#f3f6f1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="NEXUS">
+  <meta name="apple-mobile-web-app-title" content="Nexus Test">
   <meta name="description" content="Ton second cerveau : capture rapide, organisation, projets, agenda, budget et liens entre blocs.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="./icons/icon-192.png">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://nexus-app-api.q9pfwtztsc.workers.dev https://api.open-meteo.com https://geocoding-api.open-meteo.com https://sante-nexus-link.q9pfwtztsc.workers.dev https://link-app.q9pfwtztsc.workers.dev https://link-notifications-staging.q9pfwtztsc.workers.dev; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://link-notifications-staging.q9pfwtztsc.workers.dev; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <script src="./lock-boot.js"></script>
   <link rel="stylesheet" href="./styles.css?v=02116">
   <link rel="stylesheet" href="./pulse-v018.css?v=0180">
@@ -19,9 +19,11 @@
   <link rel="stylesheet" href="./vestiaire-v021.css?v=0210">
   <link rel="stylesheet" href="./settings-v0214.css?v=0214">
   <link rel="stylesheet" href="./nexus-sante.css?v=0219">
-  <title>NEXUS — Ton second cerveau</title>
+  <title>Nexus Test · Notifications LINK</title>
 </head>
 <body>
+  <!-- Isolated Nexus LINK pilot; no normal Nexus or production API access -->
+  <div aria-label="Préversion de test" style="position:fixed;top:calc(env(safe-area-inset-top) + 4px);right:12px;z-index:99999;pointer-events:none;background:#c52a22;color:white;font:700 10px system-ui;letter-spacing:1px;padding:6px 10px;border-radius:99px;box-shadow:0 3px 10px #0003;">NEXUS TEST</div>
   <div class="app-shell" id="app">
     <aside class="side-nav" aria-label="Navigation principale">
       <a class="brand" href="#home" data-nav="home" aria-label="NEXUS, accueil">
