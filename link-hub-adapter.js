@@ -372,6 +372,30 @@ function mount(el){
  }));
  void refresh();
 }
-window.LinkHubAdapter=Object.freeze({attach,mount,enroll,publishPilot,receivePilot});
+/**
+ * Notification-specific delegated capability: the Hub's long-lived
+ * credential is read only inside this existing trusted adapter and is
+ * NEVER returned to other modules, staging, a URL or any log.
+ */
+async function notificationEnrollmentActive(){
+ return Boolean(await credential());
+}
+async function notificationCapability(){
+ const enrolled=await credential();
+ if(!enrolled)throw Error("HUB_NOT_ENROLLED");
+ const response=await fetch(HUB_ENDPOINT+"/api/v2/notifications/capability",{
+  method:"POST",cache:"no-store",credentials:"omit",
+  headers:{Authorization:"Bearer "+enrolled.credential}
+ });
+ const result=await response.json().catch(()=>({error:"INVALID_LINK_RESPONSE"}));
+ if(!response.ok)throw Error(result?.error||"NOTIFICATION_CAPABILITY_FAILED");
+ if(result?.schema!=="link.notification.capability.v1"||
+    typeof result.token!=="string"||
+    !Number.isFinite(Date.parse(result.expiresAt)))
+  throw Error("INVALID_NOTIFICATION_CAPABILITY");
+ return result;
+}
+window.LinkHubAdapter=Object.freeze({attach,mount,enroll,publishPilot,receivePilot,
+ notificationEnrollmentActive,notificationCapability});
 
 })();

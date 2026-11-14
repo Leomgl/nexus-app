@@ -349,6 +349,8 @@ function eventReminderLabel(minutes){
  return minutes+' min';
 }
 function eventRemindersField(obj){
+ // Staging pilot only; legacy editor remains the default.
+ if(window.NexusLinkNotifyPilot?.active?.())return '<link-notify-picker></link-notify-picker>';
  // Existing appointments without reminderMinutes keep their old global schedule until edited.
  const selected=normalizeEventReminders(Array.isArray(obj.reminderMinutes)?obj.reminderMinutes:[60]);
  const known=EVENT_REMINDER_OPTIONS.map(pair=>pair[0]);
@@ -655,21 +657,22 @@ function captureForm(kind, obj={}, context={}){
  }
  if(kind==='task'){
   title=existing?'Modifier le rappel':'Nouveau rappel';const note=context.noteId?data.notes.find(n=>n.id===context.noteId):null,detected=note?analyzeNote(note.body):{};
-  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}${inlineContactField(obj.personId||detected.personId||'')}${projectField(obj.projectId||inheritedProjectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
+  content=`<form id="entity-form" data-kind="task">${input('À faire','title',obj.title||detected.taskTitle||'','text','required maxlength="160"')}${input('Date limite (facultative)','dueDate',obj.dueDate||detected.date||'','date')}${input('Heure du rappel','dueTime',obj.dueTime||'09:00','time')}${window.NexusLinkNotifyPilot?.active?.()?'<link-notify-picker></link-notify-picker>':''}${inlineContactField(obj.personId||detected.personId||'')}${projectField(obj.projectId||inheritedProjectId||'')}<div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  if(kind==='contact'){
   title=existing?'Modifier la personne':'Ajouter une personne';content=`<form id="entity-form" data-kind="contact">${input('Nom','name',obj.name||context.suggestedName||'','text','required maxlength="130"')}${input('Rôle ou contexte','role',obj.role||'','text','placeholder="Ex. Médecin, collègue..."')}${input('Téléphone','phone',obj.phone||'','tel')}${input('E-mail','email',obj.email||'','email','maxlength="160"')}${input('Entreprise / organisation','organization',obj.organization||'','text','maxlength="160"')}${input('Adresse','address',obj.address||'','text','maxlength="300"')}<div class="field"><label for="f-contactNotes">Notes / contexte</label><textarea name="notes" id="f-contactNotes" maxlength="2000">${escapeHtml(obj.notes||'')}</textarea></div>${input('Catégories (séparées par des virgules)','contactTags',Array.isArray(obj.tags)?obj.tags.join(', '):'','text','maxlength="240" placeholder="Famille, Travail, Amis…"')}<label class="nx-contact-favorite-field"><input type="checkbox" name="favorite" value="yes" ${obj.favorite?'checked':''}> ${svg('star')} Ajouter aux favoris</label><div class="form-actions"><button type="button" class="btn btn-ghost" data-action="close-modal">Annuler</button><button class="btn" type="submit">${svg('check')} Enregistrer</button></div></form>`;
  }
  modal(title,content);
- const form=document.getElementById('entity-form');wireProjectField(form);form.addEventListener('submit',async event=>{
+ const form=document.getElementById('entity-form');wireProjectField(form);if(kind==='event'||kind==='task')window.NexusLinkNotifyPilot?.mount?.(form,obj,kind);form.addEventListener('submit',async event=>{
   event.preventDefault();if(!form.reportValidity())return;
   const values=Object.fromEntries(new FormData(form).entries());
   let newContact=null;
   if(kind==='event'||kind==='task'){
    try{newContact=takeInlineContact(values,form);}catch(error){toast(error.message);return;}
   }
-  const reminders=kind==='event'?[...form.querySelectorAll('input[name="reminderMinute"]:checked')].map(el=>Number(el.value)):[];
-  if(kind==='event'&&values.customReminderMinutes){
+  const pilotSchedule=(kind==='event'||kind==='task')?window.NexusLinkNotifyPilot?.readFromForm?.(form):null;
+  const reminders=kind==='event'&&!pilotSchedule?[...form.querySelectorAll('input[name="reminderMinute"]:checked')].map(el=>Number(el.value)):[];
+  if(kind==='event'&&!pilotSchedule&&values.customReminderMinutes){
    const minutes=Number(values.customReminderMinutes);
    if(!Number.isInteger(minutes)||minutes<1||minutes>10080){toast('Rappel personnalisé : utilise un entier de 1 à 10 080 minutes.');return;}
    reminders.push(minutes);
@@ -695,13 +698,15 @@ function captureForm(kind, obj={}, context={}){
   }
   if(kind==='contact'&&context.noteId){const n=data.notes.find(x=>x.id===context.noteId);if(n){n.personId=base.id;n.updatedAt=new Date().toISOString();}}
   if(kind==='note'){base.updatedAt=new Date().toISOString();base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
-  if(kind==='event'){base.healthSync=values.medicalSync==='yes';delete base.medicalSync;base.tripType=values.rituelTrip==='yes'?'travel':null;base.returnDate=base.tripType==='travel'?values.returnDate:'';delete base.rituelTrip;base.reminderMinutes=normalizeEventReminders(reminders);base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
-  if(kind==='task'){base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
+  if(kind==='event'){base.healthSync=values.medicalSync==='yes';delete base.medicalSync;base.tripType=values.rituelTrip==='yes'?'travel':null;base.returnDate=base.tripType==='travel'?values.returnDate:'';delete base.rituelTrip;base.reminderMinutes=pilotSchedule?[]:normalizeEventReminders(reminders);if(pilotSchedule)base.linkNotificationSchedule=pilotSchedule;base.start=`${values.date}T${values.time}:00`;base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';delete base.date;delete base.time;}
+  if(kind==='task'){if(pilotSchedule)base.linkNotificationSchedule=pilotSchedule;base.done=Boolean(obj.done);base.noteId=obj.noteId||context.noteId||null;base.projectId=values.projectId??obj.projectId??inheritedProjectId??'';}
   if(newProject)data.projects.push(newProject);
   if(newContact)data.contacts.push(newContact);
   const key={note:'notes',event:'events',task:'tasks',contact:'contacts'}[kind];const ix=data[key].findIndex(v=>v.id===base.id);if(ix>=0)data[key][ix]=base;else data[key].push(base);
   if(kind==='event')window.NexusSanteBridge?.markChange?.(obj.id?obj:null,base);
   await persist();
+  // Pilot sends only the edited element's opaque intents; no global scan.
+  if(pilotSchedule)void window.NexusLinkNotifyPilot?.onEntityChanged?.(base,kind);
   if(kind==='event')window.NexusTravel?.scheduleAutoGarage?.(base.id);
   closeModal();render();toast(existing?'Modifications enregistrées':'Élément enregistré');
   if(kind==='note')noteDetail(base.id);
@@ -820,9 +825,13 @@ function eventDetail(id){
  const person=data.contacts.find(p=>p.id===e.personId);
  const note=data.notes.find(n=>n.id===e.noteId);
  const project=data.projects.find(p=>p.id===e.projectId);
- const notificationLabel=Array.isArray(e.reminderMinutes)?
-  (normalizeEventReminders(e.reminderMinutes).map(m=>eventReminderLabel(m)).join(', ')||'Aucune notification')+' avant':
-  'Anciennes préférences de notification';
+ const notificationLabel=window.NexusLinkNotifyPilot?.active?.()&&e.linkNotificationSchedule?
+  (e.linkNotificationSchedule.enabled?
+   e.linkNotificationSchedule.rules.length+' notification(s) personnalisée(s) via LINK':
+   'Notifications LINK désactivées'):
+  Array.isArray(e.reminderMinutes)?
+   (normalizeEventReminders(e.reminderMinutes).map(m=>eventReminderLabel(m)).join(', ')||'Aucune notification')+' avant':
+   'Anciennes préférences de notification';
  modal('Rendez-vous',`<div class="eyebrow">AGENDA</div><div class="detail-head"><h2>${escapeHtml(e.title)}</h2></div>
   <div class="detail-content">${svg('calendar')} ${formatDate(e.start,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${escapeHtml(e.start?.slice(11,16)||'')}
   ${e.location?`\\n${svg('pin')} ${escapeHtml(e.location)}`:''}
@@ -958,7 +967,11 @@ async function deleteEntity(kind,id){
  const key={note:'notes',event:'events',task:'tasks',contact:'contacts',
   project:'projects',purchase:'purchases',transaction:'transactions'}[kind];
  if(!key)return;
+ const previousNotify=(kind==='event'||kind==='task')?data[key].find(x=>x.id===id):null;
  await window.NexusRecycle?.remove?.(key,id);
+ // Do not cancel if deletion was refused or cancelled.
+ if(previousNotify&&!data[key].some(x=>x.id===id))
+  void window.NexusLinkNotifyPilot?.onEntityRemoved?.(previousNotify,kind);
 }
 document.addEventListener('click',async event=>{
  const navigation=event.target.closest('[data-nav]');
@@ -1097,7 +1110,7 @@ document.addEventListener('click',async event=>{
  if(kind==='delete-event')await deleteEntity('event',id);
  if(kind==='delete-task')await deleteEntity('task',id);
  if(kind==='delete-contact')await deleteEntity('contact',id);
- if(kind==='toggle-task'){const t=data.tasks.find(x=>x.id===id);if(t){t.done=!t.done;await persist();closeModal();render();toast(t.done?'Rappel terminé':'Rappel réactivé');}}
+ if(kind==='toggle-task'){const t=data.tasks.find(x=>x.id===id);if(t){t.done=!t.done;await persist();if(t.linkNotificationSchedule)void window.NexusLinkNotifyPilot?.onEntityChanged?.(t,'task');closeModal();render();toast(t.done?'Rappel terminé':'Rappel réactivé');}}
  if(kind==='calendar-prev'){calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()-1,1);render();}
  if(kind==='calendar-next'){calendarMonth=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+1,1);render();}
  if(kind==='calendar-day'){selectedDay=action.dataset.day;render();}
