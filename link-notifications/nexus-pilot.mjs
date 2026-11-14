@@ -87,12 +87,27 @@ async function write(key,value){
   tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
  });
 }
+async function pendingKeys(){
+ const handle=await db();
+ return new Promise((resolve,reject)=>{
+  const r=handle.transaction(DB_TABLE,"readonly").objectStore(DB_TABLE).getAllKeys();
+  r.onsuccess=()=>resolve(r.result.filter(x=>typeof x==="string"&&
+   x.startsWith("pending:entity:")).slice(0,128));
+  r.onerror=()=>reject(r.error);
+ });
+}
+let identityPromise=null;
 async function secret(){
- const saved=await read("hmac-secret");
- if(saved)return saved;
- const created=newNotificationIdentitySecret();
- await write("hmac-secret",created);
- return created;
+ if(!identityPromise){
+  identityPromise=(async()=>{
+   const saved=await read("hmac-secret");
+   if(saved)return saved;
+   const created=newNotificationIdentitySecret();
+   await write("hmac-secret",created);
+   return created;
+  })().catch(error=>{identityPromise=null;throw error});
+ }
+ return identityPromise;
 }
 function serial(key,callback){
  const previous=queues.get(key)||Promise.resolve();
@@ -112,38 +127,71 @@ async function configureStagingCredential(value){
  // A separate staging-only Hub enrollment is REQUIRED. Do not import the
  // existing production token from link-hub-adapter.js.
  await write("stagingCredential",value);
+ // Resume durable local pending work once the isolated enrollment exists.
+ void retryPending().catch(e=>console.warn("LINK pilot: pending retry deferred",e));
 }
 async function forgetStagingCredential(){
  await write("stagingCredential",null);
 }
+async function transmit(key,target){
+ const old=await read(key)||emptyEntityNotificationState();
+ const planned=await planEntityNotifications({
+  secret:await secret(),appId:"nexus",entityId:target.entityId,
+  schedule:target.schedule,eventAt:target.eventAt,
+  category:target.category,previous:old
+ });
+ // Persist epochs before any network request, also for zero-delta changes.
+ let state=planned.state;
+ await write(key,state);
+ if(!planned.changes.length){
+  await write("pending:"+key,null);
+  return {status:"unchanged",writes:0};
+ }
+ const token=await credential();
+ if(!token)return {status:"local-only",pending:planned.changes.length};
+ const client=createLinkNotificationClient({
+  endpoint:STAGING,credentialProvider:async()=>token
+ });
+ await client.flush({changes:planned.changes,onAck:async change=>{
+  state=applyEntityNotificationAck(state,change);
+  await write(key,state);
+ }});
+ await write("pending:"+key,null);
+ return {status:"synced",writes:planned.changes.length};
+}
 async function sync(item,kind,{removed=false}={}){
  if(!pilot())return {status:"disabled"};
  if(!["event","task"].includes(kind)||!item?.id)return {status:"invalid"};
- return serial(idOf(item,kind),async()=>{
-  const key=idOf(item,kind),old=await read(key)||emptyEntityNotificationState();
+ const key=idOf(item,kind);
+ return serial(key,async()=>{
   const raw=removed?emptyNotificationSchedule():enabledSchedule(item,kind);
-  const config=kind==="task"&&item.done?{...raw,enabled:false}:raw;
-  const planned=await planEntityNotifications({
-   secret:await secret(),appId:"nexus",entityId:item.id,
-   schedule:config,eventAt:eventAt(item,kind),
-   category:kind==="event"?"appointment":"reminder",previous:old
-  });
-  // CRITICAL: persist new HMAC epochs before even attempting a network request.
-  // This prevents repeated retries from generating orphan intent IDs.
-  let state=planned.state;
-  await write(key,state);
-  if(!planned.changes.length)return {status:"unchanged",writes:0};
-  const token=await credential();
-  if(!token)return {status:"local-only",pending:planned.changes.length};
-  const client=createLinkNotificationClient({
-   endpoint:STAGING,credentialProvider:async()=>token
-  });
-  await client.flush({changes:planned.changes,onAck:async change=>{
-   state=applyEntityNotificationAck(state,change);
-   await write(key,state);
-  }});
-  return {status:"synced",writes:planned.changes.length};
+  const target={
+   entityId:item.id,
+   kind,
+   schedule:kind==="task"&&item.done?{...raw,enabled:false}:raw,
+   eventAt:eventAt(item,kind),
+   category:kind==="event"?"appointment":"reminder"
+  };
+  // A private local outbox records the most recent desired state, not a
+  // business title, content, or push subscription. It is retried only on
+  // explicit edits, reconnection, visibility or staging enrollment.
+  await write("pending:"+key,target);
+  return transmit(key,target);
  });
+}
+async function retryPending(){
+ if(!pilot()||!await credential())return {retried:0};
+ let retried=0;
+ for(const pendingKey of await pendingKeys()){
+  const key=pendingKey.slice("pending:".length);
+  await serial(key,async()=>{
+   const target=await read(pendingKey);
+   if(!target)return;
+   await transmit(key,target);
+   retried++;
+  });
+ }
+ return {retried};
 }
 async function onEntityChanged(item,kind){
  try{return await sync(item,kind)}
@@ -175,8 +223,12 @@ const adapter=Object.freeze({
  active:pilot,mount,readFromForm,
  onEntityChanged,onEntityRemoved,
  configureStagingCredential,forgetStagingCredential,
- retryEntity:onEntityChanged
+ retryEntity:onEntityChanged,retryPending
 });
 window.NexusLinkNotifyPilot=adapter;
-// No background polling. An app reconnection merely lets a user-triggered
-// retry run; this pilot does not scan business data or call D1 on focus.
+// Event-driven offline recovery. No interval, cron, or global business-data
+// scan: if the local outbox is empty this makes ZERO LINK/D1 requests.
+window.addEventListener("online",()=>void retryPending().catch(()=>{}));
+document.addEventListener("visibilitychange",()=>{
+ if(!document.hidden)void retryPending().catch(()=>{});
+});
