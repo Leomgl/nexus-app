@@ -3,14 +3,13 @@
 (() => {
   const CATEGORIES=[
     {id:'interface',label:'Apparence et interface',detail:'Thèmes, navigation, accueil Pulse',icon:'sliders',keywords:'widgets densité palette raccourcis home'},
-    {id:'notifications',label:'Notifications',detail:'Alertes, rappels et échéances',icon:'clock',keywords:'push budget salaire prêt facture anniversaire agenda'},
-    {id:'apps',label:'Applications connectées',detail:'LINK centralise les connexions et permissions',icon:'link',keywords:'jumelage autorisations liens synchronisation connect'},
+    {id:'link',label:'LINK',detail:'Notifications, connexions et autorisations',icon:'link',keywords:'notifications push rappels échéances budget salaire prêt agenda applications connectées autorisations jumelage automatisation synchronisation'},
     {id:'security',label:'Sécurité et confidentialité',detail:'Face ID, passkeys et protection',icon:'shield',keywords:'connexion verrouillage authentification'},
     {id:'data',label:'Données et sauvegardes',detail:'Coffre, export, import et corbeille',icon:'download',keywords:'restauration synchronisation réinitialiser suppression'},
     {id:'about',label:'À propos de Nexus',detail:'Version et mises à jour',icon:'info',keywords:'actualiser pwa maintenance'}
   ];
   const APP_LABELS={gaming:'Gaming',rituel:'Rituel',vestiaire:'Vestiaire',health:'Santé'};
-  let page='home',search='';
+  let page='home',search='',canaryFeedback='',canaryBusy=false;
   let env=null;
   const e=s=>env.escape(s);
   const ico=s=>env.svg(s);
@@ -80,45 +79,50 @@
   function linkNotificationsCanaryPanel(){
     if(!liveCanaryAvailable())return '';
     const active=liveCanaryActive();
-    return panel('LINK · Notifications centralisées',
-      'Test des rendez-vous et rappels par le moteur du vrai LINK.','link',
-      '<div class="nx-set-info-row"><strong>Mode de test</strong><small>'+
-      (active?'Activé pour ce Nexus uniquement':'Désactivé · aucun nouvel événement transmis à LINK')+
-      '</small></div>'+
+    const state=active?'Activé · notifications programmées via LINK pour les nouveaux événements':
+      'Désactivé · tes notifications actuelles restent inchangées';
+    return panel('Notifications · Moteur LINK',
+      'Un seul distributeur pour les rappels des applications.','clock',
+      '<div class="nx-set-info-row"><strong>Mode de recette Nexus</strong><small>'+e(state)+'</small></div>'+
       action(active?'Quitter le test LINK':'Tester les notifications via le vrai LINK',
         'settings-link-notifications-toggle','clock','btn btn-neutral btn-small')+
+      (active?
+        '<div class="nx-set-info-row"><strong>Connexion et file locale</strong><small role="status" aria-live="polite">'+
+        e(canaryFeedback||'Vérifie la connexion depuis cette rubrique. Aucun contrôle automatique permanent.')+
+        '</small></div>'+
+        action('Vérifier la connexion','settings-link-notifications-status','refresh')+' '+
+        action('Relancer la synchronisation','settings-link-notifications-retry','refresh'):
+        '')+
       '<p class="pref-hint">'+(active?
-        'Crée un nouveau rendez-vous et configure Me notifier. Les événements existants ne sont pas migrés.':
-        'Activation volontaire, sans nouvelle inscription ni transfert de tes données. Les alertes déjà programmées ne sont pas modifiées.')+
+        'Crée un nouveau rendez-vous et choisis tes alertes dans Me notifier. Les anciens rendez-vous ne sont pas migrés.':
+        'Active uniquement pour les tests. Les autorisations iPhone et les abonnements Web Push restent gérés dans LINK.')+
       '</p>');
-  }
-  function notificationsPage(){
-    return '<div class="nx-set-stack">'+linkNotificationsCanaryPanel()+panel('Notifications iPhone','Toutes les alertes de Nexus au même endroit.','clock',
-      option('Gérer les notifications','Autorisation iOS, test push, confidentialité et catégories actives.','push-settings','Configurer','sliders')+
-      '<p class="pref-hint">Les notifications push fonctionnent sur la PWA installée, avec ton autorisation. Les alertes déjà programmées peuvent arriver après une modification hors connexion.</p>')+
-      panel('Catégories','Personnalise les alertes selon leur origine.','layers',
-      '<div class="nx-set-info-row"><strong>Agenda</strong><small>Rendez-vous, heure et rappels propres à chaque événement</small></div>'+
-      '<div class="nx-set-info-row"><strong>Rappels</strong><small>Échéances et tâches à accomplir</small></div>'+
-      '<div class="nx-set-info-row"><strong>Budget</strong><small>Salaires, prêts, abonnements et factures · J-2 et jour J par défaut</small></div>'+
-      '<p class="pref-hint">Pour modifier les jours d’alerte d’une dépense ou d’un revenu précis, ouvre sa récurrence dans Budget → Engagements.</p>')+'</div>';
   }
   function linked(id){
     const pairs=env.data.linkConnections||[];
     return pairs.some(p=>p.sourceApp===id && (id!=='rituel'||!p.scopes?.includes('trip_context')));
   }
-  function appsPage(){
+  function linkPage(){
     const vest=linked('vestiaire'),rit=linked('rituel'),gaming=linked('gaming');
-    return '<div class="nx-set-stack">'+linkNotificationsCanaryPanel()+panel('LINK · Centre de contrôle','Permissions, état et diagnostic des connexions inter-applications.','link',
-      '<p class="pref-hint">Les échanges chiffrés passent uniquement par LINK. Les clés sont générées localement, sans ancien relais.</p><a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Gérer dans LINK ↗</a>')+
-      panel('Paramètres des applications','Réglages métier et autorisations des applications connectées.','link',
-      '<div class="nx-set-app-list">'+
-      link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Clé LINK locale':'À vérifier dans LINK')+
-      link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Clé LINK locale':'À vérifier dans LINK')+
-      link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Clé LINK locale':'À vérifier dans LINK')+
-      link('Santé','Suivi des traitements et agenda','shield','app:health',linked('sante')?'Clé LINK locale':'À vérifier dans LINK')+
-      '</div><p class="pref-hint">Chaque application conserve sa propre base de données. Les échanges chiffrés sont pilotés par LINK. Aucun ancien relais n’est utilisé.</p>')+
-      panel('Automatisations','Décide ce qui est reçu ou inscrit au Budget.','refresh',
-        '<div class="nx-set-app-list">'+link('Connect 2.0','Réception et inscriptions budgétaires autorisées','sliders','apps-automation')+'</div>')+'</div>';
+    return '<div class="nx-set-stack">'+
+      panel('LINK · Centre technique','Une seule passerelle pour les connexions, les appareils et les notifications.','link',
+        '<p class="pref-hint">Les échanges chiffrés et les autorisations sont pilotés par LINK. Les données de Nexus restent dans Nexus.</p>'+
+        '<a class="btn btn-soft btn-small" href="https://link-app.q9pfwtztsc.workers.dev/" target="_blank" rel="noopener noreferrer">Ouvrir LINK · Appareils et autorisations</a>')+
+      linkNotificationsCanaryPanel()+
+      panel('Notifications Nexus','Préférences conservées pendant le passage au moteur central.','clock',
+        option('Paramètres de notifications Nexus','Préférences iOS et anciens rappels Nexus, conservés jusqu’à la fin de la migration.','push-settings','Configurer','sliders')+
+        '<div class="nx-set-info-row"><strong>Rendez-vous et rappels</strong><small>Dans le mode test, choisis de 1 à 5 alertes directement dans Me notifier.</small></div>'+
+        '<div class="nx-set-info-row"><strong>Budget</strong><small>Échéances et récurrences : réglages conservés dans Budget → Engagements.</small></div>')+
+      panel('Applications','Connexions et réglages propres à chaque application.','link',
+        '<div class="nx-set-app-list">'+
+        link('Gaming','Bibliothèque, passes et propositions','bolt','app:gaming',gaming?'Clé LINK locale':'À vérifier dans LINK')+
+        link('Rituel','Soins, achats et trousse de voyage','sparkle','app:rituel',rit?'Clé LINK locale':'À vérifier dans LINK')+
+        link('Vestiaire','Tenues et suggestions contextuelles','users','app:vestiaire',vest?'Clé LINK locale':'À vérifier dans LINK')+
+        link('Santé','Traitements du jour et agenda','shield','app:health',linked('sante')?'Clé LINK locale':'À vérifier dans LINK')+
+        '</div><p class="pref-hint">Les autorisations techniques restent centralisées dans LINK ; les paramètres métier restent dans chaque application.</p>')+
+      panel('Automatisations','Réception des propositions et inscriptions budgétaires autorisées.','refresh',
+        '<div class="nx-set-app-list">'+link('Connect 2.0','Réception, examen et suivi budgétaire','sliders','apps-automation')+'</div>')+
+      '</div>';
   }
   function appPage(id){
     if(id==='health'){
@@ -169,23 +173,47 @@
     if(page==='home')return home();
     const current=routes.find(x=>x.id===page);
     const isApp=page.startsWith('app:'),isNested=isApp||page==='apps-automation'||page==='data-advanced';
-    const back=isApp||page==='apps-automation'?'apps':page==='data-advanced'?'data':'home';
+    const back=isApp||page==='apps-automation'?'link':page==='data-advanced'?'data':'home';
     const title=current?.label||'Réglages';
     let body='';
     if(page==='interface')body=interfacePage();
-    if(page==='notifications')body=notificationsPage();
-    if(page==='apps')body=appsPage();
+    if(page==='link')body=linkPage();
     if(isApp)body=appPage(page.slice(4));
     if(page==='apps-automation')body=window.NexusConnect2?.settingsCard?.()||'';
     if(page==='security')body=securityPage();
     if(page==='data')body=dataPage();
     if(page==='data-advanced')body=advancedPage();
     if(page==='about')body=aboutPage();
-    return '<div class="nx-set-subpage"><button type="button" class="nx-set-back" data-action="settings-open" data-page="'+back+'">'+ico('chevleft')+e(isNested?(back==='apps'?'Applications connectées':'Données et sauvegardes'):'Réglages')+'</button>'+
+    return '<div class="nx-set-subpage"><button type="button" class="nx-set-back" data-action="settings-open" data-page="'+back+'">'+ico('chevleft')+e(isNested?(back==='link'?'LINK':'Données et sauvegardes'):'Réglages')+'</button>'+
       '<div class="nexus-page-heading nx-set-subhead"><div class="eyebrow">NEXUS · RÉGLAGES</div><h1 class="page-title">'+e(title)+'<span class="punctuation">.</span></h1><p class="subtitle">'+e(current?.detail||'')+'</p></div>'+
       body+'<p class="nx-set-footer">NEXUS · V'+e(env.version)+'</p></div>';
   }
+  function updateCanaryStatus(message){
+    canaryFeedback=message;
+    if(page==='link')env?.render?.();
+  }
+  async function inspectCanary({retry=false}={}){
+    if(canaryBusy||!liveCanaryActive())return;
+    canaryBusy=true;
+    updateCanaryStatus(retry?'Reprise des changements locaux…':'Vérification locale de la connexion…');
+    try{
+      const pilot=window.NexusLinkNotifyPilot;
+      if(pilot?.mode?.()!=='live'||!pilot?.status)
+        throw Error('Module notifications LINK indisponible. Mets Nexus à jour.');
+      const outcome=retry?await pilot.retryPending():null;
+      const status=await pilot.status();
+      updateCanaryStatus((status.linked?'Nexus ↔ LINK détecté.':'Connexion Hub absente. Ouvre LINK pour vérifier l’inscription.')+
+        ' File locale : '+status.pending+' changement(s) en attente.'+
+        (outcome?' '+outcome.retried+' repris.':''));
+    }catch(error){
+      updateCanaryStatus('Vérification indisponible : '+String(error?.message||'Réessaie.').slice(0,110));
+    }finally{canaryBusy=false;}
+  }
   function act(kind,target){
+    if(kind==='settings-link-notifications-status'||kind==='settings-link-notifications-retry'){
+      void inspectCanary({retry:kind==='settings-link-notifications-retry'});
+      return true;
+    }
     if(kind==='settings-link-notifications-toggle'){
       // Only canonical Nexus may opt into the real LINK canary. This changes
       // the URL mode, never the private Hub credential or an iOS subscription.
@@ -203,7 +231,9 @@
       return true;
     }
     if(kind!=='settings-open')return false;
-    const next=target?.dataset?.page;
+    const requested=target?.dataset?.page;
+    // Old deep-links remain valid without restoring duplicate navigation tabs.
+    const next=['notifications','apps'].includes(requested)?'link':requested;
     if(next!=='home'&&!routes.some(x=>x.id===next))return true;
     page=next;search='';env?.render?.();
     window.scrollTo?.({top:0,behavior:'instant'});
