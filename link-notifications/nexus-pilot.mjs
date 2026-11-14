@@ -155,7 +155,7 @@ async function enrollStagingInvitation(value){
 }
 
 async function resumeInflight(key){
- const outstanding=await read("inflight:"+key);
+ let outstanding=await read("inflight:"+key);
  if(!outstanding)return {status:"clear"};
  const token=await credential();
  if(!token)return {status:"local-only",phase:"inflight"};
